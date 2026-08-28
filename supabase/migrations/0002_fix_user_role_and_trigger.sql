@@ -1,20 +1,23 @@
--- 1. Create the user_role enum if it does not exist
+-- 1. Drop existing trigger
+drop trigger if exists on_auth_user_created on auth.users;
+
+-- 2. Ensure user_role enum exists
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'user_role') then
     create type public.user_role as enum ('admin', 'doctor', 'nurse', 'receptionist', 'staff');
   end if;
+exception
+  when duplicate_object then null;
 end $$;
 
--- 2. Drop the old trigger and recreate the function with safe fallback
-drop trigger if exists on_auth_user_created on auth.users;
-
+-- 3. Recreate function
 create or replace function public.handle_new_user()
 returns trigger as $$
 declare
   default_clinic_id uuid;
+  assigned_role text;
 begin
-  -- Find an existing clinic or create a default one
   select id into default_clinic_id from public.clinics order by created_at asc limit 1;
   
   if default_clinic_id is null then
@@ -28,13 +31,14 @@ begin
     returning id into default_clinic_id;
   end if;
 
-  -- Insert profile
+  assigned_role := coalesce(new.raw_user_meta_data->>'role', 'admin');
+
   insert into public.profiles (id, clinic_id, full_name, role)
   values (
     new.id,
     default_clinic_id,
     coalesce(new.raw_user_meta_data->>'full_name', 'New User'),
-    coalesce((new.raw_user_meta_data->>'role')::public.user_role, 'admin'::public.user_role)
+    assigned_role
   )
   on conflict (id) do update set
     clinic_id = excluded.clinic_id,
@@ -43,14 +47,9 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
--- 3. Re-enable trigger
+-- 4. Re-enable trigger
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
-
--- 4. Ensure a base clinic exists
-insert into public.clinics (name, address, phone, timezone)
-select 'VitalSync Primary Clinic', 'Chennai, India', '+91 99999 99999', 'Asia/Kolkata'
-where not exists (select 1 from public.clinics);
