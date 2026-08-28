@@ -31,7 +31,7 @@ export default async function AppointmentsPage({
     .order("start_time", { ascending: true });
 
   // For the list view, filter to upcoming/recent appointments (last 24h onwards)
-  const recentAndUpcomingApps = (appointments ?? []).filter((a) => {
+  const recentAndUpcomingApps = ((appointments as any[]) ?? []).filter((a: any) => {
     return new Date(a.start_time) >= new Date(Date.now() - 24 * 60 * 60 * 1000);
   }).slice(0, 50);
 
@@ -47,22 +47,20 @@ export default async function AppointmentsPage({
           <div className="flex items-center bg-surface-container-low p-1 rounded-lg border border-outline-variant">
             <Link
               href="/appointments?view=list"
-              className={`px-sm py-1.5 rounded-md text-label-md transition-colors flex items-center gap-1 ${
-                currentView !== "calendar"
+              className={`px-sm py-1.5 rounded-md text-label-md transition-colors flex items-center gap-1 ${currentView !== "calendar"
                   ? "bg-surface text-primary shadow-sm font-semibold"
                   : "text-on-surface-variant hover:text-on-surface"
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined text-[18px]">format_list_bulleted</span>
               List
             </Link>
             <Link
               href="/appointments?view=calendar"
-              className={`px-sm py-1.5 rounded-md text-label-md transition-colors flex items-center gap-1 ${
-                currentView === "calendar"
+              className={`px-sm py-1.5 rounded-md text-label-md transition-colors flex items-center gap-1 ${currentView === "calendar"
                   ? "bg-surface text-primary shadow-sm font-semibold"
                   : "text-on-surface-variant hover:text-on-surface"
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined text-[18px]">calendar_month</span>
               Calendar
@@ -80,7 +78,7 @@ export default async function AppointmentsPage({
       </div>
 
       {currentView === "calendar" ? (
-        <AppointmentCalendar initialAppointments={appointments ?? []} />
+        <AppointmentCalendar initialAppointments={(appointments as any) ?? []} />
       ) : (
         <div className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
