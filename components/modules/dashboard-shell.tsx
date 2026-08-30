@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
 import {
   LayoutDashboard,
@@ -17,8 +17,16 @@ import {
   HelpCircle,
   Plus,
   LogOut,
+  X,
+  CheckCircle2,
+  Zap,
+  ExternalLink,
+  MessageSquare,
+  FileQuestion,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -31,7 +39,7 @@ const navItems = [
 ];
 
 export function DashboardShell({
-  userName = "Dr. Sarah Jenkins",
+  userName = "Admin",
   userRole = "admin",
   avatarUrl,
   children,
@@ -42,6 +50,68 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const [notifications, setNotifications] = useState([
+    { id: "1", title: "New Patient Registered", desc: "Patient record created successfully", time: "10 mins ago", unread: true },
+    { id: "2", title: "Upcoming Appointment", desc: "Consultation scheduled for today", time: "25 mins ago", unread: true },
+    { id: "3", title: "Clinical Notice", desc: "System audit log updated", time: "1 hour ago", unread: false },
+  ]);
+
+  const unreadCount = notifications.filter((n) => n.unread).length;
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setIsSearchOpen(true);
+      }
+      if (e.key === "Escape") {
+        setIsSearchOpen(false);
+        setIsNotificationsOpen(false);
+        setIsSupportOpen(false);
+        setIsUpgradeOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await supabase.auth.signOut();
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("Sign out error:", err);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  };
+
+  const avatarInitials = (userName || "A")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-sans">
@@ -82,11 +152,18 @@ export function DashboardShell({
           </Button>
 
           <div className="space-y-1 text-xs font-medium text-slate-500">
-            <Link href="/settings" className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-slate-50">
+            <button
+              onClick={() => setIsSupportOpen(true)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-slate-50 text-slate-600 text-left transition"
+            >
               <HelpCircle className="w-4 h-4 text-slate-400" /> Support
-            </Link>
-            <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600">
-              <LogOut className="w-4 h-4" /> Sign Out
+            </button>
+            <button
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 text-left transition"
+            >
+              <LogOut className="w-4 h-4" /> {isSigningOut ? "Signing out..." : "Sign Out"}
             </button>
           </div>
         </div>
@@ -94,43 +171,233 @@ export function DashboardShell({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 shrink-0">
+        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 shrink-0 relative z-20">
           <div className="flex items-center gap-6">
             <h1 className="text-sm font-bold text-slate-900 tracking-tight">MedFlow Admin</h1>
+
+            {/* Global Search */}
             <div className="relative w-80">
               <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Search patients, doctors, records..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2563eb]"
+                value={searchQuery}
+                onFocus={() => setIsSearchOpen(true)}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search patients, doctors, records... (Ctrl + K)"
+                className="w-full pl-8 pr-12 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2563eb]"
               />
+              <kbd className="absolute right-2.5 top-2.5 text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded border border-slate-300 font-mono">
+                ⌘K
+              </kbd>
+
+
+              {isSearchOpen && searchQuery.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-slate-200 shadow-xl p-3 z-50">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100 text-[11px] font-semibold text-slate-400">
+                    <span>Quick Navigation</span>
+                    <button
+                      onClick={() => setIsSearchOpen(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                      aria-label="Close search"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <div className="space-y-1 mt-2 max-h-60 overflow-y-auto">
+                    <Link
+                      href={`/patients?q=${encodeURIComponent(searchQuery)}`}
+                      onClick={() => setIsSearchOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 text-xs text-slate-700"
+                    >
+                      <User className="w-3.5 h-3.5 text-[#2563eb]" /> Search Patients matching &ldquo;{searchQuery}&rdquo;
+                    </Link>
+                    <Link
+                      href={`/appointments?q=${encodeURIComponent(searchQuery)}`}
+                      onClick={() => setIsSearchOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 text-xs text-slate-700"
+                    >
+                      <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Search Appointments matching &ldquo;{searchQuery}&rdquo;
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50">
-              <Bell className="w-4 h-4" />
-            </button>
-            <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50">
+            {/* Notifications */}
+            <div className="relative">
+              <button
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 relative transition"
+                aria-label="Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
+                )}
+              </button>
+
+              {isNotificationsOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-slate-200 shadow-xl p-4 z-50">
+                  <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
+                    <span className="text-xs font-bold text-slate-900">Notifications ({unreadCount})</span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllNotificationsAsRead}
+                        className="text-[11px] font-semibold text-[#2563eb] hover:underline"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                    {notifications.map((n) => (
+                      <div key={n.id} className="py-2.5 text-xs space-y-0.5">
+                        <div className="flex items-center justify-between font-semibold text-slate-800">
+                          <span>{n.title}</span>
+                          {n.unread && <span className="w-1.5 h-1.5 rounded-full bg-[#2563eb]" />}
+                        </div>
+                        <p className="text-slate-500 text-[11px]">{n.desc}</p>
+                        <span className="text-[10px] text-slate-400 block">{n.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setIsSupportOpen(true)}
+              className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition"
+              aria-label="Help & Support"
+            >
               <HelpCircle className="w-4 h-4" />
             </button>
-            <span className="text-xs font-medium text-slate-400">|</span>
-            <button className="text-xs font-medium text-slate-600 hover:text-slate-900">Support</button>
-            <button className="px-3 py-1 text-xs font-semibold border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50">
-              Upgrade
+
+            <span className="text-xs font-medium text-slate-300">|</span>
+
+            <button
+              onClick={() => setIsSupportOpen(true)}
+              className="text-xs font-medium text-slate-600 hover:text-slate-900 transition"
+            >
+              Support
             </button>
-            <div className="w-7 h-7 rounded-full bg-slate-200 overflow-hidden ml-1 border border-slate-300">
-              <img
-                src={avatarUrl || "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=100"}
-                alt={userName}
-                className="w-full h-full object-cover"
-              />
-            </div>
+
+            <button
+              onClick={() => setIsUpgradeOpen(true)}
+              className="px-3 py-1 text-xs font-semibold border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 flex items-center gap-1 transition"
+            >
+              <Zap className="w-3 h-3 text-amber-500 fill-amber-500" /> Upgrade
+            </button>
+
+            {/* Avatar — click to sign out */}
+            <button
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              title={`${userName} — click to sign out`}
+              className="w-7 h-7 rounded-full overflow-hidden ml-1 border border-slate-300 flex items-center justify-center bg-slate-800 text-white text-[10px] font-bold hover:opacity-80 transition shrink-0"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={userName} className="w-full h-full object-cover" />
+              ) : (
+                avatarInitials
+              )}
+            </button>
           </div>
         </header>
 
         <main className="flex-1 p-8 overflow-y-auto">{children}</main>
       </div>
+
+
+      {/* Support Modal */}
+      {isSupportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-[#2563eb]" />
+                <h3 className="font-bold text-slate-900 text-sm">MedFlow Clinic Support</h3>
+              </div>
+              <button onClick={() => setIsSupportOpen(false)} className="text-slate-400 hover:text-slate-600" aria-label="Close support">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-xs">
+              <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-100 space-y-1">
+                <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-[#2563eb]" /> 24/7 Clinical Support Desk
+                </div>
+                <p className="text-slate-600">Email: support@medflow.clinic</p>
+                <p className="text-slate-600">Clinical Desk Toll-Free: +91 (800) 492-3829</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="font-bold text-slate-700">Clinical Documentation</div>
+                <div className="p-3 rounded-lg border border-slate-100 flex items-center justify-between text-slate-700">
+                  <span className="flex items-center gap-2 font-medium">
+                    <FileQuestion className="w-4 h-4 text-slate-400" /> HIPAA Security & Audit Compliance Guide
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 text-right">
+              <Button onClick={() => setIsSupportOpen(false)} size="sm" className="bg-[#2563eb] text-white">
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade Modal */}
+      {isUpgradeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
+                <h3 className="font-bold text-slate-900 text-sm">Upgrade MedFlow Clinic Plan</h3>
+              </div>
+              <button onClick={() => setIsUpgradeOpen(false)} className="text-slate-400 hover:text-slate-600" aria-label="Close upgrade">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-xs">
+              <div className="p-4 rounded-xl border-2 border-[#2563eb] bg-blue-50/30 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-sm text-slate-900">MedFlow Enterprise</span>
+                  <span className="font-bold text-base text-[#2563eb]">₹4,999/mo</span>
+                </div>
+                <p className="text-slate-600">Complete multi-doctor clinical operations with automated triage.</p>
+                <div className="space-y-1.5 pt-2 text-slate-700">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Unlimited Patients & Consultations
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Automated Appointment WhatsApp/SMS Alerts
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Full HIPAA Audit Trail & Analytics
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setIsUpgradeOpen(false)} size="sm">
+                Cancel
+              </Button>
+              <Button onClick={() => setIsUpgradeOpen(false)} size="sm" className="bg-[#2563eb] text-white">
+                Proceed
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
