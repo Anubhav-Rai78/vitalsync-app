@@ -174,47 +174,66 @@ export function ClinicSettingsForm({
       )}
 
       {tab === "Staff" && (
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-surface-container-low border-b border-outline-variant">
-              <tr>
-                <th className="py-sm px-md text-label-sm text-on-surface-variant">Name</th>
-                <th className="py-sm px-md text-label-sm text-on-surface-variant">Role</th>
-                <th className="py-sm px-md text-label-sm text-on-surface-variant">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant text-body-sm">
-              {staff.map((s) => (
-                <tr key={s.id}>
-                  <td className="py-sm px-md">{s.full_name}</td>
-                  <td className="py-sm px-md">
-                    <select
-                      value={s.role}
-                      disabled={isUpdatingStaff}
-                      onChange={(e) => {
-                        const nextRole = e.target.value as UserRole;
-                        startUpdateStaffTransition(() => updateStaffRoleAction(s.id, nextRole));
-                      }}
-                      className="bg-surface-container-lowest border border-outline-variant rounded px-sm py-1 text-body-sm focus:outline-none focus:border-primary disabled:opacity-50"
-                    >
-                      <option value="admin">Admin</option>
-                      <option value="doctor">Doctor</option>
-                      <option value="front_desk">Front Desk</option>
-                    </select>
-                  </td>
-                  <td className="py-sm px-md">{s.is_active ? "Active" : "Inactive"}</td>
+        <div className="space-y-6">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-level-2">
+            <table className="w-full text-left">
+              <thead className="bg-surface-container-low border-b border-outline-variant">
+                <tr>
+                  <th className="py-sm px-md text-label-sm text-on-surface-variant">Name</th>
+                  <th className="py-sm px-md text-label-sm text-on-surface-variant">Role</th>
+                  <th className="py-sm px-md text-label-sm text-on-surface-variant">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-md border-t border-outline-variant">
-            <p className="text-body-sm text-on-surface-variant">
-              New staff join by registering at{" "}
-              <Link href="/register" className="text-primary hover:underline">
-                /register
-              </Link>{" "}
-              — promote or update their role here once they've signed up.
-            </p>
+              </thead>
+              <tbody className="divide-y divide-outline-variant text-body-sm">
+                {staff.map((s) => (
+                  <tr key={s.id}>
+                    <td className="py-sm px-md font-semibold text-on-surface">{s.full_name}</td>
+                    <td className="py-sm px-md">
+                      <select
+                        value={s.role}
+                        disabled={isUpdatingStaff}
+                        onChange={(e) => {
+                          const nextRole = e.target.value as UserRole;
+                          startUpdateStaffTransition(() => updateStaffRoleAction(s.id, nextRole));
+                        }}
+                        className="bg-surface-container-low border border-outline-variant rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-primary text-on-surface disabled:opacity-50"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="doctor">Doctor</option>
+                        <option value="front_desk">Front Desk</option>
+                      </select>
+                    </td>
+                    <td className="py-sm px-md">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-secondary-fixed text-on-secondary-fixed-variant">
+                        {s.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="p-md border-t border-outline-variant bg-surface-container-low/20">
+              <p className="text-body-sm text-on-surface-variant">
+                New staff join by registering at{" "}
+                <Link href="/register" className="text-primary hover:underline font-semibold">
+                  /register
+                </Link>{" "}
+                — promote or update their role here once they've signed up.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-lg bg-surface-container border border-outline-variant flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-body-md text-on-surface">HIPAA Audit & Access Logs</h4>
+              <p className="text-xs text-on-surface-variant mt-0.5">View immutable trace of clinical accesses and config scaling switches.</p>
+            </div>
+            <Link
+              href="/settings/audit-log"
+              className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition-colors"
+            >
+              View Audit Log
+            </Link>
           </div>
         </div>
       )}

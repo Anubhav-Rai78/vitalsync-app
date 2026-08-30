@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/lib/supabase/types";
 import { cn } from "@/lib/utils";
+import { MedFlowLogo } from "@/components/ui/medflow-logo";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
@@ -44,13 +45,7 @@ export function DashboardShell({
         <div className="flex flex-col h-full py-6">
           {/* Brand */}
           <div className="px-6 mb-8 flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-primary-container text-on-primary-container flex items-center justify-center">
-              <span className="material-symbols-outlined">local_hospital</span>
-            </div>
-            <div>
-              <h1 className="font-headline-sm text-headline-sm font-bold text-primary dark:text-primary-fixed">VitalSync</h1>
-              <p className="font-label-sm text-label-sm text-on-surface-variant">Admin Console</p>
-            </div>
+            <MedFlowLogo size="md" />
           </div>
 
           {/* Navigation Links */}
@@ -109,7 +104,7 @@ export function DashboardShell({
       {/* Top Navigation */}
       <header className="fixed top-0 right-0 left-64 z-40 flex justify-between items-center px-lg bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md h-16 border-b border-outline-variant dark:border-outline">
         <div className="flex items-center gap-6">
-          <h2 className="hidden md:block font-headline-sm text-headline-sm font-bold text-on-surface">VitalSync Admin</h2>
+          <h2 className="hidden md:block font-headline-sm text-headline-sm font-bold text-on-surface">MedFlow Clinic Admin</h2>
           <div className="relative w-64 md:w-96">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
               search

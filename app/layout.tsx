@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VitalSync — Clinic Management System",
-  description: "VitalSync clinic management system.",
+  title: "MedFlow Clinic",
+  description: "MedFlow Clinic Management System",
 };
 
 export default function RootLayout({

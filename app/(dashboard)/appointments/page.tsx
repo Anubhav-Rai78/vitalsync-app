@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatTime } from "@/lib/utils";
-import { AppointmentCalendar } from "@/components/modules/appointment-calendar";
+import { AppointmentCalendarGrid } from "./calendar-grid";
 
 const STATUS_STYLES: Record<string, string> = {
   scheduled: "bg-surface-variant text-on-surface-variant",
@@ -78,7 +78,7 @@ export default async function AppointmentsPage({
       </div>
 
       {currentView === "calendar" ? (
-        <AppointmentCalendar initialAppointments={(appointments as any) ?? []} />
+        <AppointmentCalendarGrid />
       ) : (
         <div className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">

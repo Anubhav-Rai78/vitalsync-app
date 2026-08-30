@@ -1,71 +1,135 @@
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/utils";
+"use client";
 
-export default async function PrescriptionsPage() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user!.id).single();
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Pill, AlertTriangle, Plus, Search, Filter } from "lucide-react";
 
-  const { data: prescriptions } = await supabase
-    .from("prescriptions")
-    .select("id, diagnosis, created_at, patients(full_name), profiles!prescriptions_doctor_id_fkey(full_name)")
-    .order("created_at", { ascending: false })
-    .limit(50);
+interface Prescription {
+  id: string;
+  patientName: string;
+  doctorName: string;
+  medication: string;
+  dosage: string;
+  frequency: string;
+  status: "active" | "dispensed" | "warning";
+  warningText?: string;
+  date: string;
+}
+
+const mockPrescriptions: Prescription[] = [
+  {
+    id: "RX-1092",
+    patientName: "Aarav Sharma",
+    doctorName: "Dr. Sarah Jenkins",
+    medication: "Atorvastatin 20mg + Aspirin 75mg",
+    dosage: "1 tab daily at bedtime",
+    frequency: "Daily for 30 days",
+    status: "active",
+    date: "2026-08-28",
+  },
+  {
+    id: "RX-1093",
+    patientName: "Meera Patel",
+    doctorName: "Dr. Arvind Patel",
+    medication: "Amoxicillin 500mg",
+    dosage: "1 capsule every 8 hours",
+    frequency: "7 Days Course",
+    status: "warning",
+    warningText: "Patient has recorded mild Penicillin sensitivity note.",
+    date: "2026-08-29",
+  },
+  {
+    id: "RX-1094",
+    patientName: "Kunal Ghosh",
+    doctorName: "Dr. Marcus Vance",
+    medication: "Ibuprofen 400mg",
+    dosage: "1 tab post meals PRN",
+    frequency: "5 Days",
+    status: "dispensed",
+    date: "2026-08-29",
+  },
+];
+
+export default function PrescriptionHistoryPage() {
+  const [prescriptions] = useState<Prescription[]>(mockPrescriptions);
 
   return (
-    <div className="space-y-lg">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-headline-lg text-on-surface">Prescriptions</h2>
-          <p className="text-body-sm text-on-surface-variant mt-xs">Prescription history across the clinic.</p>
+          <h1 className="text-headline-md font-display text-on-surface">Prescription Orders</h1>
+          <p className="text-body-sm text-on-surface-variant">
+            Dispense medications, review interaction alerts, and manage refill timelines
+          </p>
         </div>
-        {profile?.role === "doctor" && (
-          <Link
-            href="/prescriptions/new"
-            className="flex items-center gap-xs px-lg h-10 bg-primary-container text-on-primary hover:bg-primary-container/90 rounded-lg text-label-md transition-colors shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[20px]">add</span>
-            New Prescription
-          </Link>
-        )}
+
+        <Button className="bg-primary text-white flex items-center gap-2" variant="primary">
+          <Plus className="w-4 h-4" /> Issue New Prescription
+        </Button>
       </div>
 
-      <div className="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead className="bg-surface-container-low border-b border-outline-variant">
-              <tr>
-                <th className="py-sm px-md text-label-sm text-on-surface-variant font-medium">Patient</th>
-                <th className="py-sm px-md text-label-sm text-on-surface-variant font-medium">Diagnosis</th>
-                <th className="py-sm px-md text-label-sm text-on-surface-variant font-medium">Doctor</th>
-                <th className="py-sm px-md text-label-sm text-on-surface-variant font-medium">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant text-body-sm text-on-surface">
-              {(prescriptions ?? []).map((p: any) => (
-                <tr key={p.id} className="hover:bg-surface-container-lowest transition-colors">
-                  <td className="py-sm px-md">
-                    <Link href={`/prescriptions/${p.id}`} className="font-medium hover:text-primary">
-                      {p.patients?.full_name}
-                    </Link>
-                  </td>
-                  <td className="py-sm px-md text-on-surface-variant">{p.diagnosis ?? "—"}</td>
-                  <td className="py-sm px-md text-on-surface-variant">Dr. {p.profiles?.full_name}</td>
-                  <td className="py-sm px-md text-on-surface-variant">{formatDate(p.created_at)}</td>
-                </tr>
-              ))}
-              {(!prescriptions || prescriptions.length === 0) && (
-                <tr>
-                  <td colSpan={4} className="py-lg px-md text-center text-on-surface-variant">
-                    No prescriptions recorded yet.
-                  </td>
-                </tr>
+      <div className="rounded-xl border border-outline-variant bg-surface-container-lowest overflow-hidden shadow-level-2">
+        <div className="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+          <div className="relative w-72">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-outline" />
+            <input
+              type="text"
+              placeholder="Search Rx ID, Patient, Drug..."
+              className="w-full h-10 pl-9 pr-3 py-1.5 text-body-sm bg-surface-container-lowest border border-outline-variant rounded-lg"
+            />
+          </div>
+          <Button variant="secondary" size="sm" className="flex items-center gap-1.5 text-xs">
+            <Filter className="w-3.5 h-3.5" /> Filter by Status
+          </Button>
+        </div>
+
+        <div className="divide-y divide-outline-variant/60">
+          {prescriptions.map((rx) => (
+            <div key={rx.id} className="p-5 hover:bg-surface-container-low/40 transition">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Pill className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-body-md text-on-surface">{rx.medication}</span>
+                      <span className="text-xs font-mono text-outline">{rx.id}</span>
+                      {rx.status === "warning" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-error-container text-on-error-container">
+                          <AlertTriangle className="w-3 h-3" /> Interaction Risk
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-body-sm text-on-surface-variant mt-1">
+                      Patient: <strong className="text-on-surface">{rx.patientName}</strong> • Prescribed by {rx.doctorName}
+                    </p>
+                    <p className="text-xs text-outline mt-0.5">
+                      Instructions: {rx.dosage} • Duration: {rx.frequency}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-xs text-outline block">{rx.date}</span>
+                  <div className="mt-2 flex items-center justify-end gap-2">
+                    <Button variant="secondary" size="sm" className="text-xs h-8">
+                      View EHR
+                    </Button>
+                    <Button size="sm" className="text-xs h-8" variant="primary">
+                      Dispense
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {rx.warningText && (
+                <div className="mt-3 p-2.5 rounded-lg bg-error-container border border-error/20 text-xs text-on-error-container">
+                  <strong>Clinical Notice:</strong> {rx.warningText}
+                </div>
               )}
-            </tbody>
-          </table>
+            </div>
+          ))}
         </div>
       </div>
     </div>
