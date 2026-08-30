@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { loginAction, type LoginState } from "@/app/(auth)/login/actions";
+import { MedFlowLogo } from "@/components/ui/medflow-logo";
 
 const initialState: LoginState = { error: null };
 
@@ -27,11 +28,8 @@ export function LoginForm() {
       <div className="flex flex-col lg:flex-row w-full min-h-screen">
         <div className="w-full lg:w-1/2 flex items-center justify-center p-gutter bg-surface">
           <div className="w-full max-w-[440px] flex flex-col">
-            <div className="mb-xxl flex items-center gap-sm">
-              <span className="material-symbols-outlined filled text-primary" style={{ fontSize: "32px" }}>
-                medical_services
-              </span>
-              <h1 className="text-headline-sm text-primary">VitalSync</h1>
+            <div className="mb-xxl">
+              <MedFlowLogo size="lg" />
             </div>
 
             <div className="mb-xl">
@@ -55,7 +53,7 @@ export function LoginForm() {
                   className="h-[40px] px-sm bg-surface-container-low border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest focus:border-transparent transition-all text-body-md text-on-surface placeholder-outline"
                   id="email"
                   name="email"
-                  placeholder="you@vitalsync.com"
+                  placeholder="you@medflow.clinic"
                   required
                   type="email"
                 />

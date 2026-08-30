@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { PayInvoiceButton } from "@/components/modules/pay-invoice-button";
+import { MedFlowLogo } from "@/components/ui/medflow-logo";
 
 export default async function InvoiceDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -21,7 +22,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/50 p-xl">
         <div className="flex justify-between items-start mb-xl">
           <div>
-            <h2 className="text-headline-md text-primary font-bold">VitalSync</h2>
+            <MedFlowLogo size="md" />
             <p className="text-body-sm text-on-surface-variant mt-1">Invoice #{invoice.invoice_number}</p>
           </div>
           <div className="text-right">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { registerAction, type RegisterState } from "@/app/(auth)/register/actions";
+import { MedFlowLogo } from "@/components/ui/medflow-logo";
 
 const initialState: RegisterState = { error: null };
 
@@ -28,10 +29,7 @@ export function RegisterForm() {
       <div className="hidden md:flex md:w-1/2 bg-surface-container-highest relative overflow-hidden flex-col justify-between p-xxl border-r border-outline-variant">
         <div className="z-10 relative">
           <div className="flex items-center gap-sm mb-xxl">
-            <span className="material-symbols-outlined text-primary text-display" style={{ fontVariationSettings: "'FILL' 1" }}>
-              medical_services
-            </span>
-            <span className="text-headline-sm font-bold text-primary">VitalSync</span>
+            <MedFlowLogo size="lg" />
           </div>
           <h1 className="text-display text-on-surface mb-md max-w-lg">Streamline your clinic&apos;s operations.</h1>
           <p className="text-body-lg text-on-surface-variant max-w-md">
@@ -49,7 +47,7 @@ export function RegisterForm() {
         <div className="z-10 relative">
           <div className="bg-surface/90 backdrop-blur-md p-lg rounded-xl border border-outline-variant max-w-md">
             <p className="text-body-md text-on-surface italic mb-md">
-              &quot;VitalSync has transformed how we handle patient records. The intuitive interface saves us hours every week.&quot;
+              &quot;MedFlow has transformed how we handle patient records. The intuitive interface saves us hours every week.&quot;
             </p>
             <div className="flex items-center gap-md">
               <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container text-headline-sm">
@@ -67,10 +65,7 @@ export function RegisterForm() {
       <div className="w-full md:w-1/2 flex items-center justify-center p-gutter bg-surface">
         <div className="w-full max-w-md">
           <div className="md:hidden flex items-center gap-sm mb-xl justify-center">
-            <span className="material-symbols-outlined text-primary text-headline-lg-mobile" style={{ fontVariationSettings: "'FILL' 1" }}>
-              medical_services
-            </span>
-            <span className="text-headline-lg-mobile font-bold text-primary">VitalSync</span>
+            <MedFlowLogo size="lg" />
           </div>
           <div className="mb-xl text-center md:text-left">
             <h2 className="text-headline-lg text-on-surface mb-xs">Create your account</h2>
@@ -123,7 +118,7 @@ export function RegisterForm() {
                   className="w-full h-[40px] px-sm bg-surface-container-lowest border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-md text-on-surface placeholder:text-on-surface-variant/50 transition-shadow"
                   id="workEmail"
                   name="workEmail"
-                  placeholder="jane@vitalsync.com"
+                  placeholder="jane@medflow.clinic"
                   required
                   type="email"
                 />

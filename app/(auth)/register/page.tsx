@@ -23,7 +23,7 @@ export default function RegisterClinicPage() {
     <div className="min-h-screen bg-surface flex items-center justify-center p-6">
       <div className="w-full max-w-2xl bg-surface-container-lowest rounded-2xl border border-outline-variant p-8 shadow-level-3">
         <div className="flex items-center justify-between border-b border-outline-variant pb-6 mb-6">
-          <MedFlowLogo size="md" />
+          <MedFlowLogo size="lg" />
           <div className="flex items-center gap-2 text-xs font-semibold">
             <span className={`px-2.5 py-1 rounded-full ${step >= 1 ? "bg-primary text-white" : "bg-surface-container text-outline"}`}>1. Clinic</span>
             <span className="text-outline-variant">→</span>

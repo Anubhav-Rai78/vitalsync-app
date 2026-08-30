@@ -44,7 +44,7 @@ export function PayInvoiceButton({
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
-        name: "VitalSync",
+        name: "MedFlow",
         description: "Invoice payment",
         order_id: order.orderId,
         prefill: { name: patientName ?? "", email: patientEmail ?? "" },

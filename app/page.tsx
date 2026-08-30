@@ -58,7 +58,7 @@ export default async function DashboardPage() {
           </h1>
           <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-2">
             <span className="material-symbols-outlined outline-icon text-[16px]">calendar_today</span>
-            {format(new Date(), "EEEE, MMMM dd, yyyy")}
+            {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>
         </div>
         <Link
