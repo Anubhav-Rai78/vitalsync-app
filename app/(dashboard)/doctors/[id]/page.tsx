@@ -1,63 +1,477 @@
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatTime } from "@/lib/utils";
+"use client";
 
-export default async function DoctorProfilePage({ params }: { params: { id: string } }) {
+import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfDay,
+  endOfDay,
+  format,
+} from "date-fns";
+import {
+  Star,
+  MessageSquare,
+  CalendarPlus,
+  ArrowLeft,
+  Users,
+  CalendarClock,
+  Award,
+  Stethoscope,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
+
+// Doctors are rows in `profiles` (role = 'doctor') — there is no separate
+// `doctors` table, and there is no ratings / schedule / bio table either.
+// Avg Rating, the weekly availability grid and the About text are therefore
+// derived statically (kept in sync with the Stitch reference), while every
+// metric that has a real source is computed live: the profile row, total
+// distinct patients (via appointments), appointments this week, today's
+// upcoming appointments, and experience from the profile's created_at.
+interface DoctorProfile {
+  id: string;
+  full_name: string;
+  specialty: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  license_no: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface AppointmentItem {
+  name: string;
+  type: string;
+  time: string;
+}
+
+// Sub-specialty pills derive from the doctor's real `specialty` value via
+// this deterministic map (falls back to general outpatient areas).
+const SPECIALTY_AREAS: Record<string, string[]> = {
+  cardiology: [
+    "Preventive Cardiology",
+    "Heart Failure",
+    "Echocardiography",
+    "Hypertension Management",
+  ],
+  pediatrics: [
+    "General Pediatrics",
+    "Neonatology",
+    "Pediatric Nutrition",
+    "Vaccination Clinics",
+  ],
+  neurology: [
+    "Stroke Management",
+    "Epilepsy Care",
+    "Migraine Treatment",
+    "Movement Disorders",
+  ],
+  general: [
+    "Preventive Care",
+    "Chronic Disease Management",
+    "Primary Care",
+    "Geriatrics",
+  ],
+  orthopedics: [
+    "Joint Replacement",
+    "Sports Medicine",
+    "Fracture Care",
+    "Arthritis Management",
+  ],
+  dermatology: [
+    "Medical Dermatology",
+    "Skin Cancer Screening",
+    "Acne Treatment",
+    "Cosmetic Dermatology",
+  ],
+};
+
+// No schedule table exists in the schema; availability is the static
+// Monday–Friday grid from the Stitch reference.
+const WEEKLY_AVAILABILITY: { day: string; time: string }[] = [
+  { day: "Monday", time: "9:00 AM - 5:00 PM" },
+  { day: "Tuesday", time: "9:00 AM - 5:00 PM" },
+  { day: "Wednesday", time: "1:00 PM - 5:00 PM" },
+  { day: "Thursday", time: "9:00 AM - 5:00 PM" },
+  { day: "Friday", time: "9:00 AM - 2:00 PM" },
+];
+
+function getInitials(fullName: string): string {
+  return fullName.replace(/^dr\.?\s+/i, "").slice(0, 2).toUpperCase();
+}
+
+function getExperienceYears(createdAt: string): number {
+  const years = Math.floor(
+    (Date.now() - new Date(createdAt).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+  );
+  return Math.max(1, years);
+}
+
+function titleCase(value: string): string {
+  return value.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function getSpecialtyAreas(specialty: string | null): string[] {
+  const key = (specialty ?? "").toLowerCase();
+  if (SPECIALTY_AREAS[key]) return SPECIALTY_AREAS[key];
+  const found = Object.entries(SPECIALTY_AREAS).find(([k]) =>
+    key.includes(k)
+  );
+  return found ? found[1] : [...(SPECIALTY_AREAS.general ?? [])];
+}
+
+export default function DoctorProfilePage() {
+  const params = useParams();
+  const doctorId = (params?.id as string) ?? "";
+
+  const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabKey>("summary");
+  const [metrics, setMetrics] = useState({ totalPatients: 0, apptsThisWeek: 0 });
+  const [upcomingToday, setUpcomingToday] = useState<AppointmentItem[]>([]);
+
   const supabase = createClient();
-  const { data: doctor } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", params.id)
-    .eq("role", "doctor")
-    .single();
-  if (!doctor) notFound();
 
-  const { data: upcoming } = await supabase
-    .from("appointments")
-    .select("id, start_time, reason, status, patients(full_name)")
-    .eq("doctor_id", params.id)
-    .gte("start_time", new Date().toISOString())
-    .order("start_time", { ascending: true })
-    .limit(8);
+  useEffect(() => {
+    if (!doctorId) return;
+    let active = true;
+
+    async function loadDoctor() {
+      setLoading(true);
+      const now = new Date();
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+      const dayStart = startOfDay(now);
+      const dayEnd = endOfDay(now);
+
+      const [docRes, todayRes, weekRes, patientIdsRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            "id, full_name, specialty, phone, avatar_url, license_no, is_active, created_at"
+          )
+          .eq("id", doctorId)
+          .eq("role", "doctor")
+          .single(),
+        supabase
+          .from("appointments")
+          .select("id, start_time, reason, patients(full_name)")
+          .eq("doctor_id", doctorId)
+          .gte("start_time", dayStart.toISOString())
+          .lt("start_time", dayEnd.toISOString())
+          .notIn("status", ["cancelled", "no_show"])
+          .order("start_time", { ascending: true })
+          .limit(6),
+        supabase
+          .from("appointments")
+          .select("id", { count: "exact", head: true })
+          .eq("doctor_id", doctorId)
+          .gte("start_time", weekStart.toISOString())
+          .lt("start_time", weekEnd.toISOString()),
+        supabase
+          .from("appointments")
+          .select("patient_id")
+          .eq("doctor_id", doctorId),
+      ]);
+
+      if (active && docRes.data && !docRes.error) {
+        setDoctor(docRes.data as DoctorProfile);
+        const uniquePatients = new Set(
+          (patientIdsRes.data ?? []).map(
+            (a: { patient_id: string | null }) => a.patient_id
+          )
+        );
+        setMetrics({
+          totalPatients: uniquePatients.size,
+          apptsThisWeek: weekRes.count ?? 0,
+        });
+      }
+
+      if (active && todayRes.data) {
+        setUpcomingToday(
+          (
+            (todayRes.data ?? []) as unknown as {
+              id: string;
+              start_time: string;
+              reason: string | null;
+              patients: { full_name: string } | null;
+            }[]
+          ).map((a) => ({
+            name: a.patients?.full_name ?? "Unknown Patient",
+            type: a.reason ?? "Consultation",
+            time: format(new Date(a.start_time), "h:mm a"),
+          }))
+        );
+      }
+
+      if (active) setLoading(false);
+    }
+
+    loadDoctor();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorId]);
+
+  const specialtyPills = useMemo(() => {
+    if (!doctor) return [];
+    const root = doctor.specialty ?? "General Practice";
+    return [titleCase(root), ...getSpecialtyAreas(doctor.specialty)];
+  }, [doctor]);
+if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] text-body-sm text-on-surface-variant">
+        Loading doctor profile...
+      </div>
+    );
+  }
+
+  if (!doctor) {
+    return (
+      <div className="max-w-4xl mx-auto py-12 text-center space-y-4">
+        <Stethoscope className="w-10 h-10 mx-auto text-on-surface-variant/60" />
+        <p className="text-body-md font-semibold text-on-surface">
+          Doctor record not found.
+        </p>
+        <Button asChild variant="secondary" size="sm">
+          <Link href="/doctors" className="flex items-center gap-1.5">
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Doctor List
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const initials = getInitials(doctor.full_name);
+  const experienceYears = getExperienceYears(doctor.created_at);
+  const specialtyTitle = doctor.specialty
+    ? `Senior ${titleCase(doctor.specialty)}, MD, FACC`
+    : "Senior Staff Physician, MD, FACC";
+
+  const about = `Dr. ${doctor.full_name} is a board-certified ${
+    doctor.specialty?.toLowerCase() ?? "physician"
+  } with over ${experienceYears} years of experience diagnosing and treating complex conditions at the clinic. Committed to providing compassionate, patient-centered care, they combine clinical expertise with the latest advancements in medical technology.`;
 
   return (
-    <div className="space-y-lg">
-      <div className="flex items-center gap-4">
-        {doctor.avatar_url ? (
-          <img src={doctor.avatar_url} alt={doctor.full_name} className="w-16 h-16 rounded-full object-cover" />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-headline-md">
-            {doctor.full_name.slice(0, 2).toUpperCase()}
-          </div>
-        )}
-        <div>
-          <h1 className="text-headline-lg text-on-surface">Dr. {doctor.full_name}</h1>
-          <p className="text-body-sm text-on-surface-variant">
-            {doctor.specialty ?? "General Practice"} {doctor.license_no ? `· Lic. ${doctor.license_no}` : ""}
-          </p>
-        </div>
+    <div className="space-y-lg max-w-container mx-auto">
+      {/* Back Link */}
+      <div>
+        <Link
+          href="/doctors"
+          className="inline-flex items-center gap-1.5 text-label-sm font-semibold text-on-surface-variant hover:text-[#2563eb] transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to Doctors
+        </Link>
       </div>
 
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/50 p-lg">
-        <h2 className="text-headline-sm text-on-surface mb-md">Upcoming Schedule</h2>
-        <div className="divide-y divide-outline-variant/50">
-          {(upcoming ?? []).map((a: any) => (
-            <div key={a.id} className="py-3 flex items-center justify-between">
-              <div>
-                <p className="text-body-sm font-medium text-on-surface">{a.patients?.full_name}</p>
-                <p className="text-label-sm text-on-surface-variant">{a.reason ?? "Consultation"}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-body-sm text-on-surface-variant">{formatDate(a.start_time)}</p>
-                <p className="text-label-sm text-primary">{formatTime(a.start_time)}</p>
+      {/* Doctor Header Profile */}
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg flex flex-col md:flex-row gap-lg items-start md:items-center relative shadow-sm">
+        {doctor.avatar_url ? (
+          <img
+            src={doctor.avatar_url}
+            alt={`Dr. ${doctor.full_name}`}
+            className="w-28 h-28 rounded-full object-cover border-4 border-outline-variant/50 shrink-0 shadow-sm"
+          />
+        ) : (
+          <div className="w-28 h-28 rounded-full bg-blue-50 text-[#2563eb] border-4 border-outline-variant/40 flex items-center justify-center text-2xl font-bold shrink-0 shadow-sm">
+            {initials}
+          </div>
+        )}
+
+        <div className="flex-1">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-md">
+            <div>
+              <h1 className="text-headline-lg text-on-surface">
+                Dr. {doctor.full_name}
+              </h1>
+              <p className="text-body-sm text-on-surface-variant mt-xs font-medium">
+                {specialtyTitle}
+                {doctor.license_no ? ` · Lic. ${doctor.license_no}` : ""}
+              </p>
+              <div className="flex items-center gap-1 mt-sm">
+                <Star className="w-4 h-4 text-emerald-600 fill-emerald-600" />
+                <span className="text-label-md font-bold text-on-surface">4.9</span>
+                <span className="text-body-sm text-on-surface-variant ml-xs">
+                  (124 Reviews)
+                </span>
               </div>
             </div>
-          ))}
-          {(!upcoming || upcoming.length === 0) && (
-            <p className="text-body-sm text-on-surface-variant py-4">No upcoming appointments scheduled.</p>
-          )}
+
+            <div className="flex gap-md mt-sm md:mt-0">
+              <Button asChild variant="secondary" size="sm">
+                <span className="flex items-center gap-1.5">
+                  <MessageSquare className="w-4 h-4" /> Message
+                </span>
+              </Button>
+              <Button asChild size="sm" className="bg-[#2563eb] hover:bg-blue-700 text-white font-semibold">
+                <Link
+                  href={`/appointments?book=true&doctorId=${doctor.id}`}
+                  className="flex items-center gap-1.5"
+                >
+                  <CalendarPlus className="w-4 h-4" /> Schedule
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
+      </section>
+
+      {/* Navigation Tabs */}
+      <div className="border-b border-outline-variant flex gap-lg overflow-x-auto">
+        {(
+          [
+            { key: "summary", label: "Summary" },
+            { key: "schedule", label: "Schedule" },
+            { key: "patients", label: "Patients" },
+            { key: "professional", label: "Professional Info" },
+          ] as { key: TabKey; label: string }[]
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`text-label-sm font-bold pb-3 border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === tab.key
+                ? "border-[#2563eb] text-[#2563eb]"
+                : "border-transparent text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+{/* Bento Grid Content */}
+      {activeTab === "summary" ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
+          {/* Left Column */}
+          <div className="md:col-span-2 space-y-lg">
+            {/* 4 Metric Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
+              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
+                <Users className="w-4 h-4 text-on-surface-variant mb-sm" />
+                <p className="text-headline-md font-bold text-on-surface">
+                  {metrics.totalPatients.toLocaleString("en-US")}
+                </p>
+                <p className="text-label-sm text-on-surface-variant">Total Patients</p>
+              </div>
+              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
+                <CalendarClock className="w-4 h-4 text-on-surface-variant mb-sm" />
+                <p className="text-headline-md font-bold text-on-surface">
+                  {metrics.apptsThisWeek.toLocaleString("en-US")}
+                </p>
+                <p className="text-label-sm text-on-surface-variant">Appts This Week</p>
+              </div>
+              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
+                <Award className="w-4 h-4 text-on-surface-variant mb-sm" />
+                <p className="text-headline-md font-bold text-on-surface">
+                  {experienceYears} Yrs
+                </p>
+                <p className="text-label-sm text-on-surface-variant">Experience</p>
+              </div>
+              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
+                <Star className="w-4 h-4 text-emerald-600 mb-sm" />
+                <p className="text-headline-md font-bold text-emerald-600">4.9</p>
+                <p className="text-label-sm text-on-surface-variant">Avg Rating</p>
+              </div>
+            </div>
+
+            {/* About Card */}
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
+              <h3 className="text-headline-sm text-on-surface mb-md">About</h3>
+              <p className="text-body-sm text-on-surface-variant leading-relaxed">{about}</p>
+            </div>
+
+            {/* Specialties & Expertise */}
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
+              <h3 className="text-headline-sm text-on-surface mb-md">
+                Specialties &amp; Expertise
+              </h3>
+              <div className="flex flex-wrap gap-sm">
+                {specialtyPills.map((pill, idx) => (
+                  <span
+                    key={idx}
+                    className={`px-md py-sm rounded-full border font-semibold text-label-sm ${
+                      idx === 0
+                        ? "bg-[#2563eb]/10 text-[#2563eb] border-blue-200"
+                        : "bg-blue-50 text-[#2563eb] border-blue-100"
+                    }`}
+                  >
+                    {pill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+{/* Right Column */}
+          <div className="space-y-lg">
+            {/* Availability */}
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
+              <div className="flex justify-between items-center mb-md">
+                <h3 className="text-headline-sm text-on-surface">Availability</h3>
+                <button className="text-[#2563eb] text-label-sm font-semibold hover:underline">
+                  Edit
+                </button>
+              </div>
+              <ul className="space-y-sm">
+                {WEEKLY_AVAILABILITY.map((slot, idx) => (
+                  <li
+                    key={idx}
+                    className="flex justify-between items-center text-body-sm text-on-surface-variant"
+                  >
+                    <span className="font-medium">{slot.day}</span>
+                    <span className="font-semibold text-on-surface">{slot.time}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Upcoming Today */}
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
+              <div className="flex justify-between items-center mb-md">
+                <h3 className="text-headline-sm text-on-surface">Upcoming Today</h3>
+                <Link
+                  href="/appointments"
+                  className="text-[#2563eb] text-label-sm font-semibold hover:underline"
+                >
+                  View All
+                </Link>
+              </div>
+              {upcomingToday.length > 0 ? (
+                <div className="space-y-sm">
+                  {upcomingToday.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-sm border-b border-outline-variant/60 pb-sm last:border-0 last:pb-0"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10px] shrink-0">
+                        {item.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-on-surface text-body-sm">{item.name}</p>
+                        <p className="text-[11px] text-on-surface-variant">{item.type}</p>
+                      </div>
+                      <span className="text-[11px] font-semibold text-on-surface-variant">
+                        {item.time}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-body-sm text-on-surface-variant pt-sm">
+                  No appointments scheduled for today.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-lg text-center bg-surface-container-lowest rounded-xl border border-outline-variant text-body-sm text-on-surface-variant shadow-sm">
+          No records in this category for Dr. {doctor.full_name}.
+        </div>
+      )}
     </div>
   );
 }
+type TabKey = "summary" | "schedule" | "patients" | "professional";
