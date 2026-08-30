@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ShieldCheck, UserCheck, Stethoscope, Lock, Mail } from "lucide-react";
-import { loginAction } from "./actions";
 
 export default function LoginPage() {
   const [authMode, setAuthMode] = useState<"standard" | "otp" | "split">("split");
@@ -13,8 +13,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -27,50 +25,31 @@ export default function LoginPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append("email", email);
-      formData.append("password", password);
-      const res = await loginAction({ error: null }, formData);
-      if (res && res.error) {
-        setError(res.error);
-      }
-    } catch (err: any) {
-      setError(err?.message || "An unexpected error occurred.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-surface flex flex-col justify-center relative">
+    <div className="min-h-screen bg-surface flex flex-col justify-center">
       <div className="fixed top-4 right-4 z-50 flex gap-2 bg-surface-container-high p-1.5 rounded-lg border border-outline-variant">
         <button
           onClick={() => setAuthMode("split")}
-          className={`px-3 py-1 rounded text-xs font-semibold ${authMode === "split" ? "bg-primary text-white" : "text-on-surface-variant hover:bg-surface-container-low"}`}
+          className={`px-3 py-1 rounded text-xs font-semibold ${authMode === "split" ? "bg-primary text-white" : "text-on-surface-variant"}`}
         >
           Split Hero
         </button>
         <button
           onClick={() => setAuthMode("standard")}
-          className={`px-3 py-1 rounded text-xs font-semibold ${authMode === "standard" ? "bg-primary text-white" : "text-on-surface-variant hover:bg-surface-container-low"}`}
+          className={`px-3 py-1 rounded text-xs font-semibold ${authMode === "standard" ? "bg-primary text-white" : "text-on-surface-variant"}`}
         >
           Direct Form
         </button>
         <button
           onClick={() => setAuthMode("otp")}
-          className={`px-3 py-1 rounded text-xs font-semibold ${authMode === "otp" ? "bg-primary text-white" : "text-on-surface-variant hover:bg-surface-container-low"}`}
+          className={`px-3 py-1 rounded text-xs font-semibold ${authMode === "otp" ? "bg-primary text-white" : "text-on-surface-variant"}`}
         >
           MFA / OTP
         </button>
       </div>
 
       <div className={`w-full ${authMode === "split" ? "grid lg:grid-cols-2 min-h-screen" : "max-w-md mx-auto p-6"}`}>
-        <div className="flex flex-col justify-center px-8 lg:px-16 py-12 bg-surface-container-lowest">
+        <div className="flex flex-col justify-center px-8 lg:px-16 py-12">
           <div className="mb-8">
             <MedFlowLogo size="lg" />
             <h1 className="text-headline-md font-display text-on-surface mt-6">
@@ -87,7 +66,7 @@ export default function LoginPage() {
               onClick={() => setRole("doctor")}
               className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold transition ${
                 role === "doctor"
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-primary bg-primary-fixed/30 text-primary"
                   : "border-outline-variant text-on-surface-variant hover:bg-surface-container"
               }`}
             >
@@ -99,7 +78,7 @@ export default function LoginPage() {
               onClick={() => setRole("admin")}
               className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold transition ${
                 role === "admin"
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-primary bg-primary-fixed/30 text-primary"
                   : "border-outline-variant text-on-surface-variant hover:bg-surface-container"
               }`}
             >
@@ -111,7 +90,7 @@ export default function LoginPage() {
               onClick={() => setRole("front_desk")}
               className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold transition ${
                 role === "front_desk"
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-primary bg-primary-fixed/30 text-primary"
                   : "border-outline-variant text-on-surface-variant hover:bg-surface-container"
               }`}
             >
@@ -120,15 +99,9 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {error && (
-            <div className="mb-4 p-3 rounded-lg bg-error-container text-on-error-container text-xs">
-              {error}
-            </div>
-          )}
-
           {authMode === "otp" ? (
             <div className="space-y-4">
-              <label className="text-label-md font-medium text-on-surface block">Enter 6-digit MFA Security Code</label>
+              <Label>Enter 6-digit MFA Security Code</Label>
               <div className="flex justify-between gap-2">
                 {otp.map((digit, idx) => (
                   <input
@@ -142,13 +115,13 @@ export default function LoginPage() {
                   />
                 ))}
               </div>
-              <Button className="w-full mt-4" variant="primary">Verify Identity</Button>
+              <Button className="w-full mt-4 bg-primary text-white">Verify Identity</Button>
             </div>
           ) : (
-            <form className="space-y-4" onSubmit={handleSubmit}>
+            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
               <div>
-                <label className="text-label-md font-medium text-on-surface block mb-1">Work Email</label>
-                <div className="relative">
+                <Label>Work Email</Label>
+                <div className="relative mt-1">
                   <Mail className="absolute left-3 top-3 w-4 h-4 text-outline" />
                   <Input
                     type="email"
@@ -156,14 +129,13 @@ export default function LoginPage() {
                     className="pl-9"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-label-md font-medium text-on-surface block mb-1">Password</label>
-                <div className="relative">
+                <Label>Password</Label>
+                <div className="relative mt-1">
                   <Lock className="absolute left-3 top-3 w-4 h-4 text-outline" />
                   <Input
                     type="password"
@@ -171,12 +143,11 @@ export default function LoginPage() {
                     className="pl-9"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    required
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-body-sm pt-2">
+              <div className="flex items-center justify-between text-body-sm">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="rounded border-outline-variant text-primary focus:ring-primary" />
                   <span className="text-on-surface-variant">Remember me</span>
@@ -186,8 +157,8 @@ export default function LoginPage() {
                 </a>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full font-semibold py-2.5 rounded-lg shadow-level-2" variant="primary">
-                {loading ? "Signing In..." : "Sign In to Clinic Workspace"}
+              <Button type="submit" className="w-full bg-primary text-white font-semibold py-2.5 rounded-lg shadow-level-2">
+                Sign In to Clinic Workspace
               </Button>
             </form>
           )}
@@ -205,7 +176,7 @@ export default function LoginPage() {
                 Clinical Precision, Synchronized.
               </h2>
               <p className="text-on-primary-container text-body-md">
-                Streamline patient intake, diagnostic prescriptions, multi-practitioner schedules, and automated billing in one HIPAA-compliant clinical infrastructure.
+                Streamline patient intake, diagnostic prescriptions, multi-practitioner schedules, and automated billing in one clinical infrastructure.
               </p>
             </div>
             <div className="text-xs text-on-primary-container/80">

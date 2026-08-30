@@ -1,20 +1,33 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import type { UserRole } from "@/lib/supabase/types";
-import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
+import {
+  LayoutDashboard,
+  Users,
+  Stethoscope,
+  Calendar,
+  CreditCard,
+  BarChart3,
+  Settings,
+  Search,
+  Bell,
+  HelpCircle,
+  Plus,
+  LogOut,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
-  { label: "Patients", href: "/patients", icon: "person" },
-  { label: "Doctors", href: "/doctors", icon: "medical_services" },
-  { label: "Appointments", href: "/appointments", icon: "event" },
-  { label: "Billing", href: "/invoices", icon: "payments" },
-  { label: "Analytics", href: "/reports", icon: "monitoring" },
-  { label: "Settings", href: "/settings", icon: "settings" },
+const navItems = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Patients", href: "/patients", icon: Users },
+  { label: "Doctors", href: "/doctors", icon: Stethoscope },
+  { label: "Appointments", href: "/appointments", icon: Calendar },
+  { label: "Billing", href: "/invoices", icon: CreditCard },
+  { label: "Analytics", href: "/reports", icon: BarChart3 },
+  { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function DashboardShell({
@@ -24,136 +37,100 @@ export function DashboardShell({
   children,
 }: {
   userName?: string;
-  userRole?: UserRole | string;
+  userRole?: string;
   avatarUrl?: string | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
-    <div className="bg-background text-on-background font-body-md min-h-screen">
-      {/* Side Navigation */}
-      <aside className="h-screen w-64 fixed left-0 top-0 bg-surface dark:bg-surface-dim border-r border-outline-variant dark:border-outline z-50">
-        <div className="flex flex-col h-full py-6">
-          {/* Brand */}
-          <div className="px-6 mb-8 flex items-center gap-3">
-            <MedFlowLogo size="md" />
+    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-sans">
+      {/* Left Sidebar */}
+      <aside className="w-60 border-r border-slate-200 bg-white flex flex-col justify-between p-4 shrink-0">
+        <div>
+          <div className="px-2 py-2 mb-6">
+            <MedFlowLogo size="md" showSubtitle subtitle="Admin Console" />
           </div>
 
-          {/* Navigation Links */}
-          <nav className="flex-1 px-2 space-y-1">
-            {NAV_ITEMS.map((item) => {
-              const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          <nav className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname.startsWith(item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 transition-colors active:scale-95 duration-150 rounded-md font-label-md text-label-md",
-                    active
-                      ? "text-primary dark:text-primary-fixed bg-primary-container/10 dark:bg-primary-container/20 border-r-4 border-primary rounded-l-md font-semibold"
-                      : "text-on-surface-variant hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-highest"
-                  )}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition ${isActive
+                      ? "bg-blue-50 text-[#2563eb] border-r-4 border-[#2563eb] rounded-r-none"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
                 >
-                  <span className={cn("material-symbols-outlined", !active && "outline-icon")}>{item.icon}</span>
-                  <span>{item.label}</span>
+                  <Icon className={`w-4 h-4 ${isActive ? "text-[#2563eb]" : "text-slate-400"}`} />
+                  {item.label}
                 </Link>
               );
             })}
           </nav>
+        </div>
 
-          {/* CTA */}
-          <div className="px-4 mt-4">
-            <Link
-              href="/appointments/new"
-              className="w-full py-2.5 px-4 bg-primary-container text-on-primary-container rounded-lg font-label-md text-label-md flex justify-center items-center gap-2 hover:opacity-90 transition-opacity active:scale-95 duration-150"
-            >
-              <span className="material-symbols-outlined outline-icon text-[18px]">add</span>
-              New Record
+        {/* Bottom Sidebar Action Buttons */}
+        <div className="space-y-3 pt-4 border-t border-slate-100">
+          <Button asChild className="w-full bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-semibold py-2 rounded-lg shadow-sm">
+            <Link href="/appointments?book=true" className="flex items-center justify-center gap-1.5">
+              <Plus className="w-3.5 h-3.5" /> New Record
             </Link>
-          </div>
+          </Button>
 
-          {/* Footer Links */}
-          <div className="px-2 mt-8 space-y-1">
-            <Link
-              href="/settings/system-health"
-              className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:scale-95 duration-150 rounded-md font-label-md text-label-md"
-            >
-              <span className="material-symbols-outlined outline-icon">help</span>
-              <span>Support</span>
+          <div className="space-y-1 text-xs font-medium text-slate-500">
+            <Link href="/settings" className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-slate-50">
+              <HelpCircle className="w-4 h-4 text-slate-400" /> Support
             </Link>
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-error hover:bg-error-container transition-colors active:scale-95 duration-150 rounded-md font-label-md text-label-md text-left"
-            >
-              <span className="material-symbols-outlined outline-icon">logout</span>
-              <span>Sign Out</span>
+            <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600">
+              <LogOut className="w-4 h-4" /> Sign Out
             </button>
           </div>
         </div>
       </aside>
 
-      {/* Top Navigation */}
-      <header className="fixed top-0 right-0 left-64 z-40 flex justify-between items-center px-lg bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md h-16 border-b border-outline-variant dark:border-outline">
-        <div className="flex items-center gap-6">
-          <h2 className="hidden md:block font-headline-sm text-headline-sm font-bold text-on-surface">MedFlow Clinic Admin</h2>
-          <div className="relative w-64 md:w-96">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
-              search
-            </span>
-            <input
-              className="w-full h-10 pl-10 pr-4 bg-surface-container-low border border-outline-variant rounded-full text-body-sm font-body-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-on-surface-variant/70"
-              placeholder="Search patients, doctors, records..."
-              type="text"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <button className="p-2 text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors active:opacity-80 rounded-full hover:bg-surface-container-high">
-            <span className="material-symbols-outlined outline-icon">notifications</span>
-          </button>
-          <button className="p-2 text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors active:opacity-80 rounded-full hover:bg-surface-container-high">
-            <span className="material-symbols-outlined outline-icon">help_center</span>
-          </button>
-          <div className="h-6 w-px bg-outline-variant mx-2" />
-          <Link href="/settings/system-health" className="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors">
-            Support
-          </Link>
-          <Link
-            href="/settings"
-            className="font-label-md text-label-md px-4 py-1.5 border border-outline-variant rounded-md hover:bg-surface-container-high transition-colors text-on-surface"
-          >
-            Upgrade
-          </Link>
-          <Link href="/profile" className="ml-2">
-            {avatarUrl ? (
-              <img
-                alt="User Avatar"
-                className="w-8 h-8 rounded-full object-cover border border-outline-variant"
-                src={avatarUrl}
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-label-sm font-semibold border border-outline-variant">
-                {userName.slice(0, 2).toUpperCase()}
-              </div>
-            )}
-          </Link>
-        </div>
-      </header>
-
       {/* Main Content Area */}
-      <main className="ml-64 pt-16 min-h-screen bg-background">
-        <div className="p-lg md:p-xl max-w-container-max mx-auto space-y-8">{children}</div>
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 shrink-0">
+          <div className="flex items-center gap-6">
+            <h1 className="text-sm font-bold text-slate-900 tracking-tight">MedFlow Admin</h1>
+            <div className="relative w-80">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search patients, doctors, records..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2563eb]"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50">
+              <Bell className="w-4 h-4" />
+            </button>
+            <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50">
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-medium text-slate-400">|</span>
+            <button className="text-xs font-medium text-slate-600 hover:text-slate-900">Support</button>
+            <button className="px-3 py-1 text-xs font-semibold border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50">
+              Upgrade
+            </button>
+            <div className="w-7 h-7 rounded-full bg-slate-200 overflow-hidden ml-1 border border-slate-300">
+              <img
+                src={avatarUrl || "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=100"}
+                alt={userName}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+      </div>
     </div>
   );
 }

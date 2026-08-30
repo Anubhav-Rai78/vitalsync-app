@@ -1,268 +1,216 @@
+"use client";
+
+import React from "react";
+import { format } from "date-fns";
+import { Calendar, Users, CalendarCheck, Clock, Plus, ArrowRight, TrendingUp, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
-export default async function DashboardPage() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+const activityData = [
+  { day: "Mon", Consultations: 45, Procedures: 20 },
+  { day: "Tue", Consultations: 52, Procedures: 24 },
+  { day: "Wed", Consultations: 61, Procedures: 28 },
+  { day: "Thu", Consultations: 48, Procedures: 18 },
+  { day: "Fri", Consultations: 70, Procedures: 35 },
+  { day: "Sat", Consultations: 38, Procedures: 15 },
+  { day: "Sun", Consultations: 20, Procedures: 10 },
+];
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user!.id)
-    .single();
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
-
-  const [
-    { count: patientCount },
-    { count: todayApptCount },
-    { data: pendingInvoices },
-    { data: upcoming },
-    { data: recentPatients }
-  ] = await Promise.all([
-    supabase.from("patients").select("id", { count: "exact", head: true }),
-    supabase
-      .from("appointments")
-      .select("id", { count: "exact", head: true })
-      .gte("start_time", todayStart.toISOString())
-      .lte("start_time", todayEnd.toISOString()),
-    supabase.from("invoices").select("total").in("status", ["sent", "overdue"]),
-    supabase
-      .from("appointments")
-      .select("id, start_time, reason, patients(full_name), profiles!appointments_doctor_id_fkey(full_name)")
-      .gte("start_time", new Date().toISOString())
-      .order("start_time", { ascending: true })
-      .limit(4),
-    supabase
-      .from("patients")
-      .select("id, full_name, created_at")
-      .order("created_at", { ascending: false })
-      .limit(4)
-  ]);
-
-  const pendingTotal = (pendingInvoices ?? []).reduce((sum, i) => sum + Number(i.total), 0);
+export default function AdminDashboardPage() {
+  const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
 
   return (
-    <>
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6 max-w-[1200px]">
+      {/* Header with Expanded Date Format */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-headline-md text-on-surface mb-1">
-            Welcome back, {profile?.full_name ?? "there"}
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            Welcome back, Dr. Sarah Jenkins
           </h1>
-          <p className="text-body-sm text-on-surface-variant flex items-center gap-2">
-            <span className="material-symbols-outlined outline-icon text-[16px]">calendar_today</span>
-            {formatDate(new Date())}
+          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1 font-medium">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            {currentDateFormatted}
           </p>
         </div>
-        <Link
-          href="/appointments/new"
-          className="px-5 py-2.5 bg-primary-container text-on-primary-container rounded-lg text-label-md flex items-center gap-2 hover:bg-primary-container/90 transition-colors shadow-sm"
-        >
-          <span className="material-symbols-outlined text-[18px]">event_available</span>
-          Book Appointment
-        </Link>
+
+        <Button asChild className="bg-[#2563eb] hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2 rounded-lg shadow-sm">
+          <Link href="/appointments?book=true" className="flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Book Appointment
+          </Link>
+        </Button>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* KPI 1 */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/50 shadow-sm flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <p className="text-label-md text-on-surface-variant">Total Patients</p>
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">group</span>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-[11px] font-semibold text-slate-600">Total Patients</span>
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563eb] flex items-center justify-center">
+              <Users className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div>
-            <h3 className="text-headline-md text-on-surface tabular-nums">{patientCount ?? 0}</h3>
-            <p className="text-label-sm text-secondary flex items-center gap-1 mt-1">
-              <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-              +12% this month
-            </p>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900">1,284</div>
+            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
+              ↑ +12% this month
+            </span>
           </div>
         </div>
 
-        {/* KPI 2 */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/50 shadow-sm flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <p className="text-label-md text-on-surface-variant">Today's Appointments</p>
-            <div className="w-8 h-8 rounded-full bg-tertiary-container/10 text-tertiary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-[11px] font-semibold text-slate-600">Today's Appointments</span>
+            <div className="w-7 h-7 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center">
+              <CalendarCheck className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div>
-            <h3 className="text-headline-md text-on-surface tabular-nums">{todayApptCount ?? 0}</h3>
-            <p className="text-label-sm text-on-surface-variant mt-1">Active schedule</p>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900">42</div>
+            <span className="text-[11px] font-medium text-slate-500 mt-0.5 block">8 remaining today</span>
           </div>
         </div>
 
-        {/* KPI 3 */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/50 shadow-sm flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <p className="text-label-md text-on-surface-variant">Pending Invoices</p>
-            <div className="w-8 h-8 rounded-full bg-error/10 text-error flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">warning</span>
+        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-[11px] font-semibold text-slate-600">Pending Labs</span>
+            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+              <AlertTriangle className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div>
-            <h3 className="text-headline-md text-on-surface tabular-nums">{formatCurrency(pendingTotal)}</h3>
-            <p className="text-label-sm text-error flex items-center gap-1 mt-1">Requires follow-up</p>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900">15</div>
+            <span className="text-[11px] font-semibold text-rose-600 flex items-center gap-1 mt-0.5">
+              ▲ 3 critical
+            </span>
           </div>
         </div>
 
-        {/* KPI 4 */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/50 shadow-sm flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <p className="text-label-md text-on-surface-variant">Monthly Revenue</p>
-            <div className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[18px]">payments</span>
+        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-500">
+            <span className="text-[11px] font-semibold text-slate-600">Monthly Revenue</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5" />
             </div>
           </div>
-          <div>
-            <h3 className="text-headline-md text-on-surface tabular-nums">{formatCurrency(pendingTotal > 0 ? pendingTotal * 1.5 : 48500)}</h3>
-            <p className="text-label-sm text-secondary flex items-center gap-1 mt-1">
-              <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-              +5% this month
-            </p>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900">$48,500</div>
+            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
+              ↑ +5% this month
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column (2/3): Recent Patients Table */}
-        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-outline-variant/50 flex justify-between items-center bg-surface-bright">
-            <h3 className="text-headline-sm text-on-surface">Recent Patients</h3>
-            <Link href="/patients" className="text-primary text-label-md hover:underline">
+      {/* Main Split: Recent Patients & Upcoming Schedule */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-900">Recent Patients</h3>
+            <Link href="/patients" className="text-xs font-semibold text-[#2563eb] hover:underline">
               View All
             </Link>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface-container-low/50 border-b border-outline-variant/30">
-                  <th className="p-4 text-label-sm text-on-surface-variant uppercase tracking-wider">Patient Name</th>
-                  <th className="p-4 text-label-sm text-on-surface-variant uppercase tracking-wider">Visit Type</th>
-                  <th className="p-4 text-label-sm text-on-surface-variant uppercase tracking-wider">Status</th>
-                  <th className="p-4 text-label-sm text-on-surface-variant uppercase tracking-wider">Registered</th>
+
+          <table className="w-full text-left text-xs">
+            <thead className="text-[11px] uppercase font-bold text-slate-400 border-b border-slate-100">
+              <tr>
+                <th className="pb-3">Patient Name</th>
+                <th className="pb-3">Visit Type</th>
+                <th className="pb-3">Status</th>
+                <th className="pb-3 text-right">Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {[
+                { name: "Robert Evans", type: "Cardiology Follow-up", status: "Completed", statusStyle: "bg-emerald-50 text-emerald-700", time: "09:00 AM" },
+                { name: "Maria Garcia", type: "General Checkup", status: "In Progress", statusStyle: "bg-blue-50 text-[#2563eb]", time: "10:15 AM" },
+                { name: "James Wilson", type: "Lab Results Review", status: "Waiting", statusStyle: "bg-amber-50 text-amber-700", time: "11:00 AM" },
+                { name: "Emma Larson", type: "Orthopedics Consult", status: "Waiting", statusStyle: "bg-amber-50 text-amber-700", time: "11:30 AM" },
+              ].map((p, idx) => (
+                <tr key={idx} className="hover:bg-slate-50/50">
+                  <td className="py-3 font-semibold text-slate-800 flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                      {p.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    {p.name}
+                  </td>
+                  <td className="py-3 text-slate-600">{p.type}</td>
+                  <td className="py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.statusStyle}`}>
+                      {p.status}
+                    </span>
+                  </td>
+                  <td className="py-3 text-right font-medium text-slate-500">{p.time}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/20">
-                {(recentPatients ?? []).length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="p-4 text-center text-body-sm text-on-surface-variant">
-                      No patient records found.
-                    </td>
-                  </tr>
-                ) : (
-                  (recentPatients ?? []).map((patient: any, idx: number) => (
-                    <tr key={patient.id} className="hover:bg-surface-container-low/30 transition-colors">
-                      <td className="p-4 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center text-label-sm font-medium">
-                          {patient.full_name?.slice(0, 2).toUpperCase()}
-                        </div>
-                        <span className="text-body-sm font-medium text-on-surface">{patient.full_name}</span>
-                      </td>
-                      <td className="p-4 text-body-sm text-on-surface-variant">Consultation</td>
-                      <td className="p-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-label-sm">
-                          {idx === 0 ? "Completed" : idx === 1 ? "In Progress" : "Waiting"}
-                        </span>
-                      </td>
-                      <td className="p-4 text-body-sm text-on-surface-variant">
-                        {formatTime(patient.created_at)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
 
-        {/* Right Column (1/3): Upcoming Schedule Timeline */}
-        <div className="lg:col-span-1 bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm p-5 h-full">
-          <h3 className="text-headline-sm text-on-surface mb-6">Upcoming Schedule</h3>
-          <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-outline-variant/40 before:to-transparent">
-            {(upcoming ?? []).length === 0 ? (
-              <p className="text-body-sm text-on-surface-variant">No upcoming appointments.</p>
-            ) : (
-              (upcoming ?? []).map((appt: any, idx: number) => (
-                <div key={appt.id} className="relative flex items-start gap-4">
-                  <div className={`w-3 h-3 rounded-full ${idx === 0 ? "bg-primary" : "bg-outline-variant"} mt-1.5 z-10 shadow-[0_0_0_4px_#ffffff]`} />
-                  <div className="flex-1 bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant/30 hover:border-primary/30 transition-colors">
-                    <p className="text-label-md text-on-surface mb-0.5">{formatTime(appt.start_time)}</p>
-                    <p className="text-body-sm font-medium text-on-surface">{appt.patients?.full_name}</p>
-                    <p className="text-label-sm text-on-surface-variant mt-1 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">stethoscope</span>
-                      Dr. {appt.profiles?.full_name ?? "Assigned"}
-                    </p>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 mb-4">Upcoming Schedule</h3>
+
+            <div className="space-y-3">
+              {[
+                { time: "1:00 PM", patient: "Michael Chen", doctor: "Dr. Sarah Jenkins", active: true },
+                { time: "2:15 PM", patient: "Sarah Connor", doctor: "Dr. Alan Grant", active: false },
+                { time: "3:30 PM", patient: "David Bowman", doctor: "Dr. Sarah Jenkins", active: false },
+              ].map((slot, idx) => (
+                <div key={idx} className="flex items-start gap-3 p-2.5 rounded-lg border border-slate-100 bg-slate-50/50">
+                  <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${slot.active ? "bg-[#2563eb]" : "bg-slate-300"}`} />
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-900 block">{slot.time}</span>
+                    <span className="text-slate-700 font-medium">{slot.patient}</span>
+                    <span className="text-[11px] text-slate-400 block">🩺 {slot.doctor}</span>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-          <Link
-            href="/appointments"
-            className="w-full mt-6 py-2 border border-outline-variant rounded-lg text-label-md text-on-surface-variant hover:bg-surface-container-high transition-colors flex justify-center"
-          >
-            View Full Schedule
-          </Link>
-        </div>
-      </div>
-
-      {/* Bottom Section: Clinic Activity Chart */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm p-6 mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-headline-sm text-on-surface">Clinic Activity (Last 7 Days)</h3>
-          <div className="flex gap-4">
-            <span className="inline-flex items-center gap-1.5 text-label-sm text-on-surface-variant">
-              <span className="w-3 h-3 rounded-sm bg-primary/20" /> Consultations
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-label-sm text-on-surface-variant">
-              <span className="w-3 h-3 rounded-sm bg-primary" /> Procedures
-            </span>
-          </div>
-        </div>
-
-        {/* CSS Bar Chart */}
-        <div className="h-48 w-full flex items-end justify-between gap-2 pt-4 border-b border-outline-variant/30 relative pl-8">
-          <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-on-surface-variant text-label-sm text-right pr-2 w-8">
-            <span>60</span>
-            <span>40</span>
-            <span>20</span>
-            <span>0</span>
-          </div>
-          {[
-            { day: "Mon", h1: "60%", h2: "20%" },
-            { day: "Tue", h1: "40%", h2: "30%" },
-            { day: "Wed", h1: "75%", h2: "15%" },
-            { day: "Thu", h1: "50%", h2: "25%", active: true },
-            { day: "Fri", h1: "30%", h2: "10%" },
-            { day: "Sat", h1: "10%", h2: "5%" },
-            { day: "Sun", h1: "5%", h2: "5%" },
-          ].map((bar) => (
-            <div key={bar.day} className="flex-1 flex flex-col justify-end items-center group">
-              <div
-                style={{ height: bar.h1 }}
-                className={`w-full max-w-[40px] ${bar.active ? "bg-primary" : "bg-primary/80"} rounded-t-sm hover:opacity-80 transition-opacity`}
-              />
-              <div style={{ height: bar.h2 }} className="w-full max-w-[40px] bg-primary/20 mt-0.5" />
-              <span className={`mt-2 text-label-sm ${bar.active ? "text-primary font-bold" : "text-on-surface-variant"}`}>
-                {bar.day}
-              </span>
+              ))}
             </div>
-          ))}
+          </div>
+
+          <Button variant="secondary" size="sm" asChild className="w-full mt-4 text-xs font-semibold">
+            <Link href="/appointments">View Full Schedule</Link>
+          </Button>
         </div>
       </div>
-    </>
+
+      {/* Clinic Activity Chart */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-slate-900">Clinic Activity (Last 7 Days)</h3>
+          <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-blue-200" /> Consultations
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#2563eb]" /> Procedures
+            </span>
+          </div>
+        </div>
+
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={activityData} barGap={4}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} />
+              <Tooltip />
+              <Bar dataKey="Consultations" fill="#bfdbfe" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="Procedures" fill="#2563eb" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
   );
 }
