@@ -6,24 +6,21 @@ import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/lib/supabase/types";
 import { cn } from "@/lib/utils";
 
-// Markup is the exported admin_dashboard sidebar/topbar, ported 1:1 —
-// only the href targets, active-state logic, and Sign Out handler are new.
-
 const NAV_ITEMS: Array<{
   label: string;
   href: string;
   icon: string;
   roles?: UserRole[];
 }> = [
-  { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
-  { label: "Patients", href: "/patients", icon: "person" },
-  { label: "Doctors", href: "/doctors", icon: "medical_services" },
-  { label: "Appointments", href: "/appointments", icon: "event" },
-  { label: "Prescriptions", href: "/prescriptions", icon: "prescriptions", roles: ["doctor", "admin"] },
-  { label: "Billing", href: "/invoices", icon: "payments" },
-  { label: "Analytics", href: "/reports", icon: "monitoring", roles: ["admin"] },
-  { label: "Settings", href: "/settings", icon: "settings", roles: ["admin"] },
-];
+    { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
+    { label: "Patients", href: "/patients", icon: "person" },
+    { label: "Doctors", href: "/doctors", icon: "medical_services" },
+    { label: "Appointments", href: "/appointments", icon: "event" },
+    { label: "Prescriptions", href: "/prescriptions", icon: "prescriptions", roles: ["doctor", "admin"] },
+    { label: "Billing", href: "/invoices", icon: "payments" },
+    { label: "Analytics", href: "/reports", icon: "monitoring", roles: ["admin"] },
+    { label: "Settings", href: "/settings", icon: "settings", roles: ["admin"] },
+  ];
 
 export function DashboardShell({
   userName,
@@ -50,21 +47,26 @@ export function DashboardShell({
 
   return (
     <div className="bg-background text-on-background font-body-md min-h-screen">
+      {/* Side Navigation */}
       <aside className="h-screen w-64 fixed left-0 top-0 bg-surface border-r border-outline-variant z-50">
         <div className="flex flex-col h-full py-6">
+          {/* Brand */}
           <div className="px-6 mb-8 flex items-center gap-3">
             <div className="w-8 h-8 rounded bg-primary-container text-on-primary-container flex items-center justify-center">
               <span className="material-symbols-outlined">local_hospital</span>
             </div>
             <div>
               <h1 className="text-headline-sm font-bold text-primary">VitalSync</h1>
-              <p className="text-label-sm text-on-surface-variant capitalize">{userRole.replace("_", " ")} Console</p>
+              <p className="text-label-sm text-on-surface-variant capitalize">
+                {userRole ? userRole.replace("_", " ") : "Admin"} Console
+              </p>
             </div>
           </div>
 
+          {/* Navigation Links */}
           <nav className="flex-1 px-2 space-y-1">
             {visibleItems.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.href}
@@ -72,30 +74,32 @@ export function DashboardShell({
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 transition-colors active:scale-95 duration-150 rounded-md text-label-md",
                     active
-                      ? "text-primary bg-primary-container/10 border-r-4 border-primary rounded-l-md"
+                      ? "text-primary bg-primary-container/10 border-r-4 border-primary rounded-l-md font-semibold"
                       : "text-on-surface-variant hover:text-primary hover:bg-surface-container-high"
                   )}
                 >
-                  <span className="material-symbols-outlined outline-icon">{item.icon}</span>
+                  <span className={cn("material-symbols-outlined", !active && "outline-icon")}>{item.icon}</span>
                   <span>{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
+          {/* CTA Button */}
           <div className="px-4 mt-4">
             <Link
               href="/appointments/new"
               className="w-full py-2.5 px-4 bg-primary-container text-on-primary-container rounded-lg text-label-md flex justify-center items-center gap-2 hover:opacity-90 transition-opacity active:scale-95 duration-150"
             >
               <span className="material-symbols-outlined outline-icon text-[18px]">add</span>
-              New Appointment
+              New Record
             </Link>
           </div>
 
+          {/* Footer Links */}
           <div className="px-2 mt-8 space-y-1">
             <Link
-              href="/profile"
+              href="/settings/system-health"
               className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors active:scale-95 duration-150 rounded-md text-label-md"
             >
               <span className="material-symbols-outlined outline-icon">help</span>
@@ -112,8 +116,10 @@ export function DashboardShell({
         </div>
       </aside>
 
+      {/* Top Header */}
       <header className="fixed top-0 right-0 left-64 z-40 flex justify-between items-center px-lg bg-surface/80 backdrop-blur-md h-16 border-b border-outline-variant">
         <div className="flex items-center gap-6">
+          <h2 className="hidden md:block text-headline-sm font-bold text-on-surface">VitalSync Admin</h2>
           <div className="relative w-64 md:w-96">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
               search
@@ -125,8 +131,9 @@ export function DashboardShell({
             />
           </div>
         </div>
+
         <div className="flex items-center gap-4">
-          <button className="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container-high">
+          <button className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container-high transition-colors">
             <span className="material-symbols-outlined outline-icon">notifications</span>
           </button>
           <div className="h-6 w-px bg-outline-variant mx-2" />
@@ -139,7 +146,7 @@ export function DashboardShell({
                 src={avatarUrl}
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-label-sm">
+              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-label-sm font-medium">
                 {userName.slice(0, 2).toUpperCase()}
               </div>
             )}
@@ -147,6 +154,7 @@ export function DashboardShell({
         </div>
       </header>
 
+      {/* Main Content Area */}
       <main className="ml-64 pt-16 min-h-screen bg-background">
         <div className="p-lg md:p-xl max-w-container mx-auto space-y-8">{children}</div>
       </main>
