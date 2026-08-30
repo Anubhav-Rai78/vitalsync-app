@@ -24,7 +24,6 @@ import {
   MessageSquare,
   FileQuestion,
   User as UserIcon,
-  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -379,13 +378,6 @@ export function DashboardShell({
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 font-medium"
                     >
                       <Settings className="w-3.5 h-3.5 text-slate-400" /> Clinic Settings
-                    </Link>
-                    <Link
-                      href="/settings/audit-log"
-                      onClick={() => setIsProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 font-medium"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-slate-400" /> Compliance Log
                     </Link>
                   </div>
 
