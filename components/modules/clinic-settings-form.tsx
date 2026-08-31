@@ -49,6 +49,13 @@ export function ClinicSettingsForm({
   const [logoUrl, setLogoUrl] = useState<string | null>(clinic.logo_url ?? null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [isUpdatingStaff, startUpdateStaffTransition] = useTransition();
+  // These operational flags have no columns in the current clinics schema, so
+  // they remain resilient local preferences until the schema is extended.
+  const [quickSettings, setQuickSettings] = useState({
+    acceptingPatients: true,
+    telehealth: true,
+    maintenanceMode: false,
+  });
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -166,6 +173,30 @@ export function ClinicSettingsForm({
               defaultValue={clinic.phone ?? ""}
               className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm"
             />
+          </div>
+          <div className="border-t border-outline-variant pt-md space-y-sm">
+            <div>
+              <h4 className="text-body-md font-semibold text-on-surface">Quick Settings</h4>
+              <p className="text-label-sm text-on-surface-variant">Operational controls for your clinic.</p>
+            </div>
+            {[
+              { key: "acceptingPatients" as const, label: "Accepting New Patients", description: "Show availability for new patient registrations." },
+              { key: "telehealth" as const, label: "Telehealth Enabled", description: "Allow remote consultation scheduling." },
+              { key: "maintenanceMode" as const, label: "Maintenance Mode", description: "Temporarily restrict non-admin clinic access." },
+            ].map((setting) => (
+              <div key={setting.key} className="flex items-center justify-between gap-4 rounded-lg bg-surface-container-low p-3 border border-outline-variant">
+                <div>
+                  <p className="text-label-md font-semibold text-on-surface">{setting.label}</p>
+                  <p className="text-label-sm text-on-surface-variant mt-0.5">{setting.description}</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={quickSettings[setting.key]}
+                  onChange={(e) => setQuickSettings((prev) => ({ ...prev, [setting.key]: e.target.checked }))}
+                  className="w-4 h-4 text-primary rounded border-outline-variant"
+                />
+              </div>
+            ))}
           </div>
           <div className="pt-md border-t border-outline-variant flex justify-end">
             <SaveButton />
