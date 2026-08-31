@@ -1,385 +1,73 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  Users,
-  Activity,
-  TrendingUp,
-  DollarSign,
-  Clock,
-  Download,
-  FileText,
-  SlidersHorizontal,
-  Play,
-  History,
-  Star,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const patientVolumeData = [
-  { day: "Mon", patients: 45, averageWaitTime: 12 },
-  { day: "Tue", patients: 52, averageWaitTime: 15 },
-  { day: "Wed", patients: 61, averageWaitTime: 18 },
-  { day: "Thu", patients: 48, averageWaitTime: 10 },
-  { day: "Fri", patients: 70, averageWaitTime: 22 },
-  { day: "Sat", patients: 38, averageWaitTime: 8 },
+const revenue6M = [
+  { month: "Jan", revenue: 110000 }, { month: "Feb", revenue: 115000 }, { month: "Mar", revenue: 108000 },
+  { month: "Apr", revenue: 125000 }, { month: "May", revenue: 135000 }, { month: "Jun", revenue: 142500 },
 ];
-
-const revenueTrendData = [
-  { month: "Jan", revenue: 110000 },
-  { month: "Feb", revenue: 115000 },
-  { month: "Mar", revenue: 108000 },
-  { month: "Apr", revenue: 125000 },
-  { month: "May", revenue: 135000 },
-  { month: "Jun", revenue: 142500 },
+const revenue1Y = [...revenue6M, { month: "Jul", revenue: 139000 }, { month: "Aug", revenue: 148000 }, { month: "Sep", revenue: 145000 }, { month: "Oct", revenue: 152000 }, { month: "Nov", revenue: 158000 }, { month: "Dec", revenue: 164000 }];
+const specialtyVolumeData = [
+  { specialty: "Cardio", visits: 420, color: "#2563eb" }, { specialty: "Peds", visits: 380, color: "#006c49" },
+  { specialty: "Gen Med", visits: 550, color: "#005e6e" }, { specialty: "Neuro", visits: 210, color: "#b4c5ff" }, { specialty: "Ortho", visits: 310, color: "#6cf8bb" },
 ];
-
-const specialtyData = [
-  { specialty: "Cardio", visits: 420 },
-  { specialty: "Peds", visits: 380 },
-  { specialty: "Gen Med", visits: 550 },
-  { specialty: "Neuro", visits: 210 },
-  { specialty: "Ortho", visits: 310 },
-];
-
-const peakHoursHeatmap = [
-  { hour: "08:00", volume: "Low" },
-  { hour: "10:00", volume: "High" },
-  { hour: "12:00", volume: "Medium" },
-  { hour: "14:00", volume: "High" },
-  { hour: "16:00", volume: "Medium" },
-  { hour: "18:00", volume: "Low" },
-];
-
+const doctors = [
+  ["RC", "Dr. Robert Chen", "Cardiology", "342", "4.9"], ["SJ", "Dr. Sarah Jenkins", "Pediatrics", "289", "4.8"],
+  ["ML", "Dr. Marcus Lee", "General Medicine", "256", "4.7"], ["ET", "Dr. Emily Thorne", "Neurology", "198", "4.95"],
+] as const;
 const templates = [
-  { title: "Monthly Financial Summary", desc: "Breakdown of clinic revenue and margins.", time: "~2 mins" },
-  { title: "Patient Demographics", desc: "Age, location, and insurance distribution.", time: "~1 min" },
-  { title: "Staff Productivity", desc: "Patient throughput and consult durations.", time: "~3 mins" },
-  { title: "Insurance Claim Success", desc: "First-pass acceptance and denial reasons.", time: "~5 mins" },
-];
+  ["request_quote", "Monthly Financial Summary", "Comprehensive breakdown of revenue, expenses, and departmental margins for the current fiscal period.", "~2 mins"],
+  ["demography", "Patient Demographics", "Age, location, and insurance provider distribution across active patient base to inform marketing and care strategies.", "~1 min"],
+  ["monitoring", "Staff Productivity", "Metrics on patient throughput, appointment duration, and charting completion times per provider.", "~3 mins"],
+  ["fact_check", "Insurance Claim Success", "Analysis of first-pass acceptance rates and common denial reasons by payer.", "~5 mins"],
+] as const;
+const reports = [
+  ["Q3 Financial Overview", "Oct 24, 2023, 09:15 AM", "PDF", "Ready"],
+  ["Weekly Staff Utilization", "Oct 23, 2023, 17:00 PM", "CSV", "Ready"],
+  ["Custom: Denials YTD", "Oct 25, 2023, 10:30 AM", "PDF", "Generating..."],
+] as const;
 
-const recentReports = [
-  { name: "Q3 Financial Overview", date: "Oct 24, 2026", format: "PDF", status: "Ready" },
-  { name: "Staff Throughput Report", date: "Oct 18, 2026", format: "CSV", status: "Ready" },
-  { name: "Patient Demographics Q3", date: "Oct 02, 2026", format: "PDF", status: "Ready" },
-];
-
-const topDoctors = [
-  { name: "Dr. Robert Chen", spec: "Cardiology", visits: 342, score: "4.9" },
-  { name: "Dr. Sarah Jenkins", spec: "Pediatrics", visits: 289, score: "4.8" },
-  { name: "Dr. Marcus Lee", spec: "General Medicine", visits: 256, score: "4.7" },
-];
-
-function triggerDownload(filename: string, content: string, mime = "text/plain;charset=utf-8;") {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+function download(filename: string, content: string, type = "text/plain;charset=utf-8") {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
 }
+function Icon({ children, className = "" }: { children: string; className?: string }) { return <span className={`material-symbols-outlined ${className}`}>{children}</span>; }
 
-function exportReport(report: { name: string; date: string; format: string }) {
-  const content = `${report.name}\nGenerated ${report.date}\n\nMedFlow Clinic operational report.`;
-  triggerDownload(
-    `${report.name.replace(/\s+/g, "_").toLowerCase()}.${report.format.toLowerCase()}`,
-    content,
-    report.format === "CSV" ? "text/csv;charset=utf-8;" : "text/plain;charset=utf-8;"
-  );
-}
-
-
-export default function ReportsAndAnalyticsPage() {
-  const [activeTab, setActiveTab] = useState<"overview" | "reports">("overview");
+export default function AnalyticsReportsPage() {
+  const [activeTab, setActiveTab] = useState<"overview" | "detailed">("overview");
+  const [timeRange, setTimeRange] = useState("Last 30 Days");
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const [revenueRange, setRevenueRange] = useState<"6M" | "1Y">("6M");
+  const [notice, setNotice] = useState("");
+  const exportOverview = () => { download("analytics-overview.csv", "Metric,Value\nTotal Patients,1248\nRevenue MTD,142500\nAverage Wait Time,18 min\nFulfillment Rate,94%", "text/csv;charset=utf-8"); setNotice("Analytics export downloaded."); };
+  const generateReport = () => setNotice("Your custom report is being generated.");
 
   return (
-    <div className="space-y-lg pb-xl">
-      {/* Page header with tab toggle */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-outline-variant pb-4">
-        <div>
-          <h1 className="text-headline-md font-display text-on-surface">
-            {activeTab === "overview" ? "Analytics Overview" : "Detailed Reports"}
-          </h1>
-          <p className="text-body-sm text-on-surface-variant mt-xs">
-            {activeTab === "overview"
-              ? "High-level view of clinical and financial performance."
-              : "Generate, view, and download comprehensive operational reports."}
-          </p>
+    <div className="max-w-container mx-auto space-y-xl text-body-md text-on-background pb-12">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md">
+        <div><h1 className="text-headline-lg-mobile md:text-headline-lg text-on-surface">{activeTab === "overview" ? "Analytics Overview" : "Detailed Reports"}</h1><p className="text-body-md text-on-surface-variant mt-xs">{activeTab === "overview" ? "High-level view of clinical and financial performance." : "Generate, view, and schedule comprehensive operational insights."}</p></div>
+        <div className="flex flex-wrap items-center gap-sm w-full sm:w-auto">
+          <div className="bg-surface-container-high rounded-lg p-1 flex"><button onClick={() => setActiveTab("overview")} className={`px-md py-1 rounded-md text-label-md transition ${activeTab === "overview" ? "bg-surface-container-lowest text-on-surface shadow-sm font-semibold" : "text-on-surface-variant hover:text-on-surface"}`}>Overview</button><button onClick={() => setActiveTab("detailed")} className={`px-md py-1 rounded-md text-label-md transition ${activeTab === "detailed" ? "bg-surface-container-lowest text-on-surface shadow-sm font-semibold" : "text-on-surface-variant hover:text-on-surface"}`}>Detailed Reports</button></div>
+          <div className="relative flex-1 sm:flex-none"><button onClick={() => setRangeOpen((open) => !open)} aria-expanded={rangeOpen} className="w-full flex items-center justify-between gap-sm bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-2 hover:bg-surface-container-low text-on-surface text-body-sm"><span className="flex items-center gap-xs"><Icon className="text-[20px] text-on-surface-variant">calendar_month</Icon>{timeRange}</span><Icon className="text-[20px] text-on-surface-variant">expand_more</Icon></button>{rangeOpen && <div className="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-outline-variant bg-surface-container-lowest p-1 shadow-level-2">{["Last 7 Days", "Last 30 Days", "Last 90 Days", "This Year"].map((option) => <button key={option} onClick={() => { setTimeRange(option); setRangeOpen(false); }} className="block w-full rounded-md px-3 py-2 text-left text-body-sm text-on-surface hover:bg-surface-container-low">{option}</button>)}</div>}</div>
+          <button onClick={exportOverview} className="flex items-center gap-xs bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-2 hover:bg-surface-container-low text-on-surface text-label-md"><Icon className="text-[20px]">download</Icon>Export</button>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="bg-surface-container-low p-1 rounded-lg border border-outline-variant flex text-label-md font-semibold">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`px-3 py-1.5 rounded-md transition ${activeTab === "overview" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab("reports")}
-              className={`px-3 py-1.5 rounded-md transition ${activeTab === "reports" ? "bg-surface-container-lowest text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
-            >
-              Report Builder
-            </button>
-          </div>
-          <Button variant="secondary" size="sm" className="flex items-center gap-1.5 text-xs" onClick={() => window.print()}>
-            <Download className="w-3.5 h-3.5" /> Export
-          </Button>
-        </div>
-      </div>
+      </header>
+      {notice && <div role="status" className="rounded-lg bg-secondary-container/30 px-3 py-2 text-body-sm text-on-secondary-container flex justify-between"><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss notification">×</button></div>}
 
-      {/* TAB 1: ANALYTICS OVERVIEW */}
-      {activeTab === "overview" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-level-2">
-              <div className="flex items-center justify-between text-outline">
-                <span className="text-xs font-semibold uppercase">Weekly Patients</span>
-                <Users className="w-4 h-4 text-primary" />
-              </div>
-              <div className="text-headline-md font-bold text-on-surface mt-2">314</div>
-              <span className="text-[11px] font-semibold text-secondary flex items-center gap-1 mt-1">
-                <TrendingUp className="w-3 h-3" /> +14.2% from last week
-              </span>
-            </div>
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-level-2">
-              <div className="flex items-center justify-between text-outline">
-                <span className="text-xs font-semibold uppercase">Avg Wait Time</span>
-                <Clock className="w-4 h-4 text-tertiary" />
-              </div>
-              <div className="text-headline-md font-bold text-on-surface mt-2">14.2m</div>
-              <span className="text-[11px] font-semibold text-secondary flex items-center gap-1 mt-1">
-                -2.5m reduction
-              </span>
-            </div>
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-level-2">
-              <div className="flex items-center justify-between text-outline">
-                <span className="text-xs font-semibold uppercase">Doctor Utilization</span>
-                <Activity className="w-4 h-4 text-secondary" />
-              </div>
-              <div className="text-headline-md font-bold text-on-surface mt-2">86.4%</div>
-              <span className="text-[11px] font-semibold text-on-surface-variant mt-1">Target: 85%</span>
-            </div>
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-level-2">
-              <div className="flex items-center justify-between text-outline">
-                <span className="text-xs font-semibold uppercase">Gross Billing (Mo.)</span>
-                <DollarSign className="w-4 h-4 text-primary" />
-              </div>
-              <div className="text-headline-md font-bold text-on-surface mt-2">$42,910</div>
-              <span className="text-[11px] font-semibold text-secondary flex items-center gap-1 mt-1">
-                +8.1% vs target
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 p-5 rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-2 flex flex-col">
-              <h3 className="font-display font-semibold text-on-surface mb-4">Revenue Trends</h3>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={revenueTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e3e5" vertical={false} />
-                    <XAxis dataKey="month" stroke="#737686" tick={{ fontSize: 11, fill: "#737686" }} />
-                    <YAxis stroke="#737686" tick={{ fontSize: 11, fill: "#737686" }} tickFormatter={(v: any) => `₹${Number(v) / 1000}k`} />
-                    <Tooltip formatter={(v: any) => [`₹${Number(v).toLocaleString()}`, "Revenue"]} />
-                    <Line type="monotone" dataKey="revenue" stroke="#004ac6" strokeWidth={2.5} dot={{ fill: "#004ac6", r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="p-5 rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-2 flex flex-col">
-              <h3 className="font-display font-semibold text-on-surface mb-4">Volume by Specialty</h3>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={specialtyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e3e5" vertical={false} />
-                    <XAxis dataKey="specialty" stroke="#737686" tick={{ fontSize: 11, fill: "#737686" }} />
-                    <YAxis stroke="#737686" tick={{ fontSize: 11, fill: "#737686" }} />
-                    <Tooltip />
-                    <Bar dataKey="visits" fill="#004ac6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="p-6 rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-2">
-              <h3 className="font-display font-semibold text-on-surface mb-4">Peak Arrival Hours Heatmap</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {peakHoursHeatmap.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-4 rounded-lg border text-center ${item.volume === "High" ? "bg-primary-container/20 border-primary text-primary font-bold" : item.volume === "Medium" ? "bg-secondary-container/20 border-secondary text-secondary font-semibold" : "bg-surface-container border-outline-variant text-on-surface-variant"}`}
-                  >
-                    <div className="text-sm">{item.hour}</div>
-                    <div className="text-xs mt-1 uppercase tracking-wider">{item.volume} Load</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-level-2">
-            <div className="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
-              <h3 className="font-display font-semibold text-on-surface">Top Performing Doctors</h3>
-              <button className="text-label-md font-semibold text-primary hover:underline">View All</button>
-            </div>
-            <table className="w-full text-left text-body-sm">
-              <thead className="bg-surface-container-low text-label-sm text-on-surface-variant uppercase font-semibold border-b border-outline-variant">
-                <tr>
-                  <th className="py-3 px-4">Doctor</th>
-                  <th className="py-3 px-4">Specialty</th>
-                  <th className="py-3 px-4 text-right">Patient Visits</th>
-                  <th className="py-3 px-4 text-right">Satisfaction</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant">
-                {topDoctors.map((doc, idx) => (
-                  <tr key={idx} className="hover:bg-surface-container-low/50">
-                    <td className="py-3 px-4 font-semibold text-on-surface flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-primary-container/20 text-primary flex items-center justify-center font-bold text-[10px]">
-                        {doc.name.replace("Dr. ", "").slice(0, 2).toUpperCase()}
-                      </div>
-                      {doc.name}
-                    </td>
-                    <td className="py-3 px-4 text-on-surface-variant">{doc.spec}</td>
-                    <td className="py-3 px-4 text-right font-bold text-on-surface">{doc.visits}</td>
-                    <td className="py-3 px-4 text-right font-bold text-secondary flex items-center justify-end gap-1 mt-2">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {doc.score}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: DETAILED REPORTS */}
-      {activeTab === "reports" && (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-8 space-y-6">
-            <div>
-              <h3 className="text-headline-sm text-on-surface mb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" /> Report Templates
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {templates.map((t, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-xl border border-outline-variant bg-surface-container-lowest hover:border-primary transition cursor-pointer shadow-xs group"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-body-md text-on-surface group-hover:text-primary">{t.title}</h4>
-                      <Play className="w-3.5 h-3.5 text-primary opacity-0 group-hover:opacity-100 transition" />
-                    </div>
-                    <p className="text-body-sm text-on-surface-variant mb-3">{t.desc}</p>
-                    <span className="text-label-sm text-on-surface-variant font-medium">Takes {t.time}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-headline-sm text-on-surface mb-3 flex items-center gap-2">
-                <History className="w-4 h-4 text-primary" /> Recently Generated Reports
-              </h3>
-              <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-xs text-body-sm">
-                <table className="w-full text-left">
-                  <thead className="bg-surface-container-low border-b border-outline-variant text-label-sm text-on-surface-variant uppercase font-semibold">
-                    <tr>
-                      <th className="py-3 px-4">Report Name</th>
-                      <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4">Format</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant">
-                    {recentReports.map((r, idx) => (
-                      <tr key={idx} className="hover:bg-surface-container-low/50">
-                        <td className="py-3 px-4 font-semibold text-on-surface">{r.name}</td>
-                        <td className="py-3 px-4 text-on-surface-variant">{r.date}</td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded bg-surface-container font-bold text-label-sm">{r.format}</span>
-                        </td>
-                        <td className="py-3 px-4"><span className="text-secondary font-bold text-label-sm">{r.status}</span></td>
-                        <td className="py-3 px-4 text-right">
-                          <button onClick={() => exportReport(r)} title="Download" className="text-primary hover:bg-primary-container/20 rounded p-1.5 transition-colors">
-                            <Download className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div className="xl:col-span-4">
-            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5 shadow-sm space-y-4 text-body-sm">
-              <h3 className="text-headline-sm text-on-surface flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-primary" /> Custom Report Builder
-              </h3>
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Data Source</label>
-                <select className="w-full h-10 px-3 border border-outline-variant rounded-lg outline-none bg-surface-container-lowest focus:border-primary">
-                  <option>Financial &amp; Billing</option>
-                  <option>Clinical Outcomes</option>
-                  <option>Operational Efficiency</option>
-                </select>
-              </div>
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Date Range</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="date" className="h-10 px-3 border border-outline-variant rounded-lg outline-none text-body-sm" />
-                  <input type="date" className="h-10 px-3 border border-outline-variant rounded-lg outline-none text-body-sm" />
-                </div>
-              </div>
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Department Filter</label>
-                <select className="w-full h-10 px-3 border border-outline-variant rounded-lg outline-none bg-surface-container-lowest focus:border-primary">
-                  <option>All Departments</option>
-                  <option>Cardiology</option>
-                  <option>Pediatrics</option>
-                </select>
-              </div>
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Provider</label>
-                <select className="w-full h-10 px-3 border border-outline-variant rounded-lg outline-none bg-surface-container-lowest focus:border-primary">
-                  <option>All Providers</option>
-                  <option>Dr. Robert Chen</option>
-                  <option>Dr. Sarah Jenkins</option>
-                </select>
-              </div>
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Output Format</label>
-                <select className="w-full h-10 px-3 border border-outline-variant rounded-lg outline-none bg-surface-container-lowest focus:border-primary">
-                  <option>PDF</option>
-                  <option>CSV</option>
-                  <option>Excel</option>
-                </select>
-              </div>
-              <Button className="w-full">Generate Report</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {activeTab === "overview" ? <>
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
+          {[["Total Patients", "group", "bg-primary-fixed text-primary", "1,248", "trending_up", "+12% from last month", "text-secondary"], ["Revenue (MTD)", "payments", "bg-tertiary-container text-on-tertiary-container", "$142,500", "trending_up", "+5.2% from last month", "text-secondary"], ["Avg. Wait Time", "timer", "bg-error-container text-on-error-container", "18 min", "trending_up", "+2 min from last month", "text-error"], ["Fulfillment Rate", "task_alt", "bg-secondary-container text-on-secondary-container", "94%", "trending_flat", "Steady from last month", "text-secondary"]].map(([label, icon, iconStyle, value, trend, subtitle, trendStyle]) => <div key={label} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col justify-between shadow-sm"><div className="flex justify-between items-start mb-sm"><span className="text-label-md text-on-surface-variant">{label}</span><Icon className={`${iconStyle} p-xs rounded-md`}>{icon}</Icon></div><div><h2 className="text-headline-md text-on-surface">{value}</h2><p className={`text-body-sm ${trendStyle} mt-xs flex items-center gap-xs`}><Icon className="text-[16px]">{trend}</Icon>{subtitle}</p></div></div>)}
+        </section>
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-md">
+          <div className="lg:col-span-2 bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col shadow-sm"><div className="flex justify-between items-center mb-lg"><h3 className="text-headline-sm text-on-surface">Revenue Trends</h3><div className="flex gap-sm">{(["6M", "1Y"] as const).map((range) => <button key={range} onClick={() => setRevenueRange(range)} className={`px-sm py-xs text-label-sm rounded transition ${revenueRange === range ? "bg-surface-container-high text-on-surface font-semibold" : "text-on-surface-variant hover:bg-surface-container-low"}`}>{range}</button>)}</div></div><div className="min-h-[300px]"><ResponsiveContainer width="100%" height={300}><AreaChart data={revenueRange === "6M" ? revenue6M : revenue1Y} margin={{ top: 10, right: 10, left: -20 }}><defs><linearGradient id="revenue-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2563eb" stopOpacity={0.25} /><stop offset="100%" stopColor="#2563eb" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e3e5" /><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#737686", fontSize: 12 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: "#737686", fontSize: 12 }} tickFormatter={(value) => `$${value / 1000}k`} domain={["dataMin - 10000", "dataMax + 10000"]} /><Tooltip contentStyle={{ backgroundColor: "#191c1e", borderRadius: 8, border: "none", color: "#fff", fontSize: 13 }} formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]} /><Area type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2.5} fill="url(#revenue-gradient)" dot={{ fill: "#fff", stroke: "#2563eb", strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: "#2563eb" }} /></AreaChart></ResponsiveContainer></div></div>
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col shadow-sm"><h3 className="text-headline-sm text-on-surface mb-lg">Volume by Specialty</h3><div className="min-h-[300px]"><ResponsiveContainer width="100%" height={300}><BarChart data={specialtyVolumeData} margin={{ top: 10, right: 10, left: -20 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e3e5" /><XAxis dataKey="specialty" axisLine={false} tickLine={false} tick={{ fill: "#737686", fontSize: 12 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: "#737686", fontSize: 12 }} /><Tooltip contentStyle={{ backgroundColor: "#191c1e", borderRadius: 8, border: "none", color: "#fff", fontSize: 13 }} /><Bar dataKey="visits" radius={[4, 4, 0, 0]}>{specialtyVolumeData.map((entry) => <Cell key={entry.specialty} fill={entry.color} />)}</Bar></BarChart></ResponsiveContainer></div></div>
+        </section>
+        <section className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm"><div className="p-md border-b border-outline-variant flex justify-between items-center"><h3 className="text-headline-sm text-on-surface">Top Performing Doctors</h3><button onClick={() => setNotice("All doctor-performance records are displayed.")} className="text-primary text-label-md hover:underline">View All</button></div><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left border-collapse"><thead><tr className="bg-surface-container-low text-on-surface-variant text-label-sm uppercase tracking-wider border-b border-outline-variant"><th className="p-md font-semibold">Doctor</th><th className="p-md font-semibold">Specialty</th><th className="p-md font-semibold text-right">Patient Visits</th><th className="p-md font-semibold text-right">Satisfaction Score</th></tr></thead><tbody className="text-body-sm text-on-surface divide-y divide-outline-variant">{doctors.map(([initials, name, specialty, visits, score], index) => <tr key={name} className="hover:bg-surface-container-low transition-colors"><td className="p-md flex items-center gap-sm"><div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${index === 2 ? "bg-primary-fixed text-on-primary-fixed" : "bg-surface-container-high border border-outline-variant"}`}>{initials}</div><span className="font-medium">{name}</span></td><td className="p-md text-on-surface-variant">{specialty}</td><td className="p-md text-right font-medium">{visits}</td><td className="p-md text-right"><span className="inline-flex items-center gap-xs text-secondary font-medium"><Icon className="text-[16px] text-yellow-500 [font-variation-settings:'FILL'_1]">star</Icon>{score}</span></td></tr>)}</tbody></table></div></section>
+      </> : <div className="grid grid-cols-1 xl:grid-cols-12 gap-gutter"><div className="xl:col-span-8 space-y-xl"><section><h3 className="text-headline-sm text-on-surface mb-md flex items-center gap-sm"><Icon className="text-primary">auto_awesome_mosaic</Icon>Report Templates</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-md">{templates.map(([icon, title, description, duration]) => <button key={title} onClick={() => setNotice(`${title} is being generated.`)} className="text-left bg-surface-container-lowest rounded-xl border border-outline-variant p-md hover:border-primary transition-colors flex flex-col min-h-[190px]"><div className="flex items-center gap-sm mb-sm"><span className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center"><Icon>{icon}</Icon></span><h4 className="text-label-md text-on-surface font-semibold">{title}</h4></div><p className="text-body-sm text-on-surface-variant flex-grow mb-md">{description}</p><span className="flex items-center gap-xs text-on-surface-variant opacity-70 text-label-sm"><Icon className="text-[16px]">schedule</Icon>Usually takes {duration}</span></button>)}</div></section><section><div className="flex items-center justify-between mb-md"><h3 className="text-headline-sm text-on-surface flex items-center gap-sm"><Icon className="text-primary">history</Icon>Recently Generated</h3><button onClick={() => setNotice("All generated reports are displayed.")} className="text-primary text-label-md hover:underline">View All</button></div><div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead className="bg-surface-container-low border-b border-outline-variant"><tr>{["Report Name", "Date Generated", "Format", "Status", "Actions"].map((heading) => <th key={heading} className={`py-sm px-md text-label-sm text-on-surface-variant font-semibold ${heading === "Actions" ? "text-right" : ""}`}>{heading}</th>)}</tr></thead><tbody className="text-body-sm">{reports.map(([name, date, format, status]) => { const ready = status === "Ready"; return <tr key={name} className="border-b last:border-0 border-outline-variant hover:bg-surface-container-low"><td className={`py-md px-md font-medium ${!ready ? "text-on-surface-variant" : "text-on-surface"}`}>{name}</td><td className="py-md px-md text-on-surface-variant">{date}</td><td className="py-md px-md"><span className={`inline-flex items-center gap-xs px-2 py-1 rounded bg-surface-container-high text-xs font-medium ${!ready ? "opacity-50" : ""}`}><Icon className="text-[14px]">{format === "PDF" ? "picture_as_pdf" : "csv"}</Icon>{format}</span></td><td className="py-md px-md">{ready ? <span className="inline-flex items-center gap-xs bg-secondary-container/20 px-2 py-1 rounded-full text-xs font-semibold text-secondary"><i className="w-2 h-2 rounded-full bg-secondary-fixed" />Ready</span> : <span className="inline-flex items-center gap-xs bg-surface-variant px-2 py-1 rounded-full text-xs font-semibold text-on-surface-variant"><Icon className="text-[14px] animate-spin">sync</Icon>Generating...</span>}</td><td className="py-md px-md text-right"><button disabled={!ready} onClick={() => { download(`${name.replace(/\W+/g, "-").toLowerCase()}.${format.toLowerCase()}`, `${name}\nGenerated ${date}`, format === "CSV" ? "text/csv;charset=utf-8" : undefined); setNotice(`${name} downloaded.`); }} className="text-primary hover:bg-primary-container/10 p-xs rounded-md disabled:text-on-surface-variant disabled:opacity-50"><Icon className="text-[20px]">download</Icon></button></td></tr>; })}</tbody></table></div></div></section></div><aside className="xl:col-span-4"><div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md xl:sticky xl:top-md shadow-sm"><h3 className="text-headline-sm text-on-surface mb-md flex items-center gap-sm"><Icon className="text-primary">tune</Icon>Custom Report Builder</h3><form onSubmit={(event) => { event.preventDefault(); generateReport(); }} className="space-y-md"><Field label="Data Source"><select><option>Financial &amp; Billing</option><option>Clinical Outcomes</option><option>Operational Efficiency</option><option>Patient Feedback</option></select></Field><div><label className="block text-label-md text-on-surface font-medium mb-xs">Date Range</label><div className="grid grid-cols-2 gap-sm"><input type="date" /><input type="date" /></div></div><Field label="Department Filter"><select><option>All Departments</option><option>Cardiology</option><option>Neurology</option><option>Pediatrics</option></select></Field><Field label="Provider (Optional)"><select><option>Any Provider</option><option>Dr. Alan Smith</option><option>Dr. Sarah Jenkins</option><option>Dr. Emily Chen</option></select></Field><div className="pt-sm border-t border-outline-variant"><label className="block text-label-md text-on-surface font-medium mb-xs">Output Format</label><div className="flex gap-md text-body-sm"><label className="flex items-center gap-xs"><input defaultChecked name="format" type="radio" value="pdf" />PDF (Visual)</label><label className="flex items-center gap-xs"><input name="format" type="radio" value="csv" />CSV (Raw Data)</label></div></div><div className="pt-md flex flex-col gap-sm"><button type="submit" className="w-full bg-primary text-on-primary h-10 rounded-lg text-label-md font-semibold hover:bg-surface-tint flex items-center justify-center gap-sm"><Icon className="text-[18px]">play_circle</Icon>Generate Report</button><button type="button" onClick={() => setNotice("Recurring-report scheduling is ready to configure.")} className="w-full bg-surface-container-lowest text-on-surface h-10 rounded-lg border border-outline-variant text-label-md font-semibold hover:bg-surface-container-low flex items-center justify-center gap-sm"><Icon className="text-[18px]">calendar_clock</Icon>Schedule Recurring...</button></div></form></div></aside></div>}
     </div>
   );
 }
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div><label className="block text-label-md text-on-surface font-medium mb-xs">{label}</label>{React.cloneElement(children as React.ReactElement, { className: "w-full h-10 bg-background border border-outline-variant rounded-lg px-sm text-body-sm text-on-surface focus:ring-2 focus:ring-primary focus:border-primary focus:bg-surface outline-none" })}</div>; }
