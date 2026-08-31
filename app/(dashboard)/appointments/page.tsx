@@ -33,15 +33,15 @@ interface AppointmentItem {
 }
 
 const TYPE_STYLES: Record<AppointmentType, string> = {
-  Consultation: "bg-blue-50 text-[#2563eb] border-l-2 border-[#2563eb] hover:bg-blue-100",
-  Procedure: "bg-emerald-50 text-[#006c49] border-l-2 border-[#006c49] hover:bg-emerald-100",
-  "Follow-up": "bg-cyan-50 text-[#005e6e] border-l-2 border-[#005e6e] hover:bg-cyan-100",
+  Consultation: "bg-[#2563eb]/10 text-[#004ac6] border-l-2 border-[#004ac6] hover:bg-[#2563eb]/20",
+  Procedure: "bg-[#00714d]/10 text-[#006c49] border-l-2 border-[#006c49] hover:bg-[#00714d]/20",
+  "Follow-up": "bg-[#00788c]/10 text-[#005e6e] border-l-2 border-[#005e6e] hover:bg-[#00788c]/20",
 };
 
-const LEGEND_COLORS: Record<AppointmentType, string> = {
-  Consultation: "bg-blue-500",
-  Procedure: "bg-emerald-500",
-  "Follow-up": "bg-cyan-500",
+const LEGEND_DOTS: Record<AppointmentType, string> = {
+  Consultation: "bg-[#2563eb] border border-[#004ac6]",
+  Procedure: "bg-[#6cf8bb] border border-[#006c49]",
+  "Follow-up": "bg-[#00788c] border border-[#005e6e]",
 };
 
 const MOCK_APPOINTMENTS: AppointmentItem[] = [
@@ -95,8 +95,8 @@ export default function AppointmentsCalendarPage() {
             const reason: string = item.reason || "";
             const type: AppointmentType =
               reason === "Consultation" ? "Consultation"
-              : reason?.startsWith("Follow") ? "Follow-up"
-              : idx % 3 === 0 ? "Consultation" : idx % 3 === 1 ? "Procedure" : "Follow-up";
+                : reason?.startsWith("Follow") ? "Follow-up"
+                  : idx % 3 === 0 ? "Consultation" : idx % 3 === 1 ? "Procedure" : "Follow-up";
             return {
               id: item.id || `apt-${idx}`,
               patient_name: item.patients?.full_name || "Patient",
@@ -167,35 +167,35 @@ export default function AppointmentsCalendarPage() {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-          <Button onClick={() => setIsBookModalOpen(true)} className="bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-semibold h-9 px-4 rounded-lg shadow-sm flex items-center gap-1.5">
+          <Button onClick={() => setIsBookModalOpen(true)} className="bg-[#004ac6] hover:bg-blue-700 text-white text-xs font-semibold h-9 px-4 rounded-lg shadow-sm flex items-center gap-1.5">
             <Plus className="w-4 h-4" /> Book Appointment
           </Button>
         </div>
       </div>
       <div className="flex items-center gap-5 mb-3 shrink-0 text-xs">
         <span className="text-slate-400 font-medium">Legend:</span>
-        {(Object.keys(LEGEND_COLORS) as AppointmentType[]).map((t) => (
+        {(Object.keys(LEGEND_DOTS) as AppointmentType[]).map((t) => (
           <div key={t} className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full ${LEGEND_COLORS[t]}`} />
+            <span className={`w-2.5 h-2.5 rounded-full ${LEGEND_DOTS[t]}`} />
             <span className="font-medium text-slate-700">{t}</span>
           </div>
         ))}
       </div>
       <div className="flex-1 flex gap-6 min-h-0">
         <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-[#f8fafc] shrink-0 text-center py-2.5 text-xs font-semibold text-slate-600">
+          <div className="grid grid-cols-7 border-b border-slate-200 bg-[#f7f9fb] shrink-0 text-center py-2.5 text-xs font-semibold text-slate-600">
             <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
           </div>
           <div className="flex-1 overflow-y-auto">
             {viewMode === "monthly" && (
               <div className="grid grid-cols-7 gap-px bg-slate-200">
                 {monthDays.map((day, idx) => {
-                  if (day === null) return <div key={`pad-${idx}`} className="bg-[#f8fafc] p-2 min-h-[95px] text-xs text-slate-300" />;
+                  if (day === null) return <div key={`pad-${idx}`} className="bg-[#f7f9fb] p-2 min-h-[95px] text-xs text-slate-300" />;
                   const dayApts = appointmentsForDate(day);
                   const isToday = isSameDay(new Date(currentDate.getFullYear(), currentDate.getMonth(), day), new Date());
                   return (
-                    <div key={day} className={`bg-white p-2 min-h-[95px] flex flex-col gap-1 ${isToday ? "bg-blue-50/40 ring-1 ring-inset ring-[#2563eb]" : ""}`}>
-                      <span className={`text-xs font-bold ${isToday ? "text-[#2563eb]" : "text-slate-800"}`}>{day}</span>
+                    <div key={day} className={`bg-white p-2 min-h-[95px] flex flex-col gap-1 ${isToday ? "bg-blue-50/40 ring-1 ring-inset ring-[#004ac6]" : ""}`}>
+                      <span className={`text-xs font-bold ${isToday ? "text-[#004ac6]" : "text-slate-800"}`}>{day}</span>
                       <div className="space-y-1 overflow-y-auto">
                         {dayApts.map((apt) => (
                           <Link key={apt.id} href={`/appointments/${apt.id}`}
@@ -217,10 +217,10 @@ export default function AppointmentsCalendarPage() {
                   const dayApts = appointmentsForDayArray(d);
                   const isToday = isSameDay(d, new Date());
                   return (
-                    <div key={idx} className={`bg-white p-2 min-h-[95px] flex flex-col gap-1 ${isToday ? "bg-blue-50/40 ring-1 ring-inset ring-[#2563eb]" : ""}`}>
+                    <div key={idx} className={`bg-white p-2 min-h-[95px] flex flex-col gap-1 ${isToday ? "bg-blue-50/40 ring-1 ring-inset ring-[#004ac6]" : ""}`}>
                       <div className="flex flex-col">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase">{format(d, "EEE")}</span>
-                        <span className={`text-xs font-bold ${isToday ? "text-[#2563eb]" : "text-slate-800"}`}>{format(d, "d")}</span>
+                        <span className={`text-xs font-bold ${isToday ? "text-[#004ac6]" : "text-slate-800"}`}>{format(d, "d")}</span>
                       </div>
                       <div className="space-y-1 overflow-y-auto">
                         {dayApts.map((apt) => (
@@ -265,7 +265,7 @@ export default function AppointmentsCalendarPage() {
 
         {/* Today's Schedule Sidebar */}
         <aside className="w-80 flex flex-col bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
-          <div className="p-4 border-b border-slate-100 bg-[#f8fafc]">
+          <div className="p-4 border-b border-slate-100 bg-[#f7f9fb]">
             <h3 className="text-sm font-bold text-slate-900">Today&apos;s Schedule</h3>
             <p className="text-xs text-slate-500 font-medium">{format(new Date(), "EEEE, MMM d, yyyy")}</p>
           </div>
@@ -276,16 +276,15 @@ export default function AppointmentsCalendarPage() {
               todaySchedule.map((apt) => (
                 <div key={apt.id} className="flex gap-3">
                   <span className="text-xs font-bold text-slate-500 w-12 text-right shrink-0 pt-1">{apt.time}</span>
-                  <div className={`flex-1 bg-[#f8fafc] border-l-4 rounded-r-lg p-3 shadow-xs ${
-                    apt.type === "Consultation" ? "border-[#2563eb]" : apt.type === "Procedure" ? "border-emerald-600" : "border-cyan-600"
-                  }`}>
+                  <div className={`flex-1 bg-[#f2f4f6] border-l-4 rounded-r-lg p-3 shadow-xs ${apt.type === "Consultation" ? "border-[#004ac6]" : apt.type === "Procedure" ? "border-[#006c49]" : "border-[#005e6e]"
+                    }`}>
                     <div className="flex justify-between items-start mb-1">
                       <Link href={`/appointments/${apt.id}`} className="text-xs font-bold text-slate-900 hover:underline">{apt.patient_name}</Link>
                       <MoreHorizontal className="w-3.5 h-3.5 text-slate-400" />
                     </div>
                     <p className="text-[11px] text-slate-500 mb-2 font-medium">{apt.type}</p>
                     <div className="flex items-center gap-1.5 text-[10px] font-semibold">
-                      <span className="px-2 py-0.5 rounded bg-blue-50 text-[#2563eb]">{apt.doctor_name}</span>
+                      <span className="px-2 py-0.5 rounded bg-blue-50 text-[#004ac6]">{apt.doctor_name}</span>
                       <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700">{apt.room}</span>
                     </div>
                   </div>
@@ -308,7 +307,7 @@ export default function AppointmentsCalendarPage() {
       {isBookModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-[#f8fafc]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-[#f7f9fb]">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Book Appointment</h2>
                 <p className="text-xs text-slate-500">Schedule a new visit or consultation.</p>
@@ -324,14 +323,14 @@ export default function AppointmentsCalendarPage() {
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                     <input type="text" value={selectedPatient} onChange={(e) => setSelectedPatient(e.target.value)}
-                      placeholder="Search patient name or ID..." className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 focus:border-[#2563eb] outline-none" />
+                      placeholder="Search patient name or ID..." className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 focus:border-[#004ac6] outline-none" />
                   </div>
                 </div>
                 <div>
                   <label className="font-semibold text-slate-800 block mb-1">Provider</label>
                   <div className="relative">
                     <select value={selectedDoctor} onChange={(e) => setSelectedDoctor(e.target.value)}
-                      className="w-full h-9 px-3 pr-8 rounded-lg border border-slate-200 focus:border-[#2563eb] outline-none appearance-none cursor-pointer bg-white">
+                      className="w-full h-9 px-3 pr-8 rounded-lg border border-slate-200 focus:border-[#004ac6] outline-none appearance-none cursor-pointer bg-white">
                       <option value="dr-jenkins">Dr. Sarah Jenkins (Cardiology)</option>
                       <option value="dr-chen">Dr. Marcus Chen (Pediatrics)</option>
                       <option value="dr-rodriguez">Dr. Emily Rodriguez (General)</option>
@@ -345,7 +344,7 @@ export default function AppointmentsCalendarPage() {
                 <div className="flex flex-wrap gap-2">
                   {BOOKING_TYPES.map((type) => (
                     <button key={type} type="button" onClick={() => setAppointmentType(type)}
-                      className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition ${appointmentType === type ? "border-[#2563eb] bg-blue-50 text-[#2563eb]" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                      className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition ${appointmentType === type ? "border-[#004ac6] bg-blue-50 text-[#004ac6]" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
                       {type}
                     </button>
                   ))}
@@ -369,7 +368,7 @@ export default function AppointmentsCalendarPage() {
                     <div className="grid grid-cols-7 gap-1 text-center text-xs">
                       {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
                         <button key={d} type="button" onClick={() => setSelectedDay(d)}
-                          className={`py-1 rounded font-semibold transition ${selectedDay === d ? "bg-[#2563eb] text-white" : "text-slate-700 hover:bg-slate-100"}`}>{d}</button>
+                          className={`py-1 rounded font-semibold transition ${selectedDay === d ? "bg-[#004ac6] text-white" : "text-slate-700 hover:bg-slate-100"}`}>{d}</button>
                       ))}
                     </div>
                   </div>
@@ -382,7 +381,7 @@ export default function AppointmentsCalendarPage() {
                       <div className="grid grid-cols-3 gap-1.5">
                         {MORNING_SLOTS.map((slot, idx) => (
                           <button key={slot} type="button" disabled={idx === 3 || idx === 5} onClick={() => setSelectedTimeSlot(slot)}
-                            className={`py-1.5 border rounded text-[11px] font-semibold transition ${idx === 3 || idx === 5 ? "opacity-40 line-through bg-slate-50 border-slate-200 cursor-not-allowed" : selectedTimeSlot === slot ? "border-[#2563eb] bg-blue-50 text-[#2563eb]" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
+                            className={`py-1.5 border rounded text-[11px] font-semibold transition ${idx === 3 || idx === 5 ? "opacity-40 line-through bg-slate-50 border-slate-200 cursor-not-allowed" : selectedTimeSlot === slot ? "border-[#004ac6] bg-blue-50 text-[#004ac6]" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
                             {slot}
                           </button>
                         ))}
@@ -393,7 +392,7 @@ export default function AppointmentsCalendarPage() {
                       <div className="grid grid-cols-3 gap-1.5">
                         {AFTERNOON_SLOTS.map((slot) => (
                           <button key={slot} type="button" onClick={() => setSelectedTimeSlot(slot)}
-                            className={`py-1.5 border rounded text-[11px] font-semibold transition ${selectedTimeSlot === slot ? "border-[#2563eb] bg-blue-50 text-[#2563eb]" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
+                            className={`py-1.5 border rounded text-[11px] font-semibold transition ${selectedTimeSlot === slot ? "border-[#004ac6] bg-blue-50 text-[#004ac6]" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
                             {slot}
                           </button>
                         ))}
@@ -406,12 +405,12 @@ export default function AppointmentsCalendarPage() {
                 <label className="font-semibold text-slate-800 block mb-1">Reason for Visit / Notes (Optional)</label>
                 <textarea rows={2} value={visitNotes} onChange={(e) => setVisitNotes(e.target.value)}
                   placeholder="Briefly describe symptoms or purpose of visit..."
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:border-[#2563eb] outline-none text-xs" />
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:border-[#004ac6] outline-none text-xs" />
               </div>
             </div>
-            <div className="px-6 py-3 border-t border-slate-100 bg-[#f8fafc] flex justify-end gap-2">
+            <div className="px-6 py-3 border-t border-slate-100 bg-[#f7f9fb] flex justify-end gap-2">
               <Button variant="secondary" size="sm" onClick={() => setIsBookModalOpen(false)}>Cancel</Button>
-              <Button size="sm" onClick={handleConfirmBooking} className="bg-[#2563eb] hover:bg-blue-700 text-white font-semibold">Confirm Booking</Button>
+              <Button size="sm" onClick={handleConfirmBooking} className="bg-[#004ac6] hover:bg-blue-700 text-white font-semibold">Confirm Booking</Button>
             </div>
           </div>
         </div>

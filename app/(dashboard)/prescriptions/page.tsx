@@ -30,7 +30,7 @@ const MOCK_RX: PrescriptionRow[] = [
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "Active":
-      return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+      return "bg-[#6cf8bb]/30 text-[#00714d] border border-[#6cf8bb]";
     case "Completed":
       return "bg-slate-100 text-slate-600 border border-slate-200";
     case "Discontinued":
@@ -112,10 +112,10 @@ export default function PrescriptionHistoryPage() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search medication, patient, or prescriber..."
-            className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-200 bg-[#f8fafc] text-xs text-slate-900 focus:bg-white focus:border-[#2563eb] outline-none" />
+            className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-200 bg-[#f7f9fb] text-xs text-slate-900 focus:bg-white focus:border-[#004ac6] outline-none" />
         </div>
         <div className="flex gap-2.5 w-full md:w-auto">
-          <Button asChild className="bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-semibold h-10 px-4 rounded-lg shadow-sm">
+          <Button asChild className="bg-[#004ac6] hover:bg-blue-700 text-white text-xs font-semibold h-10 px-4 rounded-lg shadow-sm">
             <Link href="/prescriptions/new" className="flex items-center gap-1.5">
               <Plus className="w-4 h-4" /> New Prescription
             </Link>
@@ -136,7 +136,7 @@ export default function PrescriptionHistoryPage() {
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
-            <tr className="border-b border-slate-200 bg-[#f8fafc] text-slate-500 font-semibold">
+            <tr className="border-b border-slate-200 bg-[#f7f9fb] text-slate-500 font-semibold">
               <th className="py-3 px-4">Date Issued</th>
               <th className="py-3 px-4">Medication &amp; Dosage</th>
               <th className="py-3 px-4">Patient</th>
@@ -170,8 +170,8 @@ export default function PrescriptionHistoryPage() {
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <div className="flex justify-end gap-1 text-slate-400">
-                      <Link href={`/prescriptions/${p.id}`} className="p-1 hover:text-[#2563eb]" title="View Details"><Eye className="w-4 h-4" /></Link>
-                      <button className="p-1 hover:text-[#2563eb]" title="Print"><Printer className="w-4 h-4" /></button>
+                      <Link href={`/prescriptions/${p.id}`} className="p-1 hover:text-[#004ac6]" title="View Details"><Eye className="w-4 h-4" /></Link>
+                      <button className="p-1 hover:text-[#004ac6]" title="Print"><Printer className="w-4 h-4" /></button>
                       <button className="p-1 hover:text-slate-600" title="More"><MoreVertical className="w-4 h-4" /></button>
                     </div>
                   </td>
@@ -188,7 +188,7 @@ export default function PrescriptionHistoryPage() {
           <span>Showing 1 to {filtered.length} of {prescriptions.length} entries</span>
           <div className="flex items-center gap-1">
             <button className="px-2 py-1 rounded border border-slate-200 disabled:opacity-40" disabled>&lt;</button>
-            <button className="w-7 h-7 rounded bg-blue-50 text-[#2563eb] font-semibold border border-blue-200">1</button>
+            <button className="w-7 h-7 rounded bg-blue-50 text-[#004ac6] font-semibold border border-blue-200">1</button>
             <button className="w-7 h-7 rounded hover:bg-slate-50 border border-slate-200">2</button>
             <button className="w-7 h-7 rounded hover:bg-slate-50 border border-slate-200">3</button>
             <span className="px-1 text-slate-400">...</span>

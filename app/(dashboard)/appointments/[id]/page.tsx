@@ -132,14 +132,14 @@ export default function AppointmentDetailsPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto font-sans pb-12">
       <div>
-        <Link href="/appointments" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#2563eb] transition-colors">
+        <Link href="/appointments" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#004ac6] transition-colors">
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Appointments
         </Link>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 md:p-8 border-b border-slate-200 bg-[#f8fafc] flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="p-6 md:p-8 border-b border-slate-200 bg-[#f7f9fb] flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
@@ -158,7 +158,7 @@ export default function AppointmentDetailsPage() {
             <Button variant="secondary" size="sm" className="text-xs font-semibold">
               <CalendarCheck className="w-3.5 h-3.5 mr-1.5" /> Reschedule
             </Button>
-            <Button size="sm" asChild className="bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-semibold">
+            <Button size="sm" asChild className="bg-[#004ac6] hover:bg-blue-700 text-white text-xs font-semibold">
               <Link href="/prescriptions/new"><Video className="w-3.5 h-3.5 mr-1.5" /> Start Visit</Link>
             </Button>
           </div>
@@ -171,12 +171,12 @@ export default function AppointmentDetailsPage() {
             <div className="border border-slate-200 rounded-xl p-4 bg-white shadow-xs">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Patient</span>
-                <Link href="/patients" className="text-xs font-semibold text-[#2563eb] flex items-center gap-0.5 hover:underline">
+                <Link href="/patients" className="text-xs font-semibold text-[#004ac6] flex items-center gap-0.5 hover:underline">
                   View Profile <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
+                <div className="w-11 h-11 rounded-full bg-blue-50 text-[#004ac6] flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
                   {initials(detail.patient.name)}
                 </div>
                 <div>
@@ -191,7 +191,7 @@ export default function AppointmentDetailsPage() {
             <div className="border border-slate-200 rounded-xl p-4 bg-white shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-3">Provider</span>
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-blue-50 text-[#2563eb] flex items-center justify-center shrink-0 border border-blue-100">
+                <div className="w-11 h-11 rounded-full bg-blue-50 text-[#004ac6] flex items-center justify-center shrink-0 border border-blue-100">
                   <Stethoscope className="w-5 h-5" />
                 </div>
                 <div>
@@ -216,7 +216,7 @@ export default function AppointmentDetailsPage() {
               </div>
             </div>
 
-            <div className="border border-slate-200 rounded-xl p-5 bg-[#f8fafc]">
+            <div className="border border-slate-200 rounded-xl p-5 bg-[#f7f9fb]">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold text-slate-900">Triage Vitals</h2>
                 <span className="text-[11px] text-slate-400 font-medium">Taken 15m ago</span>
@@ -228,7 +228,7 @@ export default function AppointmentDetailsPage() {
                   <span className="text-[10px] text-slate-400">mmHg</span>
                 </div>
                 <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
-                  <span className="text-slate-500 font-semibold flex items-center gap-1 text-[11px]"><Activity className="w-3.5 h-3.5 text-[#2563eb]" /> Heart Rate</span>
+                  <span className="text-slate-500 font-semibold flex items-center gap-1 text-[11px]"><Activity className="w-3.5 h-3.5 text-[#004ac6]" /> Heart Rate</span>
                   <div className="text-lg font-bold text-slate-900 mt-2">{detail.vitals.hr}</div>
                   <span className="text-[10px] text-slate-400">bpm</span>
                 </div>
