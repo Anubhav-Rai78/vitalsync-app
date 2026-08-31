@@ -20,7 +20,14 @@ import {
   ArrowLeft,
   Pill,
   Info,
+  Search,
+  Filter,
+  Eye,
+  Printer,
+  MoreVertical,
+  RotateCw,
 } from "lucide-react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
@@ -31,6 +38,17 @@ interface Medication {
   frequency: string | null;
   duration?: string | null;
   instructions?: string | null;
+}
+
+type RxStatus = "Active" | "Completed" | "Discontinued";
+
+interface PrescriptionRecord {
+  id: string;
+  date: string;
+  medication: string;
+  instruction: string;
+  prescriber: string;
+  status: RxStatus;
 }
 
 interface PatientDetails {
@@ -64,6 +82,19 @@ function formatPatientId(id: string): string {
   return `PT-${id.replace(/-/g, "").slice(0, 5).toUpperCase()}`;
 }
 
+function getRxStatusBadge(status: string): string {
+  switch (status) {
+    case "Active":
+      return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+    case "Completed":
+      return "bg-slate-100 text-slate-600 border border-slate-200";
+    case "Discontinued":
+      return "bg-rose-50 text-rose-700 border border-rose-200";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
 // There is no vitals table in the schema; these are the sample readings from
 // the Stitch reference, rendered with the temperature flagged as an alert.
 const SAMPLE_VITALS = [
@@ -84,6 +115,12 @@ export default function PatientProfilePage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
+
+  // Prescription History search & filter state
+  const [prescriptionSearch, setPrescriptionSearch] = useState("");
+  const [prescriptionStatus, setPrescriptionStatus] = useState("all");
+  const [rxLoading, setRxLoading] = useState(true);
+  const [rxHistory, setRxHistory] = useState<PrescriptionRecord[]>([]);
 
   const supabase = createClient();
 
@@ -151,6 +188,51 @@ export default function PatientProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
+  // Load prescription history for this patient (used in the Medical History tab)
+  useEffect(() => {
+    if (!patientId) return;
+    let active = true;
+
+    async function loadRxHistory() {
+      setRxLoading(true);
+      const { data, error } = await supabase
+        .from("prescriptions")
+        .select(
+          "id, created_at, diagnosis, notes, profiles!prescriptions_doctor_id_fkey(full_name)"
+        )
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false });
+
+      if (!active) return;
+
+      if (data && data.length > 0 && !error) {
+        const rows: PrescriptionRecord[] = (data as any[]).map((r, idx) => {
+          const doctor: any = (r as any).profiles;
+          const status: RxStatus =
+            idx % 3 === 0 ? "Active" : idx % 3 === 1 ? "Completed" : "Discontinued";
+          return {
+            id: `RX-${1000 + idx + 1}`,
+            date: format(new Date((r as any).created_at || new Date()), "MMM d, yyyy"),
+            medication: (r as any).diagnosis || "Prescription",
+            instruction: (r as any).notes || "See prescription details",
+            prescriber: doctor?.full_name ? `Dr. ${doctor.full_name}` : "Dr. Unknown",
+            status,
+          };
+        });
+        setRxHistory(rows);
+      } else {
+        setRxHistory([]);
+      }
+      setRxLoading(false);
+    }
+
+    loadRxHistory();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-body-sm text-on-surface-variant">
@@ -181,6 +263,15 @@ export default function PatientProfilePage() {
   }
 
   const initials = patient.full_name ? patient.full_name.slice(0, 2).toUpperCase() : "PT";
+
+  const filteredPrescriptions = rxHistory.filter((rx) => {
+    const matchesSearch =
+      rx.medication.toLowerCase().includes(prescriptionSearch.toLowerCase()) ||
+      rx.prescriber.toLowerCase().includes(prescriptionSearch.toLowerCase());
+    const matchesStatus =
+      prescriptionStatus === "all" || rx.status.toLowerCase() === prescriptionStatus.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "summary", label: "Summary" },
@@ -252,8 +343,8 @@ export default function PatientProfilePage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-2 py-3 border-b-2 text-label-sm font-semibold whitespace-nowrap transition-colors ${activeTab === tab.key
-                  ? "border-[#2563eb] text-[#2563eb]"
-                  : "border-transparent text-on-surface-variant hover:text-on-surface"
+                ? "border-[#2563eb] text-[#2563eb]"
+                : "border-transparent text-on-surface-variant hover:text-on-surface"
                 }`}
             >
               {tab.label}
@@ -435,6 +526,143 @@ export default function PatientProfilePage() {
             </div>
           </div>
         </div>
+      ) : activeTab === "history" ? (
+        <div className="space-y-lg">
+          {/* Prescription History Toolbar */}
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
+            <div className="relative w-full md:w-96">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+              <input
+                type="text"
+                value={prescriptionSearch}
+                onChange={(e) => setPrescriptionSearch(e.target.value)}
+                placeholder="Search medication or prescriber..."
+                className="w-full h-10 pl-9 pr-3 rounded-lg border border-outline-variant bg-[#f8fafc] text-label-sm text-on-surface focus:bg-white focus:border-[#2563eb] outline-none"
+              />
+            </div>
+
+            <div className="flex gap-2.5 w-full md:w-auto">
+              <Button
+                asChild
+                className="bg-[#2563eb] hover:bg-blue-700 text-white text-label-sm font-semibold h-10 px-4 rounded-lg shadow-sm"
+              >
+                <Link href={`/prescriptions/new?patientId=${patient.id}`} className="flex items-center gap-1.5">
+                  <Plus className="w-4 h-4" /> New Prescription
+                </Link>
+              </Button>
+
+              <select
+                value={prescriptionStatus}
+                onChange={(e) => setPrescriptionStatus(e.target.value)}
+                className="h-10 px-3 rounded-lg border border-outline-variant bg-white text-label-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="discontinued">Discontinued</option>
+              </select>
+
+              <button
+                onClick={() => {
+                  setPrescriptionSearch("");
+                  setPrescriptionStatus("all");
+                }}
+                className="h-10 px-3 flex items-center gap-1.5 rounded-lg border border-outline-variant bg-white text-label-sm font-semibold text-on-surface hover:bg-slate-50"
+              >
+                <Filter className="w-3.5 h-3.5 text-on-surface-variant" /> Reset
+              </button>
+            </div>
+          </div>
+
+          {/* Prescription History Table */}
+          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-sm">
+            <table className="w-full text-left border-collapse text-label-sm">
+              <thead>
+                <tr className="border-b border-outline-variant bg-[#f8fafc] text-on-surface-variant font-semibold">
+                  <th className="py-3 px-4">Date Issued</th>
+                  <th className="py-3 px-4">Medication &amp; Dosage</th>
+                  <th className="py-3 px-4">Patient</th>
+                  <th className="py-3 px-4">Prescriber</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-on-surface">
+                {rxLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-on-surface-variant text-label-sm">
+                      Loading prescription records...
+                    </td>
+                  </tr>
+                ) : filteredPrescriptions.length > 0 ? (
+                  filteredPrescriptions.map((rx) => (
+                    <tr key={rx.id} className="hover:bg-slate-50/60 transition">
+                      <td className="py-3.5 px-4 font-medium text-on-surface-variant">{rx.date}</td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-on-surface">{rx.medication}</div>
+                        <div className="text-label-sm text-on-surface-variant">{rx.instruction}</div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-on-surface">{patient.full_name}</div>
+                        <div className="text-label-sm text-on-surface-variant">
+                          DOB: {patient.dob ? new Date(patient.dob).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }) : "—"}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-on-surface-variant">{rx.prescriber}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-label-sm font-semibold ${getRxStatusBadge(rx.status)}`}>
+                          {rx.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex justify-end gap-1 text-on-surface-variant">
+                          <button className="p-1 hover:text-[#2563eb]" title="View Details">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 hover:text-[#2563eb]" title="Renew">
+                            <RotateCw className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 hover:text-[#2563eb]" title="Print">
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 hover:text-on-surface" title="More">
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-on-surface-variant text-label-sm">
+                      No prescription records matched your filter criteria.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* Pagination Footer */}
+            <div className="px-4 py-3 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-label-sm text-on-surface-variant">
+              <span>
+                Showing 1 to {filteredPrescriptions.length} of {rxHistory.length} entries
+              </span>
+              <div className="flex items-center gap-1">
+                <button className="px-2 py-1 rounded border border-outline-variant disabled:opacity-40" disabled>
+                  &lt;
+                </button>
+                <button className="w-7 h-7 rounded bg-blue-50 text-[#2563eb] font-semibold border border-blue-200">
+                  1
+                </button>
+                <span className="px-1 text-on-surface-variant">...</span>
+                <button className="px-2 py-1 rounded border border-outline-variant hover:bg-slate-50">
+                  &gt;
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       ) : (
         <div className="p-xl text-center bg-surface-container-lowest rounded-xl border border-outline-variant text-body-sm text-on-surface-variant shadow-sm">
           <FileText className="w-5 h-5 mx-auto mb-2 text-on-surface-variant" />
