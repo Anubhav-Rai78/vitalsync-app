@@ -30,6 +30,7 @@ import {
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { RecordVitalsForm } from "@/components/modules/record-vitals-form";
 
 interface Medication {
   id: string;
@@ -38,6 +39,24 @@ interface Medication {
   frequency: string | null;
   duration?: string | null;
   instructions?: string | null;
+}
+
+interface VitalsReading {
+  id: string;
+  recorded_at: string;
+  blood_pressure_systolic: number | null;
+  blood_pressure_diastolic: number | null;
+  heart_rate: number | null;
+  weight_kg: number | null;
+  temperature_c: number | null;
+  spo2: number | null;
+}
+
+interface VitalsCard {
+  label: string;
+  value: string;
+  unit: string;
+  alert: boolean;
 }
 
 type RxStatus = "Active" | "Completed" | "Discontinued";
@@ -95,14 +114,50 @@ function getRxStatusBadge(status: string): string {
   }
 }
 
-// There is no vitals table in the schema; these are the sample readings from
-// the Stitch reference, rendered with the temperature flagged as an alert.
-const SAMPLE_VITALS = [
-  { label: "Blood Pressure", value: "128/82", unit: "mmHg", alert: false },
-  { label: "Heart Rate", value: "72", unit: "bpm", alert: false },
-  { label: "Weight", value: "84.5", unit: "kg", alert: false },
-  { label: "Temperature", value: "38.2", unit: "°C", alert: true },
-];
+// Vitals cards are derived live from the latest `vitals` row for this
+// patient (temperature ≥ 38°C is flagged as an alert, matching the
+// reference design). Falls back to an empty set when no reading exists.
+function buildVitalsCards(latest: VitalsReading | undefined): VitalsCard[] {
+  if (!latest) return [];
+  const cards: VitalsCard[] = [];
+
+  if (latest.blood_pressure_systolic != null || latest.blood_pressure_diastolic != null) {
+    cards.push({
+      label: "Blood Pressure",
+      value: `${latest.blood_pressure_systolic ?? "—"}/${latest.blood_pressure_diastolic ?? "—"}`,
+      unit: "mmHg",
+      alert: false,
+    });
+  }
+  if (latest.heart_rate != null) {
+    cards.push({ label: "Heart Rate", value: String(latest.heart_rate), unit: "bpm", alert: false });
+  }
+  if (latest.weight_kg != null) {
+    cards.push({ label: "Weight", value: String(latest.weight_kg), unit: "kg", alert: false });
+  }
+  if (latest.temperature_c != null) {
+    const alert = latest.temperature_c >= 38;
+    cards.push({
+      label: "Temperature",
+      value: String(latest.temperature_c),
+      unit: "°C",
+      alert,
+    });
+  }
+  if (latest.spo2 != null) {
+    cards.push({ label: "SpO₂", value: String(latest.spo2), unit: "%", alert: false });
+  }
+  return cards;
+}
+
+function formatVitalsTime(value: string): string {
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 type TabKey = "summary" | "history" | "appointments" | "documents";
 
@@ -121,6 +176,7 @@ export default function PatientProfilePage() {
   const [prescriptionStatus, setPrescriptionStatus] = useState("all");
   const [rxLoading, setRxLoading] = useState(true);
   const [rxHistory, setRxHistory] = useState<PrescriptionRecord[]>([]);
+  const [vitals, setVitals] = useState<VitalsReading[]>([]);
 
   const supabase = createClient();
 
@@ -177,6 +233,17 @@ export default function PatientProfilePage() {
 
         if (active && items) setMedications(items as Medication[]);
       }
+
+      // Vitals history (most recent first) — drives the summary cards and
+      // the Recent Vitals panel so the page always reflects real readings.
+      const { data: vitalsRows } = await supabase
+        .from("vitals")
+        .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, heart_rate, weight_kg, temperature_c, spo2")
+        .eq("patient_id", patientId)
+        .order("recorded_at", { ascending: false })
+        .limit(25);
+
+      if (active && vitalsRows) setVitals(vitalsRows as VitalsReading[]);
 
       if (active) setLoading(false);
     }
@@ -280,6 +347,21 @@ export default function PatientProfilePage() {
     { key: "documents", label: "Documents" },
   ];
 
+  const latestVitals = vitals[0];
+  const vitalsCards = buildVitalsCards(latestVitals);
+  const reloadVitals = () => {
+    if (!patientId) return;
+    supabase
+      .from("vitals")
+      .select("id, recorded_at, blood_pressure_systolic, blood_pressure_diastolic, heart_rate, weight_kg, temperature_c, spo2")
+      .eq("patient_id", patientId)
+      .order("recorded_at", { ascending: false })
+      .limit(25)
+      .then(({ data }) => {
+        if (data) setVitals(data as VitalsReading[]);
+      });
+  };
+
   return (
     <div className="space-y-lg max-w-container mx-auto font-sans">
       {/* Back Navigation Link */}
@@ -363,11 +445,13 @@ export default function PatientProfilePage() {
               <h2 className="text-headline-sm text-on-surface flex items-center gap-2">
                 <Activity className="w-4 h-4 text-[#2563eb]" /> Recent Vitals
               </h2>
-              <span className="text-label-sm font-medium text-on-surface-variant">Recorded Today, 09:15 AM</span>
+              <span className="text-label-sm font-medium text-on-surface-variant">
+                {latestVitals ? formatVitalsTime(latestVitals.recorded_at) : "No readings yet"}
+              </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-md">
-              {SAMPLE_VITALS.map((v) => (
+              {vitalsCards.map((v) => (
                 <div
                   key={v.label}
                   className={
@@ -392,7 +476,48 @@ export default function PatientProfilePage() {
                   </div>
                 </div>
               ))}
+              {vitalsCards.length === 0 && (
+                <p className="col-span-2 sm:col-span-4 text-body-sm text-on-surface-variant py-sm">
+                  No vitals recorded yet.
+                </p>
+              )}
             </div>
+
+            {/* Vitals history — past readings above the record form */}
+            {vitals.length > 0 && (
+              <div className="mt-md overflow-x-auto rounded-lg border border-outline-variant/50">
+                <table className="w-full text-left text-label-sm">
+                  <thead className="bg-surface-container-low text-on-surface-variant">
+                    <tr>
+                      <th className="px-md py-sm font-semibold">Recorded</th>
+                      <th className="px-md py-sm font-semibold">BP</th>
+                      <th className="px-md py-sm font-semibold">HR</th>
+                      <th className="px-md py-sm font-semibold">Weight</th>
+                      <th className="px-md py-sm font-semibold">Temp</th>
+                      <th className="px-md py-sm font-semibold">SpO₂</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/50 text-on-surface">
+                    {vitals.slice(0, 5).map((v) => (
+                      <tr key={v.id}>
+                        <td className="px-md py-sm whitespace-nowrap">{formatVitalsTime(v.recorded_at)}</td>
+                        <td className="px-md py-sm">
+                          {v.blood_pressure_systolic != null || v.blood_pressure_diastolic != null
+                            ? `${v.blood_pressure_systolic ?? "—"}/${v.blood_pressure_diastolic ?? "—"}`
+                            : "—"}
+                        </td>
+                        <td className="px-md py-sm">{v.heart_rate ?? "—"}</td>
+                        <td className="px-md py-sm">{v.weight_kg != null ? `${v.weight_kg} kg` : "—"}</td>
+                        <td className="px-md py-sm">{v.temperature_c != null ? `${v.temperature_c}°C` : "—"}</td>
+                        <td className="px-md py-sm">{v.spo2 != null ? `${v.spo2}%` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <RecordVitalsForm patientId={patientId} onRecorded={reloadVitals} />
           </div>
 
           {/* Personal Details (Bento Top Right) */}

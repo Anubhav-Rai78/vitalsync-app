@@ -21,6 +21,16 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
 
   if (!invoice) notFound();
 
+  // Admin flag drives the refund action in the sidebar (the API route
+  // enforces the same check server-side).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: viewer } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).single()
+    : { data: null };
+  const isAdmin = viewer?.role === "admin";
+
   const { data: items } = await supabase
     .from("invoice_items")
     .select("*")
@@ -148,6 +158,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
           items={actionItems}
           payments={actionPayments}
           patientEmail={patient?.email}
+          isAdmin={isAdmin}
         />
       </div>
     </div>

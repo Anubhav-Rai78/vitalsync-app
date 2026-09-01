@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
+import { AppointmentStatusActions } from "@/components/modules/appointment-status-actions";
+import { rescheduleAppointmentAction } from "@/app/(dashboard)/appointments/actions";
 import {
   ArrowLeft,
   CheckCircle,
@@ -103,87 +105,91 @@ export default function AppointmentDetailsPage() {
   const [rescheduleTime, setRescheduleTime] = useState("11:00 AM");
   const [rescheduleReason, setRescheduleReason] = useState("");
   const [isRescheduling, setIsRescheduling] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null);
+  const [rawStatus, setRawStatus] = useState("scheduled");
 
   /* ---- Fetch live appointment ---- */
+  const loadAppointment = useCallback(async () => {
+    if (!appointmentId) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(
+          "id, start_time, end_time, reason, status, notes, patients(id, full_name, sex, dob, phone, email), profiles!appointments_doctor_id_fkey(id, full_name, specialty)"
+        )
+        .eq("id", appointmentId)
+        .single();
+
+      if (data && !error) {
+        const patient: any = data.patients;
+        const doctor: any = data.profiles;
+        const start = new Date(data.start_time || new Date());
+        const end = data.end_time
+          ? new Date(data.end_time)
+          : new Date(start.getTime() + 45 * 60000);
+        const statusLabel = data.status
+          ? String(data.status)
+              .replace("_", " ")
+              .replace(/\b\w/g, (c: string) => c.toUpperCase())
+          : "Confirmed";
+        setRawStatus(data.status ?? "scheduled");
+        const symptomList: string[] = [];
+        if (data.reason) symptomList.push(String(data.reason));
+
+        setDetail({
+          id: `APT-${String(appointmentId).slice(0, 4).toUpperCase()}`,
+          title: data.reason || "Consultation",
+          status: statusLabel,
+          date: format(start, "MMM d, yyyy"),
+          time_slot: `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`,
+          patient: {
+            id: patient?.id || FALLBACK.patient.id,
+            name: patient?.full_name || FALLBACK.patient.name,
+            gender: patient?.sex
+              ? String(patient.sex).charAt(0).toUpperCase() + String(patient.sex).slice(1)
+              : FALLBACK.patient.gender,
+            age: patient?.dob
+              ? String(
+                  Math.floor(
+                    (Date.now() - new Date(patient.dob).getTime()) / 31557600000
+                  )
+                )
+              : FALLBACK.patient.age,
+            dob: patient?.dob
+              ? format(new Date(patient.dob), "MM/dd/yyyy")
+              : FALLBACK.patient.dob,
+            id_formatted: patient?.id
+              ? `PT-${String(patient.id).slice(0, 5).toUpperCase()}`
+              : FALLBACK.patient.id_formatted,
+          },
+          provider: {
+            name: doctor?.full_name
+              ? `Dr. ${doctor.full_name}`
+              : FALLBACK.provider.name,
+            specialty: doctor?.specialty || FALLBACK.provider.specialty,
+          },
+          chief_complaint: data.notes || data.reason || FALLBACK.chief_complaint,
+          symptoms: symptomList.length > 0 ? symptomList : FALLBACK.symptoms,
+          vitals: FALLBACK.vitals,
+        });
+      }
+    } catch (e) {
+      console.error("Appointment detail fetch error:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [appointmentId, supabase]);
+
   useEffect(() => {
     if (!appointmentId) {
       setLoading(false);
       return;
     }
-    let active = true;
-    async function load() {
-      try {
-        const { data, error } = await supabase
-          .from("appointments")
-          .select(
-            "id, start_time, end_time, reason, status, notes, patients(id, full_name, sex, dob, phone, email), profiles!appointments_doctor_id_fkey(id, full_name, specialty)"
-          )
-          .eq("id", appointmentId)
-          .single();
-
-        if (active && data && !error) {
-          const patient: any = data.patients;
-          const doctor: any = data.profiles;
-          const start = new Date(data.start_time || new Date());
-          const end = data.end_time
-            ? new Date(data.end_time)
-            : new Date(start.getTime() + 45 * 60000);
-          const statusLabel = data.status
-            ? String(data.status)
-                .replace("_", " ")
-                .replace(/\b\w/g, (c: string) => c.toUpperCase())
-            : "Confirmed";
-          const symptomList: string[] = [];
-          if (data.reason) symptomList.push(String(data.reason));
-
-          setDetail({
-            id: `APT-${String(appointmentId).slice(0, 4).toUpperCase()}`,
-            title: data.reason || "Consultation",
-            status: statusLabel,
-            date: format(start, "MMM d, yyyy"),
-            time_slot: `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`,
-            patient: {
-              id: patient?.id || FALLBACK.patient.id,
-              name: patient?.full_name || FALLBACK.patient.name,
-              gender: patient?.sex
-                ? String(patient.sex).charAt(0).toUpperCase() + String(patient.sex).slice(1)
-                : FALLBACK.patient.gender,
-              age: patient?.dob
-                ? String(
-                    Math.floor(
-                      (Date.now() - new Date(patient.dob).getTime()) / 31557600000
-                    )
-                  )
-                : FALLBACK.patient.age,
-              dob: patient?.dob
-                ? format(new Date(patient.dob), "MM/dd/yyyy")
-                : FALLBACK.patient.dob,
-              id_formatted: patient?.id
-                ? `PT-${String(patient.id).slice(0, 5).toUpperCase()}`
-                : FALLBACK.patient.id_formatted,
-            },
-            provider: {
-              name: doctor?.full_name
-                ? `Dr. ${doctor.full_name}`
-                : FALLBACK.provider.name,
-              specialty: doctor?.specialty || FALLBACK.provider.specialty,
-            },
-            chief_complaint: data.notes || data.reason || FALLBACK.chief_complaint,
-            symptoms: symptomList.length > 0 ? symptomList : FALLBACK.symptoms,
-            vitals: FALLBACK.vitals,
-          });
-        }
-      } catch (e) {
-        console.error("Appointment detail fetch error:", e);
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      active = false;
-    };
-  }, [appointmentId, supabase]);
+    loadAppointment();
+  }, [appointmentId, loadAppointment]);
 
   /* ---- Start Visit handler (prevents event bubbling / form submit) ---- */
   const handleStartVisit = (e: React.MouseEvent) => {
@@ -196,22 +202,41 @@ export default function AppointmentDetailsPage() {
     );
   };
 
-  /* ---- Confirm Reschedule handler ---- */
-  const handleConfirmReschedule = () => {
+  /* ---- Confirm Reschedule handler (persists to Supabase) ---- */
+  const handleConfirmReschedule = async () => {
     setIsRescheduling(true);
-    setTimeout(() => {
-      setDetail((prev) => ({
-        ...prev,
-        date: format(
-          new Date(rescheduleMonth.getFullYear(), rescheduleMonth.getMonth(), rescheduleDate),
-          "MMM d, yyyy"
-        ),
-        time_slot: rescheduleTime,
-        status: "Confirmed",
-      }));
+    setRescheduleError(null);
+
+    // Convert "11:00 AM" / "04:30 PM" picker values to 24-hour "HH:mm".
+    const match = rescheduleTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) {
+      setRescheduleError("Invalid time slot selected.");
       setIsRescheduling(false);
-      setIsRescheduleOpen(false);
-    }, 400);
+      return;
+    }
+    let hour = Number(match[1]);
+    const minute = match[2];
+    if (match[3].toUpperCase() === "PM" && hour < 12) hour += 12;
+    if (match[3].toUpperCase() === "AM" && hour === 12) hour = 0;
+    const hh = String(hour).padStart(2, "0");
+    const dateStr = `${rescheduleMonth.getFullYear()}-${String(
+      rescheduleMonth.getMonth() + 1
+    ).padStart(2, "0")}-${String(rescheduleDate).padStart(2, "0")}`;
+
+    const result = await rescheduleAppointmentAction(
+      appointmentId,
+      `${dateStr}T${hh}:${minute}`,
+      rescheduleReason
+    );
+
+    if (result.error) {
+      setRescheduleError(result.error);
+      setIsRescheduling(false);
+      return;
+    }
+    await loadAppointment();
+    setIsRescheduling(false);
+    setIsRescheduleOpen(false);
   };
 
   /* ---- Dynamic mini-calendar ---- */
@@ -260,24 +285,28 @@ export default function AppointmentDetailsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsRescheduleOpen(true)}
-              className="text-xs font-semibold hover:bg-slate-50"
-            >
-              <CalendarCheck className="w-3.5 h-3.5 mr-1.5" /> Reschedule
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleStartVisit}
-              className="bg-[#004ac6] hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
-            >
-              <Video className="w-3.5 h-3.5 mr-1.5" /> Start Visit
-            </Button>
+          <div className="flex flex-col items-end gap-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsRescheduleOpen(true)}
+                className="text-xs font-semibold hover:bg-slate-50"
+              >
+                <CalendarCheck className="w-3.5 h-3.5 mr-1.5" /> Reschedule
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleStartVisit}
+                className="bg-[#004ac6] hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+              >
+                <Video className="w-3.5 h-3.5 mr-1.5" /> Start Visit
+              </Button>
+            </div>
+            {/* Status transition actions (confirm / complete / cancel / no-show) */}
+            <AppointmentStatusActions appointmentId={appointmentId} currentStatus={rawStatus} />
           </div>
         </div>
 
@@ -528,7 +557,13 @@ export default function AppointmentDetailsPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-3 border-t border-slate-100 bg-[#f7f9fb] flex justify-end gap-2">
+            <div className="px-6 py-3 border-t border-slate-100 bg-[#f7f9fb] flex flex-col gap-2">
+              {rescheduleError && (
+                <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                  {rescheduleError}
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 variant="secondary"
@@ -546,6 +581,7 @@ export default function AppointmentDetailsPage() {
               >
                 {isRescheduling ? "Updating..." : "Confirm Reschedule"}
               </Button>
+              </div>
             </div>
           </div>
         </div>

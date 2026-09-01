@@ -427,6 +427,78 @@ export interface Database {
         }
         Relationships: []
       }
+      vitals: {
+        Row: {
+          id: string
+          clinic_id: string
+          patient_id: string
+          recorded_by: string | null
+          blood_pressure_systolic: number | null
+          blood_pressure_diastolic: number | null
+          heart_rate: number | null
+          weight_kg: number | null
+          temperature_c: number | null
+          spo2: number | null
+          recorded_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          patient_id: string
+          recorded_by?: string | null
+          blood_pressure_systolic?: number | null
+          blood_pressure_diastolic?: number | null
+          heart_rate?: number | null
+          weight_kg?: number | null
+          temperature_c?: number | null
+          spo2?: number | null
+          recorded_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          patient_id?: string
+          recorded_by?: string | null
+          blood_pressure_systolic?: number | null
+          blood_pressure_diastolic?: number | null
+          heart_rate?: number | null
+          weight_kg?: number | null
+          temperature_c?: number | null
+          spo2?: number | null
+          recorded_at?: string
+        }
+        Relationships: []
+      }
+      doctor_availability: {
+        Row: {
+          id: string
+          clinic_id: string
+          doctor_id: string
+          day_of_week: number
+          start_time: string
+          end_time: string
+          is_available: boolean
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          doctor_id: string
+          day_of_week: number
+          start_time?: string
+          end_time?: string
+          is_available?: boolean
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          doctor_id?: string
+          day_of_week?: number
+          start_time?: string
+          end_time?: string
+          is_available?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

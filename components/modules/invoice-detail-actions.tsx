@@ -9,8 +9,8 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 
 type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "void";
@@ -39,28 +39,111 @@ const STATUS_BADGE: Record<InvoiceStatus, { label: string; cls: string }> = {
   void: { label: "Void", cls: "bg-surface-variant text-on-surface-variant border border-outline-variant line-through" },
 };
 
-function downloadInvoiceTxt(invoice: any, items: InvoiceActionItem[]) {
-  const lines = [
-    "MedFlow Clinic",
-    "Invoice #" + invoice.invoice_number,
-    "Status: " + invoice.status,
-    "",
-    "ITEMS",
-    ...items.map((it) => `${it.description}  x${it.quantity}  ${formatCurrency(Number(it.unit_price), invoice.currency)}  =  ${formatCurrency(Number(it.amount), invoice.currency)}`),
-    "",
-    "Subtotal: " + formatCurrency(Number(invoice.subtotal), invoice.currency),
-    "Tax: " + formatCurrency(Number(invoice.tax), invoice.currency),
-    "Total: " + formatCurrency(Number(invoice.total), invoice.currency),
-  ];
-  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${invoice.invoice_number}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+// Generates a real PDF of the invoice document (no window.print() aliasing).
+function downloadInvoicePdf(invoice: any, items: InvoiceActionItem[]) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  const subtitle = (text: string, color: [number, number, number] = [100, 116, 139]) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(color[0], color[1], color[2]);
+    doc.text(text, 14, y);
+    y += 5;
+  };
+
+  const bodyLine = (text: string, right?: string) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    if (right) {
+      const rightWidth = doc.getTextWidth(right);
+      doc.text(right, pageWidth - 14 - rightWidth, y);
+    }
+    doc.text(text, 14, y);
+    y += 6;
+  };
+
+  // Header
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(37, 99, 235);
+  doc.text("MedFlow Clinic", 14, y);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor(15, 23, 42);
+  doc.text("INVOICE", pageWidth - 14, y, { align: "right" });
+  y += 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Invoice #${invoice.invoice_number}`, pageWidth - 14, y, { align: "right" });
+  y += 7;
+
+  // Meta block
+  doc.setDrawColor(226, 232, 240);
+  doc.line(14, y, pageWidth - 14, y);
+  y += 8;
+  subtitle("BILL TO", [100, 116, 139]);
+  bodyLine(invoice.patients?.full_name ?? "Patient", `Issue date: ${invoice.created_at ? formatDate(invoice.created_at) : "—"}`);
+  if (invoice.patients?.address) bodyLine(String(invoice.patients.address));
+  doc.setTextColor(100, 116, 139);
+  bodyLine(`Due date: ${invoice.due_date ? formatDate(invoice.due_date) : "—"}`);
+  doc.setTextColor(30, 41, 59);
+  y += 3;
+
+  // Items header
+  doc.setFillColor(248, 250, 252);
+  doc.rect(14, y - 5, pageWidth - 28, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+  doc.text("DESCRIPTION", 16, y);
+  doc.text("QTY", pageWidth - 72, y);
+  doc.text("UNIT PRICE", pageWidth - 58, y);
+  doc.text("TOTAL", pageWidth - 18, y, { align: "right" });
+  y += 9;
+
+  // Items rows
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(30, 41, 59);
+  for (const it of items) {
+    bodyLine(
+      it.description,
+      formatCurrency(Number(it.amount), invoice.currency)
+    );
+    doc.text(String(it.quantity), pageWidth - 70, y - 6);
+    doc.text(formatCurrency(Number(it.unit_price), invoice.currency), pageWidth - 58, y - 6);
+  }
+
+  if (items.length === 0) {
+    bodyLine("No line items on this invoice.");
+    y -= 6;
+  }
+
+  y += 4;
+  doc.setDrawColor(226, 232, 240);
+  doc.line(14, y, pageWidth - 14, y);
+  y += 8;
+
+  // Totals
+  bodyLine("Subtotal", formatCurrency(Number(invoice.subtotal ?? 0), invoice.currency));
+  bodyLine("Tax", formatCurrency(Number(invoice.tax ?? 0), invoice.currency));
+  y += 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Total", 14, y);
+  doc.setTextColor(37, 99, 235);
+  doc.text(
+    formatCurrency(Number(invoice.total ?? 0), invoice.currency),
+    pageWidth - 14,
+    y,
+    { align: "right" }
+  );
+
+  doc.save(`${invoice.invoice_number}.pdf`);
 }
 
 
@@ -69,16 +152,17 @@ export function InvoiceDetailActions({
   items,
   payments,
   patientEmail,
+  isAdmin = false,
 }: {
   invoice: any;
   items: InvoiceActionItem[];
   payments: InvoicePayment[];
   patientEmail?: string | null;
+  isAdmin?: boolean;
 }) {
   const [refunding, setRefunding] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const supabase = createClient();
 
   const status = (invoice.status || "draft") as InvoiceStatus;
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.draft;
@@ -91,8 +175,8 @@ export function InvoiceDetailActions({
   };
 
   const downloadPdf = () => {
-    downloadInvoiceTxt(invoice, items);
-    setActionMsg("Invoice downloaded.");
+    downloadInvoicePdf(invoice, items);
+    setActionMsg("Invoice PDF downloaded.");
   };
 
   const handleRefund = async () => {
@@ -100,15 +184,17 @@ export function InvoiceDetailActions({
     setActionError(null);
     setActionMsg(null);
     try {
-      if (payments.length > 0) {
-        await supabase
-          .from("payments")
-          .update({ status: "refunded" })
-          .eq("invoice_id", invoice.id);
+      const res = await fetch("/api/razorpay/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId: invoice.id }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.error || "Refund failed");
       }
-      await supabase.from("invoices").update({ status: "void" }).eq("id", invoice.id);
       setActionMsg("Invoice refunded and marked as void.");
-      window.location.reload();
+      window.setTimeout(() => window.location.reload(), 800);
     } catch (err: any) {
       setActionError(err.message ?? "Refund failed");
     } finally {
@@ -153,18 +239,20 @@ export function InvoiceDetailActions({
         <Button variant="secondary" className="w-full flex items-center justify-center gap-1.5 text-label-md" onClick={downloadPdf}>
           <Download className="w-3.5 h-3.5" /> Download PDF
         </Button>
-        <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className={`grid gap-2 pt-1 ${isAdmin ? "grid-cols-2" : "grid-cols-1"}`}>
           <Button variant="secondary" className="flex items-center justify-center gap-1.5 text-label-md" onClick={() => window.print()}>
             <Printer className="w-3.5 h-3.5" /> Print
           </Button>
-          <Button
-            variant="secondary"
-            className="flex items-center justify-center gap-1.5 text-label-md text-error hover:bg-error-container/40"
-            onClick={handleRefund}
-            disabled={refunding || status === "void"}
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> {refunding ? "Refunding…" : "Refund"}
-          </Button>
+          {isAdmin && (
+            <Button
+              variant="secondary"
+              className="flex items-center justify-center gap-1.5 text-label-md text-error hover:bg-error-container/40"
+              onClick={handleRefund}
+              disabled={refunding || status === "void"}
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> {refunding ? "Refunding…" : "Refund"}
+            </Button>
+          )}
         </div>
       </div>
 

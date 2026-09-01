@@ -22,6 +22,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import {
+  DoctorAvailabilityEditor,
+  type DayAvailability,
+} from "@/components/modules/doctor-availability-editor";
 
 // Doctors are rows in `profiles` (role = 'doctor') — there is no separate
 // `doctors` table, and there is no ratings / schedule / bio table either.
@@ -88,15 +92,32 @@ const SPECIALTY_AREAS: Record<string, string[]> = {
   ],
 };
 
-// No schedule table exists in the schema; availability is the static
-// Monday–Friday grid from the Stitch reference.
-const WEEKLY_AVAILABILITY: { day: string; time: string }[] = [
-  { day: "Monday", time: "9:00 AM - 5:00 PM" },
-  { day: "Tuesday", time: "9:00 AM - 5:00 PM" },
-  { day: "Wednesday", time: "1:00 PM - 5:00 PM" },
-  { day: "Thursday", time: "9:00 AM - 5:00 PM" },
-  { day: "Friday", time: "9:00 AM - 2:00 PM" },
-];
+// Availability is real data from the `doctor_availability` table
+// (one row per doctor per day of week), created/updated inline via the
+// DoctorAvailabilityEditor below.
+
+// Sunday = 0 … Saturday = 6 (JS Date.getDay()); shown Monday-first.
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const DAY_NAMES: Record<number, string> = {
+  0: "Sunday",
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+};
+
+function formatTime(twelveHour: string): string {
+  if (!twelveHour) return "—";
+  const [hRaw, mRaw] = twelveHour.split(":");
+  const h = Number(hRaw);
+  const m = Number(mRaw);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return twelveHour;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+}
 
 function getInitials(fullName: string): string {
   return fullName.replace(/^dr\.?\s+/i, "").slice(0, 2).toUpperCase();
@@ -131,6 +152,9 @@ export default function DoctorProfilePage() {
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
   const [metrics, setMetrics] = useState({ totalPatients: 0, apptsThisWeek: 0 });
   const [upcomingToday, setUpcomingToday] = useState<AppointmentItem[]>([]);
+  const [availabilityByDay, setAvailabilityByDay] = useState<Record<number, DayAvailability>>({});
+  const [canEditAvailability, setCanEditAvailability] = useState(false);
+  const [editingAvailability, setEditingAvailability] = useState(false);
 
   const supabase = createClient();
 
@@ -146,7 +170,7 @@ export default function DoctorProfilePage() {
       const dayStart = startOfDay(now);
       const dayEnd = endOfDay(now);
 
-      const [docRes, todayRes, weekRes, patientIdsRes] = await Promise.all([
+      const [docRes, todayRes, weekRes, patientIdsRes, availabilityRes, meRes] = await Promise.all([
         supabase
           .from("profiles")
           .select(
@@ -174,7 +198,42 @@ export default function DoctorProfilePage() {
           .from("appointments")
           .select("patient_id")
           .eq("doctor_id", doctorId),
+        supabase
+          .from("doctor_availability")
+          .select("day_of_week, start_time, end_time, is_available")
+          .eq("doctor_id", doctorId),
+        supabase.auth.getUser(),
       ]);
+
+      // Build the availability map keyed by day_of_week (0=Sun..6=Sat).
+      if (active && availabilityRes.data) {
+        const byDay: Record<number, DayAvailability> = {};
+        for (const row of availabilityRes.data as {
+          day_of_week: number;
+          start_time: string;
+          end_time: string;
+          is_available: boolean;
+        }[]) {
+          byDay[row.day_of_week] = {
+            start_time: row.start_time.slice(0, 5),
+            end_time: row.end_time.slice(0, 5),
+            is_available: row.is_available,
+          };
+        }
+        setAvailabilityByDay(byDay);
+      }
+
+      // Ownership check: the doctor viewing their own profile, or an admin.
+      if (active && meRes.data.user) {
+        const { data: myProfile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", meRes.data.user.id)
+          .single();
+        setCanEditAvailability(
+          !!myProfile && (myProfile.role === "admin" || meRes.data.user.id === doctorId)
+        );
+      }
 
       if (active && docRes.data && !docRes.error) {
         setDoctor(docRes.data as DoctorProfile);
@@ -410,21 +469,67 @@ if (loading) {
             <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
               <div className="flex justify-between items-center mb-md">
                 <h3 className="text-headline-sm text-on-surface">Availability</h3>
-                <button className="text-[#2563eb] text-label-sm font-semibold hover:underline">
-                  Edit
-                </button>
-              </div>
-              <ul className="space-y-sm">
-                {WEEKLY_AVAILABILITY.map((slot, idx) => (
-                  <li
-                    key={idx}
-                    className="flex justify-between items-center text-body-sm text-on-surface-variant"
+                {canEditAvailability && (
+                  <button
+                    onClick={() => setEditingAvailability((v) => !v)}
+                    className="text-[#2563eb] text-label-sm font-semibold hover:underline"
                   >
-                    <span className="font-medium">{slot.day}</span>
-                    <span className="font-semibold text-on-surface">{slot.time}</span>
-                  </li>
-                ))}
-              </ul>
+                    {editingAvailability ? "Cancel" : "Edit"}
+                  </button>
+                )}
+              </div>
+
+              {editingAvailability ? (
+                <DoctorAvailabilityEditor
+                  doctorId={doctorId}
+                  availabilityByDay={availabilityByDay}
+                  onSaved={() => {
+                    setEditingAvailability(false);
+                    supabase
+                      .from("doctor_availability")
+                      .select("day_of_week, start_time, end_time, is_available")
+                      .eq("doctor_id", doctorId)
+                      .then(({ data }) => {
+                        if (!data) return;
+                        const byDay: Record<number, DayAvailability> = {};
+                        for (const row of data as {
+                          day_of_week: number;
+                          start_time: string;
+                          end_time: string;
+                          is_available: boolean;
+                        }[]) {
+                          byDay[row.day_of_week] = {
+                            start_time: row.start_time.slice(0, 5),
+                            end_time: row.end_time.slice(0, 5),
+                            is_available: row.is_available,
+                          };
+                        }
+                        setAvailabilityByDay(byDay);
+                      });
+                  }}
+                />
+              ) : (
+                <>
+                  <ul className="space-y-sm">
+                    {DAY_ORDER.filter((d) => availabilityByDay[d]?.is_available).map((d) => (
+                      <li
+                        key={d}
+                        className="flex justify-between items-center text-body-sm text-on-surface-variant"
+                      >
+                        <span className="font-medium">{DAY_NAMES[d]}</span>
+                        <span className="font-semibold text-on-surface">
+                          {formatTime(availabilityByDay[d]?.start_time)} — {formatTime(availabilityByDay[d]?.end_time)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {!DAY_ORDER.some((d) => availabilityByDay[d]?.is_available) && (
+                    <p className="text-body-sm text-on-surface-variant">
+                      No availability set for this week yet.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Upcoming Today */}
