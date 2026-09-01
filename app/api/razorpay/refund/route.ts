@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { refundRazorpayPayment } from "@/lib/razorpay";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // POST /api/razorpay/refund — admin-only. Looks up the invoice's captured
 // Razorpay payment, issues a real refund at Razorpay, then marks the local
 // `payments` row refunded and the invoice void.
@@ -9,6 +12,11 @@ export async function POST(request: Request) {
   const { invoiceId } = await request.json();
   if (!invoiceId) {
     return NextResponse.json({ error: "invoiceId is required" }, { status: 400 });
+  }
+  // Guard against non-UUID ids (e.g. the reference demo ids 'stitch-1').
+  // Querying the `invoices` table with them raises Postgres error 22P02.
+  if (!UUID_PATTERN.test(invoiceId)) {
+    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
   const supabase = createClient();
