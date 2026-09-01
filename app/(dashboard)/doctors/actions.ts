@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
@@ -29,15 +28,17 @@ async function requireAdmin() {
 
 // Registers a new doctor on the clinic roster.
 //
-// Doctors are rows in `profiles` (role = 'doctor'). The `email` field is not
-// persisted on profiles (that column doesn't exist in this schema — login
-// identity lives in auth.users), so when the admin provides one we also create
-// a matching auth.users row via the service-role client so the doctor can
-// actually sign in. That mirrors how the demo seed (0006) stands up doctors.
+// IMPORTANT ordering constraint: `profiles.id` is a FK -> auth.users(id), so
+// we MUST create the auth user FIRST (via the service-role Admin API) and then
+// insert the profile using that user's real id. Inserting the profile with a
+// freshly-generated random UUID before the auth user exists causes the exact
+// `profiles_id_fkey` violation. When an email is provided it becomes the
+// doctor's login identity; when omitted we generate a deterministic one so the
+// account can still exist (mirroring how the demo seed 0006 stands up doctors).
 //
-// Creating the profile first also seeds default 7-day availability rows into
-// `doctor_availability` (Mon–Fri 09:00–17:00) so the new doctor shows a usable
-// weekly schedule on their profile immediately.
+// After the profile row we seed default 7-day availability rows into
+// `doctor_availability` (Mon–Fri 09:00–17:00) so the new doctor's schedule is
+// usable immediately, then revalidate the roster and route to the new profile.
 export async function createDoctorAction(
   _prevState: CreateDoctorFormState,
   formData: FormData
@@ -48,28 +49,55 @@ export async function createDoctorAction(
   const fullName = String(formData.get("fullName") || "").trim();
   if (!fullName) return { error: "Full name is required." };
 
+  const cleanedName = fullName.replace(/^dr\.\s*/i, "").trim();
   const specialty = String(formData.get("specialty") || "").trim() || null;
   const licenseNo = String(formData.get("licenseNo") || "").trim() || null;
   const phone = String(formData.get("phone") || "").trim() || null;
   const email = String(formData.get("email") || "").trim().toLowerCase() || null;
   const isActive = formData.get("status") !== "inactive"; // "active" (default) | "inactive"
 
-  const doctorId = randomUUID();
+  // 1. Create the auth user FIRST so a real auth.users row exists to satisfy
+  //    the profiles.id FK. The admin client (service role) bypasses RLS and is
+  //    required here — auth.admin.createUser cannot run through the anon/REST.
+  const admin = createAdminClient();
+  const suggestedEmail = email || `doctor.${Date.now()}@medflow.in`;
+  const tempPassword = `MedFlowDoc#${Math.floor(100000 + Math.random() * 900000)}`;
 
-  // 1. Persist the roster profile (source of truth for the Doctors page).
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+    email: suggestedEmail,
+    password: tempPassword,
+    email_confirm: email ? true : false,
+    user_metadata: {
+      full_name: cleanedName,
+      role: "doctor",
+      specialty,
+      phone,
+    },
+  });
+  if (authError || !authData.user) {
+    return { error: authError?.message || "Failed to create the doctor's login account." };
+  }
+
+  const doctorId = authData.user.id;
+
+  // 2. Now insert the profile with the auth user's real id (FK satisfied).
   const { error: profileError } = await ctx.supabase.from("profiles").insert({
     id: doctorId,
     clinic_id: ctx.profile.clinic_id,
-    full_name: fullName.replace(/^dr\.\s*/i, ""),
+    full_name: cleanedName,
     role: "doctor",
     specialty,
     license_no: licenseNo,
     phone,
     is_active: isActive,
   });
-  if (profileError) return { error: profileError.message };
+  if (profileError) {
+    // Roll back the auth user so a retry doesn't error on duplicate email/id.
+    await admin.auth.admin.deleteUser(doctorId);
+    return { error: profileError.message };
+  }
 
-  // 2. Seed default Mon–Fri availability so the doctor's schedule isn't empty.
+  // 3. Seed default Mon–Fri availability so the doctor's schedule isn't empty.
   const availabilityRows = Array.from({ length: 7 }, (_, day) => ({
     clinic_id: ctx.profile.clinic_id,
     doctor_id: doctorId,
@@ -82,31 +110,7 @@ export async function createDoctorAction(
     .from("doctor_availability")
     .insert(availabilityRows);
   if (availError) {
-    // The profile already exists; surface the error so the admin can retry.
     return { error: availError.message };
-  }
-
-  // 3. Optionally create a matching auth user so the doctor can log in.
-  if (email) {
-    const admin = createAdminClient();
-    const defaultPassword = `Medflow@${doctorId.slice(0, 8)}`;
-    const { error: authError } = await admin.auth.admin.createUser({
-      email,
-      password: defaultPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName.replace(/^dr\.\s*/i, ""),
-        role: "doctor",
-        specialty,
-        phone,
-      },
-    });
-    if (authError) {
-      // The on_auth_user_created trigger would also create a profile for this
-      // new user, but our roster profile above shares none of the auth ids, so
-      // there is no conflict — just report the auth setup issue.
-      return { error: `Doctor profile saved, but login setup failed: ${authError.message}` };
-    }
   }
 
   revalidatePath("/doctors");
