@@ -80,17 +80,22 @@ export async function createDoctorAction(
 
   const doctorId = authData.user.id;
 
-  // 2. Now insert the profile with the auth user's real id (FK satisfied).
-  const { error: profileError } = await ctx.supabase.from("profiles").insert({
-    id: doctorId,
-    clinic_id: ctx.profile.clinic_id,
-    full_name: cleanedName,
-    role: "doctor",
-    specialty,
-    license_no: licenseNo,
-    phone,
-    is_active: isActive,
-  });
+  // 2. The on_auth_user_created DB trigger (supabase/migrations/0001_init.sql)
+  //    has already inserted a blank profile row for this new user, so an
+  //    `.insert()` here would collide on `profiles_pkey`. Instead we UPDATE the
+  //    trigger-created row in place, keyed on the auth user's real id.
+  const { error: profileError } = await ctx.supabase
+    .from("profiles")
+    .update({
+      clinic_id: ctx.profile.clinic_id,
+      full_name: cleanedName,
+      role: "doctor",
+      specialty,
+      license_no: licenseNo,
+      phone,
+      is_active: isActive,
+    })
+    .eq("id", doctorId);
   if (profileError) {
     // Roll back the auth user so a retry doesn't error on duplicate email/id.
     await admin.auth.admin.deleteUser(doctorId);
