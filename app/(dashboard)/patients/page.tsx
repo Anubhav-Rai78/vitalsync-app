@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Plus, Search, Filter, MoreVertical, Users } from "lucide-react";
+import { Plus, Search, Filter, MoreVertical, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
@@ -27,6 +27,8 @@ type DerivedPatient = PatientRow & {
   lastVisit: string;
   status: "Active" | "Inactive" | "New";
 };
+
+const ITEMS_PER_PAGE = 5;
 
 function calcAge(dob: string | null | undefined): number | string {
   if (!dob) return "—";
@@ -65,6 +67,7 @@ export default function PatientsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [genderFilter, setGenderFilter] = useState("All");
   const [ageFilter, setAgeFilter] = useState("All Ages");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const supabase = createClient();
 
@@ -123,6 +126,18 @@ export default function PatientsPage() {
       return matchesSearch && matchesStatus && matchesGender && matchesAge;
     });
   }, [patients, searchQuery, statusFilter, genderFilter, ageFilter]);
+
+  // Reset to first page whenever filters or search query change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, genderFilter, ageFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE) || 1;
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredPatients.length);
+  const visiblePatients = filteredPatients.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-lg max-w-container mx-auto">
@@ -250,8 +265,8 @@ export default function PatientsPage() {
                     Loading clinical patient records...
                   </td>
                 </tr>
-              ) : filteredPatients.length > 0 ? (
-                filteredPatients.map((p) => {
+              ) : visiblePatients.length > 0 ? (
+                visiblePatients.map((p) => {
                   const initials = p.name ? p.name.slice(0, 2).toUpperCase() : "PT";
                   return (
                     <tr
@@ -307,33 +322,46 @@ export default function PatientsPage() {
 
 
         {/* Pagination Footer */}
-        <div className="px-4 py-3 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-body-sm text-on-surface-variant">
-          <span>
-            Showing 1 to {filteredPatients.length} of {patients.length} entries
+        <div className="px-md py-sm border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between flex-wrap gap-sm text-body-sm text-on-surface-variant">
+          <span className="font-body-sm text-body-sm">
+            Showing{" "}
+            <span className="font-medium text-on-surface">
+              {filteredPatients.length === 0 ? 0 : startIndex + 1}
+            </span>{" "}
+            to{" "}
+            <span className="font-medium text-on-surface">
+              {endIndex}
+            </span>{" "}
+            of <span className="font-medium text-on-surface">{filteredPatients.length}</span> entries
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-xs">
             <button
-              className="px-2 py-1 rounded border border-outline-variant hover:bg-surface-container-low disabled:opacity-40"
-              disabled
+              onClick={() => setCurrentPage(safePage - 1)}
+              disabled={safePage === 1}
+              className="p-xs border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant disabled:opacity-50 hover:bg-surface-container-low transition-colors"
               aria-label="Previous page"
             >
-              &lt;
+              <ChevronLeft className="w-4 h-4" />
             </button>
-            <button className="w-7 h-7 rounded bg-primary-container/20 text-primary font-semibold border border-primary-container/40 text-xs">
-              1
-            </button>
-            <button className="w-7 h-7 rounded hover:bg-surface-container-low border border-outline-variant text-on-surface text-xs">
-              2
-            </button>
-            <button className="w-7 h-7 rounded hover:bg-surface-container-low border border-outline-variant text-on-surface text-xs">
-              3
-            </button>
-            <span className="px-1 text-on-surface-variant">...</span>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                className={`w-7 h-7 rounded border text-xs font-semibold transition-colors ${pageNum === safePage
+                    ? "border-primary bg-primary text-on-primary shadow-sm"
+                    : "border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"
+                  }`}
+              >
+                {pageNum}
+              </button>
+            ))}
             <button
-              className="px-2 py-1 rounded border border-outline-variant hover:bg-surface-container-low"
+              onClick={() => setCurrentPage(safePage + 1)}
+              disabled={safePage === totalPages}
+              className="p-xs border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant disabled:opacity-50 hover:bg-surface-container-low transition-colors"
               aria-label="Next page"
             >
-              &gt;
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
