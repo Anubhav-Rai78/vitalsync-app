@@ -51,10 +51,10 @@ const REFERENCE_INVOICES: Record<string, ReferenceInvoice> = {
   "stitch-1": {
     invoice: {
       id: "stitch-1",
-      invoice_number: "INV-2023-0892",
+      invoice_number: "INV-2026-0892",
       status: "paid",
-      created_at: "2023-10-24T12:00:00.000Z",
-      due_date: "2023-11-07T12:00:00.000Z",
+      created_at: "2026-10-24T12:00:00.000Z",
+      due_date: "2026-11-07T12:00:00.000Z",
       currency: "USD",
       subtotal: 245,
       tax: 0,
@@ -71,16 +71,16 @@ const REFERENCE_INVOICES: Record<string, ReferenceInvoice> = {
       { id: "ref-1-2", description: "ECG (Electrocardiogram)", quantity: 1, unit_price: 45, amount: 45 },
     ],
     payments: [
-      { id: "ref-p-1", amount: 245, status: "paid", method: "UPI", paid_at: "2023-10-24T18:30:00.000Z" },
+      { id: "ref-p-1", amount: 245, status: "paid", method: "UPI", paid_at: "2026-10-24T18:30:00.000Z" },
     ],
   },
   "stitch-2": {
     invoice: {
       id: "stitch-2",
-      invoice_number: "INV-2023-0885",
+      invoice_number: "INV-2026-0885",
       status: "sent",
-      created_at: "2023-10-22T12:00:00.000Z",
-      due_date: "2023-11-05T12:00:00.000Z",
+      created_at: "2026-10-22T12:00:00.000Z",
+      due_date: "2026-11-05T12:00:00.000Z",
       currency: "USD",
       subtotal: 112.5,
       tax: 0,
@@ -100,10 +100,10 @@ const REFERENCE_INVOICES: Record<string, ReferenceInvoice> = {
   "stitch-3": {
     invoice: {
       id: "stitch-3",
-      invoice_number: "INV-2023-0870",
+      invoice_number: "INV-2026-0870",
       status: "overdue",
-      created_at: "2023-10-15T12:00:00.000Z",
-      due_date: "2023-10-29T12:00:00.000Z",
+      created_at: "2026-10-15T12:00:00.000Z",
+      due_date: "2026-10-29T12:00:00.000Z",
       currency: "USD",
       subtotal: 75,
       tax: 0,
@@ -123,10 +123,10 @@ const REFERENCE_INVOICES: Record<string, ReferenceInvoice> = {
   "stitch-4": {
     invoice: {
       id: "stitch-4",
-      invoice_number: "INV-2023-0864",
+      invoice_number: "INV-2026-0864",
       status: "paid",
-      created_at: "2023-10-10T12:00:00.000Z",
-      due_date: "2023-10-24T12:00:00.000Z",
+      created_at: "2026-10-10T12:00:00.000Z",
+      due_date: "2026-10-24T12:00:00.000Z",
       currency: "USD",
       subtotal: 180,
       tax: 0,
@@ -142,7 +142,7 @@ const REFERENCE_INVOICES: Record<string, ReferenceInvoice> = {
       { id: "ref-4-1", description: "General Health Screening", quantity: 1, unit_price: 180, amount: 180 },
     ],
     payments: [
-      { id: "ref-p-4", amount: 180, status: "paid", method: "Card", paid_at: "2023-10-10T15:05:00.000Z" },
+      { id: "ref-p-4", amount: 180, status: "paid", method: "Card", paid_at: "2026-10-10T15:05:00.000Z" },
     ],
   },
 };

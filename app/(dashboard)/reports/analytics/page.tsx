@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyActivityChart } from "@/components/modules/weekly-activity-chart";
 

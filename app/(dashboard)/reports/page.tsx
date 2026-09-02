@@ -1,8 +1,11 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { formatDateIST } from "@/lib/date";
 import { createClient } from "@/lib/supabase/client";
 
 const revenue6M = Array.from({ length: 6 }, (_, i) => {
@@ -28,9 +31,9 @@ const templates = [
   ["fact_check", "Insurance Claim Success", "Analysis of first-pass acceptance rates and common denial reasons by payer.", "~5 mins"],
 ] as const;
 const reports = [
-  ["Q3 Financial Overview", "Oct 24, 2023, 09:15 AM", "PDF", "Ready"],
-  ["Weekly Staff Utilization", "Oct 23, 2023, 17:00 PM", "CSV", "Ready"],
-  ["Custom: Denials YTD", "Oct 25, 2023, 10:30 AM", "PDF", "Generating..."],
+  ["Q3 Financial Overview", "Oct 24, 2026, 09:15 AM IST", "PDF", "Ready"],
+  ["Weekly Staff Utilization", "Oct 23, 2026, 05:00 PM IST", "CSV", "Ready"],
+  ["Custom: Denials YTD", "Oct 25, 2026, 10:30 AM IST", "PDF", "Generating..."],
 ] as const;
 
 function download(filename: string, content: string, type = "text/plain;charset=utf-8") {
@@ -101,14 +104,14 @@ export default function AnalyticsReportsPage() {
 
         const bucket6M = new Map(revenue6M.map((m) => [m.month, 0]));
         (revenue6 ?? []).forEach((inv) => {
-          const month = format(new Date(inv.created_at), "MMM");
+          const month = formatDateIST(inv.created_at, { month: "short" });
           bucket6M.set(month, (bucket6M.get(month) ?? 0) + (Number(inv.total) || 0));
         });
         setRevenue6MData(revenue6M.map((m) => ({ month: m.month, revenue: bucket6M.get(m.month) ?? 0 })));
 
         const bucket1Y = new Map(revenue1Y.map((m) => [m.month, 0]));
         (revenue12 ?? []).forEach((inv) => {
-          const month = format(new Date(inv.created_at), "MMM");
+          const month = formatDateIST(inv.created_at, { month: "short" });
           bucket1Y.set(month, (bucket1Y.get(month) ?? 0) + (Number(inv.total) || 0));
         });
         setRevenue1YData(revenue1Y.map((m) => ({ month: m.month, revenue: bucket1Y.get(m.month) ?? 0 })));

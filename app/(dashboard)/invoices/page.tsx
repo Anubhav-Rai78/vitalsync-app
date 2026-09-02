@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -32,7 +34,12 @@ const statusClasses: Record<InvoiceStatus, string> = {
 };
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(value).toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function displayStatus(status: DatabaseStatus): InvoiceStatus {

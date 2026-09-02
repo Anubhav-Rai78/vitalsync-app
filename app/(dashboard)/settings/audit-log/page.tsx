@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { formatDateTimeIST } from "@/lib/date";
 import { jsPDF } from "jspdf";
 
 interface AuditLogRow {
@@ -109,7 +110,7 @@ export default function SystemAuditLogPage() {
         if (data && data.length > 0 && !error) {
           const formatted: AuditLogRow[] = data.map((item: any, idx: number) => ({
             id: item.id || String(idx + 1),
-            timestamp: item.created_at ? item.created_at.replace("T", " ").substring(0, 19) : "2026-10-27 14:32:01",
+            timestamp: item.created_at ? formatDateTimeIST(item.created_at) : "—",
             user: item.profiles?.full_name || "System User",
             role: item.profiles?.role ? (item.profiles.role.charAt(0).toUpperCase() + item.profiles.role.slice(1)) : "Staff",
             action: item.action || "Record Updated",

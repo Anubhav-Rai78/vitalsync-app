@@ -32,7 +32,7 @@ import {
   MessageCircle,
   ClipboardList,
 } from "lucide-react";
-import { format } from "date-fns";
+import { formatDateIST, formatTimeIST } from "@/lib/date";
 import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -353,7 +353,7 @@ export default function PatientProfilePage() {
           return {
             id: `RX-${1000 + idx + 1}`,
             real_id: (r as any).id as string,
-            date: format(new Date((r as any).created_at || new Date()), "MMM d, yyyy"),
+            date: formatDateIST((r as any).created_at || new Date()),
             medication: (r as any).diagnosis || "Prescription",
             instruction: (r as any).notes || "See prescription details",
             prescriber: doctor?.full_name ? `Dr. ${doctor.full_name}` : "Dr. Unknown",
@@ -645,7 +645,7 @@ export default function PatientProfilePage() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(`DOB: ${patient?.dob ? format(new Date(patient.dob), "MMM d, yyyy") : "—"}`, 14, y);
+    doc.text(`DOB: ${patient?.dob ? formatDateIST(patient.dob) : "—"}`, 14, y);
     doc.text(`Date: ${rx.date}`, pageWidth / 2 + 5, y);
     y += 8;
 
@@ -1295,9 +1295,9 @@ export default function PatientProfilePage() {
                     return (
                       <tr key={appt.id} className="hover:bg-surface-container-low/50 transition-colors">
                         <td className="px-4 py-3.5">
-                          <div className="font-medium text-on-surface">{format(startDate, "MMM d, yyyy")}</div>
+                          <div className="font-medium text-on-surface">{formatDateIST(startDate)}</div>
                           <div className="text-label-sm text-on-surface-variant">
-                            {format(startDate, "h:mm a")} – {format(endDate, "h:mm a")}
+                            {formatTimeIST(startDate)} – {formatTimeIST(endDate)}
                           </div>
                         </td>
                         <td className="px-4 py-3.5 font-medium text-on-surface-variant">{appt.doctor_name}</td>
@@ -1369,7 +1369,7 @@ export default function PatientProfilePage() {
                           </div>
                         </td>
                         <td className="px-4 py-3.5 text-on-surface-variant">
-                          {format(new Date(doc.date), "MMM d, yyyy")}
+                          {formatDateIST(doc.date)}
                         </td>
                         <td className="px-4 py-3.5">
                           <span className={`px-2.5 py-0.5 rounded-full text-label-sm font-semibold ${catBadge}`}>
@@ -1391,7 +1391,7 @@ export default function PatientProfilePage() {
                                   downloadPrescriptionPdf({
                                     id: doc.id,
                                     real_id: doc.id,
-                                    date: format(new Date(doc.date), "MMM d, yyyy"),
+                                    date: formatDateIST(doc.date),
                                     medication: doc.name,
                                     instruction: "",
                                     prescriber: "",

@@ -4,7 +4,7 @@ import { CreatePrescriptionForm } from "@/components/modules/create-prescription
 export default async function NewPrescriptionPage({
   searchParams,
 }: {
-  searchParams: { patient?: string; patientId?: string; appointmentId?: string };
+  searchParams: { patient?: string; patientId?: string; appointmentId?: string; patientName?: string; renew?: string };
 }) {
   const supabase = createClient();
   const { data: patients } = await supabase
@@ -20,6 +20,10 @@ export default async function NewPrescriptionPage({
     <CreatePrescriptionForm
       patients={patients ?? []}
       preselectedPatientId={preselectedId}
+      presetPatientName={searchParams.patientName}
+      appointmentId={searchParams.appointmentId}
+      renewId={searchParams.renew}
     />
   );
 }
+

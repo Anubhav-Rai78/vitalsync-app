@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { format } from "date-fns";
+import { formatDateIST, formatTimeIST } from "@/lib/date";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -58,7 +58,7 @@ export default async function DashboardPage() {
           </h1>
           <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-2">
             <span className="material-symbols-outlined outline-icon text-[16px]">calendar_today</span>
-            {format(new Date(), "EEEE, MMMM d, yyyy")}
+            {formatDateIST(new Date(), { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
           </p>
         </div>
         <Link
@@ -187,7 +187,7 @@ export default async function DashboardPage() {
                           </span>
                         </td>
                         <td className="p-4 font-body-sm text-body-sm text-on-surface-variant">
-                          {format(new Date(patient.created_at), "hh:mm a")}
+                          {formatTimeIST(patient.created_at)}
                         </td>
                       </tr>
                     );
@@ -233,7 +233,7 @@ export default async function DashboardPage() {
                   <div className={`w-3 h-3 rounded-full ${index === 0 ? "bg-primary" : "bg-outline-variant"} mt-1.5 z-10 shadow-[0_0_0_4px_#ffffff] dark:shadow-[0_0_0_4px_#f7f9fb]`} />
                   <div className="flex-1 bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant/30 hover:border-primary/30 transition-colors">
                     <p className="font-label-md text-label-md text-on-surface mb-0.5">
-                      {format(new Date(appt.start_time), "h:mm a")}
+                      {formatTimeIST(appt.start_time)}
                     </p>
                     <p className="font-body-sm text-body-sm font-medium text-on-surface">{appt.patients?.full_name}</p>
                     <p className="font-label-sm text-label-sm text-on-surface-variant mt-1 flex items-center gap-1">

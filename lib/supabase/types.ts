@@ -187,6 +187,7 @@ export interface Database {
           appointment_id: string | null
           diagnosis: string | null
           notes: string | null
+          status: 'active' | 'draft' | 'completed' | 'discontinued'
           created_at: string
         }
         Insert: {
@@ -197,6 +198,7 @@ export interface Database {
           appointment_id?: string | null
           diagnosis?: string | null
           notes?: string | null
+          status?: 'active' | 'draft' | 'completed' | 'discontinued'
           created_at?: string
         }
         Update: {
@@ -207,6 +209,7 @@ export interface Database {
           appointment_id?: string | null
           diagnosis?: string | null
           notes?: string | null
+          status?: 'active' | 'draft' | 'completed' | 'discontinued'
           created_at?: string
         }
         Relationships: []
@@ -220,6 +223,8 @@ export interface Database {
           frequency: string | null
           duration: string | null
           instructions: string | null
+          route: string | null
+          refills: number
         }
         Insert: {
           id?: string
@@ -229,6 +234,8 @@ export interface Database {
           frequency?: string | null
           duration?: string | null
           instructions?: string | null
+          route?: string | null
+          refills?: number
         }
         Update: {
           id?: string
@@ -238,6 +245,8 @@ export interface Database {
           frequency?: string | null
           duration?: string | null
           instructions?: string | null
+          route?: string | null
+          refills?: number
         }
         Relationships: []
       }

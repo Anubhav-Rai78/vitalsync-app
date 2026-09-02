@@ -1,5 +1,6 @@
 import React from "react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
+import { formatDateIST, formatTimeIST } from "@/lib/date";
 import { Calendar, Users, CalendarCheck, Plus, TrendingUp, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -97,15 +98,15 @@ export default async function AdminDashboardPage() {
   const activityData = Array.from({ length: 7 }, (_, i) => {
     const day = new Date(weekStart);
     day.setDate(weekStart.getDate() + i);
-    return { day: format(day, "EEE"), appointments: 0 };
+    return { day: formatDateIST(day, { weekday: "short" }), appointments: 0 };
   });
 
   (weekAppointments ?? []).forEach((appt) => {
-    const dayKey = format(new Date(appt.start_time), "EEE");
+    const dayKey = formatDateIST(new Date(appt.start_time), { weekday: "short" });
     const entry = activityData.find((a) => a.day === dayKey);
     if (entry) entry.appointments += 1;
   });
-const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
+const currentDateFormatted = formatDateIST(new Date(), { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   return (
     <div className="space-y-6 max-w-[1200px]">
@@ -220,7 +221,7 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
               <tbody className="divide-y divide-outline-variant">
                 {recentPatients.map((p) => {
                   const initials = p.full_name ? p.full_name.slice(0, 2).toUpperCase() : "PT";
-                  const registeredTime = p.created_at ? format(new Date(p.created_at), "hh:mm a") : "—";
+                  const registeredTime = p.created_at ? formatTimeIST(p.created_at) : "—";
 
                   return (
                     <tr key={p.id} className="hover:bg-surface-container-low/50">
@@ -256,7 +257,7 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
               <div className="space-y-3">
                 {todayAppointments.slice(0, 4).map((slot, idx) => {
                   const appointmentTime = slot.start_time
-                    ? format(new Date(slot.start_time), "h:mm a")
+                    ? formatTimeIST(slot.start_time)
                     : "Scheduled";
                   const patientName = (slot as any).patients?.full_name || "Patient";
                   const doctorName = (slot as any).profiles?.full_name || "Attending Physician";
