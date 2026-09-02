@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { AppointmentStatusActions } from "@/components/modules/appointment-status-actions";
 import { rescheduleAppointmentAction } from "@/app/(dashboard)/appointments/actions";
+import type { AppointmentStatus } from "@/lib/supabase/types";
 import {
   ArrowLeft,
   CheckCircle,
@@ -85,6 +86,25 @@ function initials(name: string) {
 
 const RESCHEDULE_SLOTS = ["09:30 AM", "11:00 AM", "01:30 PM", "03:00 PM", "04:30 PM"];
 
+function formatStatusLabel(status: string) {
+  return status.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function getStatusBadgeClass(status: string) {
+  switch (status) {
+    case "confirmed":
+      return "bg-secondary-container/20 text-secondary border border-secondary-container/50";
+    case "completed":
+      return "bg-primary-container/20 text-primary border border-primary-container/50";
+    case "cancelled":
+      return "bg-surface-container-high text-on-surface-variant border border-outline-variant";
+    case "no_show":
+      return "bg-error-container/40 text-on-error-container border border-error-container";
+    default:
+      return "bg-blue-50 text-blue-700 border border-blue-200";
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Page Component                                                             */
 /* -------------------------------------------------------------------------- */
@@ -106,7 +126,9 @@ export default function AppointmentDetailsPage() {
   const [rescheduleReason, setRescheduleReason] = useState("");
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [rescheduleError, setRescheduleError] = useState<string | null>(null);
-  const [rawStatus, setRawStatus] = useState("scheduled");
+  const [rawStatus, setRawStatus] = useState<AppointmentStatus>("scheduled");
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   /* ---- Fetch live appointment ---- */
   const loadAppointment = useCallback(async () => {
@@ -132,8 +154,8 @@ export default function AppointmentDetailsPage() {
           : new Date(start.getTime() + 45 * 60000);
         const statusLabel = data.status
           ? String(data.status)
-              .replace("_", " ")
-              .replace(/\b\w/g, (c: string) => c.toUpperCase())
+            .replace("_", " ")
+            .replace(/\b\w/g, (c: string) => c.toUpperCase())
           : "Confirmed";
         setRawStatus(data.status ?? "scheduled");
         const symptomList: string[] = [];
@@ -153,10 +175,10 @@ export default function AppointmentDetailsPage() {
               : FALLBACK.patient.gender,
             age: patient?.dob
               ? String(
-                  Math.floor(
-                    (Date.now() - new Date(patient.dob).getTime()) / 31557600000
-                  )
+                Math.floor(
+                  (Date.now() - new Date(patient.dob).getTime()) / 31557600000
                 )
+              )
               : FALLBACK.patient.age,
             dob: patient?.dob
               ? format(new Date(patient.dob), "MM/dd/yyyy")
@@ -202,6 +224,20 @@ export default function AppointmentDetailsPage() {
         detail.patient.name
       )}`
     );
+  };
+
+  const handleStatusChange = (next: AppointmentStatus) => {
+    setRawStatus(next);
+    const readable = formatStatusLabel(next);
+    setSuccessBanner(`Status updated to ${readable} successfully.`);
+    setTimeout(() => setSuccessBanner(null), 4000);
+    // router.refresh() triggers server revalidation; local state gives instant feedback
+    router.refresh();
+  };
+
+  const handleStatusError = (msg: string) => {
+    setErrorMessage(msg);
+    setTimeout(() => setErrorMessage(null), 5000);
   };
 
   /* ---- Confirm Reschedule handler (persists to Supabase) ---- */
@@ -262,14 +298,37 @@ export default function AppointmentDetailsPage() {
         </Link>
       </div>
 
+      {/* Success Banner */}
+      {successBanner && (
+        <div className="flex items-center justify-between p-md rounded-xl bg-secondary-container text-on-secondary-container border border-secondary transition-all shadow-sm">
+          <div className="flex items-center gap-2 font-semibold text-sm">
+            <CheckCircle className="w-5 h-5 text-secondary" />
+            <span>{successBanner}</span>
+          </div>
+          <button onClick={() => setSuccessBanner(null)} className="p-1 hover:opacity-75">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="flex items-center justify-between p-md rounded-xl bg-error-container text-on-error-container border border-error text-sm transition-all shadow-sm">
+          <span>{errorMessage}</span>
+          <button onClick={() => setErrorMessage(null)} className="p-1 hover:opacity-75">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* ---- Main Drawer Container ---- */}
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-6 md:p-8 border-b border-outline-variant bg-surface-container-low flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
-                <CheckCircle className="w-3.5 h-3.5" /> {detail.status}
+              <span className={`inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold ${getStatusBadgeClass(rawStatus)}`}>
+                <CheckCircle className="w-3.5 h-3.5" /> {formatStatusLabel(rawStatus)}
               </span>
               <span className="text-xs text-outline font-mono font-medium">
                 {detail.id}
@@ -308,7 +367,12 @@ export default function AppointmentDetailsPage() {
               </Button>
             </div>
             {/* Status transition actions (confirm / complete / cancel / no-show) */}
-            <AppointmentStatusActions appointmentId={appointmentId} currentStatus={rawStatus} />
+            <AppointmentStatusActions
+              appointmentId={appointmentId}
+              currentStatus={rawStatus}
+              onStatusChange={handleStatusChange}
+              onError={handleStatusError}
+            />
           </div>
         </div>
 
@@ -506,11 +570,10 @@ export default function AppointmentDetailsPage() {
                           key={d}
                           type="button"
                           onClick={() => setRescheduleDate(d)}
-                          className={`py-1 rounded font-semibold transition ${
-                            rescheduleDate === d
+                          className={`py-1 rounded font-semibold transition ${rescheduleDate === d
                               ? "bg-primary text-on-primary"
                               : "text-on-surface-variant hover:bg-surface-container-high"
-                          }`}
+                            }`}
                         >
                           {d}
                         </button>
@@ -531,11 +594,10 @@ export default function AppointmentDetailsPage() {
                       key={slot}
                       type="button"
                       onClick={() => setRescheduleTime(slot)}
-                      className={`py-2 border rounded-lg font-semibold transition ${
-                        rescheduleTime === slot
+                      className={`py-2 border rounded-lg font-semibold transition ${rescheduleTime === slot
                           ? "border-primary bg-primary-container/20 text-primary"
                           : "border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
-                      }`}
+                        }`}
                     >
                       {slot}
                     </button>
@@ -566,23 +628,23 @@ export default function AppointmentDetailsPage() {
                 </p>
               )}
               <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setIsRescheduleOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                disabled={isRescheduling}
-                onClick={handleConfirmReschedule}
-                className="bg-primary hover:bg-primary/90 text-on-primary font-semibold"
-              >
-                {isRescheduling ? "Updating..." : "Confirm Reschedule"}
-              </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsRescheduleOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isRescheduling}
+                  onClick={handleConfirmReschedule}
+                  className="bg-primary hover:bg-primary/90 text-on-primary font-semibold"
+                >
+                  {isRescheduling ? "Updating..." : "Confirm Reschedule"}
+                </Button>
               </div>
             </div>
           </div>

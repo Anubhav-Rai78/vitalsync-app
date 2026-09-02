@@ -54,11 +54,42 @@ export async function bookAppointmentAction(
   redirect(`/appointments/${inserted.id}`);
 }
 
-export async function updateAppointmentStatusAction(appointmentId: string, status: AppointmentStatus) {
-  const supabase = createClient();
-  await supabase.from("appointments").update({ status }).eq("id", appointmentId);
-  revalidatePath(`/appointments/${appointmentId}`);
-  revalidatePath("/appointments");
+export type { AppointmentStatus } from "@/lib/supabase/types";
+
+export async function updateAppointmentStatusAction(
+  appointmentId: string,
+  newStatus: AppointmentStatus
+): Promise<{ success: true; newStatus: AppointmentStatus } | { error: string }> {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "Authentication required." };
+
+    if (!appointmentId) return { error: "Appointment id is required." };
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: newStatus })
+      .eq("id", appointmentId);
+
+    if (error) {
+      console.error("Status update error:", error);
+      return { error: error.message };
+    }
+
+    // Clear server cache so the calendar, detail view, and dashboard update immediately
+    revalidatePath("/appointments");
+    revalidatePath(`/appointments/${appointmentId}`);
+    revalidatePath("/dashboard");
+
+    return { success: true, newStatus };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "Failed to update appointment status.";
+    return { error: message };
+  }
 }
 
 export type AppointmentRescheduleState = { error: string | null };
