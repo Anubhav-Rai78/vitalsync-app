@@ -126,8 +126,8 @@ export async function createPrescriptionAction(
 
     const status: RxStatus =
       payload.status === "draft" ||
-      payload.status === "completed" ||
-      payload.status === "discontinued"
+        payload.status === "completed" ||
+        payload.status === "discontinued"
         ? payload.status
         : "active";
 
