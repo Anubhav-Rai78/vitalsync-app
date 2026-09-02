@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Activity,
   Calendar,
@@ -26,8 +26,14 @@ import {
   Printer,
   MoreVertical,
   RotateCw,
+  X,
+  Download,
+  ExternalLink,
+  MessageCircle,
+  ClipboardList,
 } from "lucide-react";
 import { format } from "date-fns";
+import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { RecordVitalsForm } from "@/components/modules/record-vitals-form";
@@ -82,6 +88,25 @@ interface PatientDetails {
   dob: string | null;
   sex: "male" | "female" | "other" | null;
   created_by: string | null;
+}
+
+interface AppointmentRecord {
+  id: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  reason: string | null;
+  notes: string | null;
+  doctor_name: string;
+  doctor_specialty: string | null;
+}
+
+interface DocumentRecord {
+  id: string;
+  name: string;
+  date: string;
+  category: "Billing" | "Prescription";
+  status?: string;
 }
 
 function calcAge(dob: string | null | undefined): number | string {
@@ -163,6 +188,7 @@ type TabKey = "summary" | "history" | "appointments" | "documents";
 
 export default function PatientProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const patientId = (params?.id as string) ?? "";
 
   const [patient, setPatient] = useState<PatientDetails | null>(null);
@@ -177,6 +203,36 @@ export default function PatientProfilePage() {
   const [rxLoading, setRxLoading] = useState(true);
   const [rxHistory, setRxHistory] = useState<PrescriptionRecord[]>([]);
   const [vitals, setVitals] = useState<VitalsReading[]>([]);
+
+  // Message modal state
+  const [messageModalOpen, setMessageModalOpen] = useState(false);
+  const [messageNote, setMessageNote] = useState("");
+
+  // Quick Add Medication modal state
+  const [addMedModalOpen, setAddMedModalOpen] = useState(false);
+  const [addMedDrugName, setAddMedDrugName] = useState("");
+  const [addMedDosage, setAddMedDosage] = useState("");
+  const [addMedFrequency, setAddMedFrequency] = useState("");
+  const [addMedDuration, setAddMedDuration] = useState("");
+  const [addMedInstructions, setAddMedInstructions] = useState("");
+  const [addMedLoading, setAddMedLoading] = useState(false);
+
+  // Edit Allergies modal state
+  const [editAllergiesOpen, setEditAllergiesOpen] = useState(false);
+  const [allergiesEditValue, setAllergiesEditValue] = useState("");
+  const [allergiesSaveLoading, setAllergiesSaveLoading] = useState(false);
+
+  // Appointments tab state
+  const [appointmentsList, setAppointmentsList] = useState<AppointmentRecord[]>([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
+
+  // Documents tab state
+  const [documentsList, setDocumentsList] = useState<DocumentRecord[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+
+  // More menu state for prescription rows
+  const [moreMenuOpenId, setMoreMenuOpenId] = useState<string | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const supabase = createClient();
 
@@ -300,6 +356,269 @@ export default function PatientProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
+  // ──────────────────────────────────────────────
+  // Appointments tab data (loaded on demand)
+  // ──────────────────────────────────────────────
+  const loadAppointments = useCallback(async () => {
+    if (!patientId) return;
+    setAppointmentsLoading(true);
+    try {
+      const { data } = await supabase
+        .from("appointments")
+        .select(
+          "id, start_time, end_time, status, reason, notes, profiles!appointments_doctor_id_fkey(full_name, specialty)"
+        )
+        .eq("patient_id", patientId)
+        .order("start_time", { ascending: false });
+
+      if (data) {
+        setAppointmentsList(
+          (data as any[]).map((r) => {
+            const doc: any = r.profiles;
+            return {
+              id: r.id,
+              start_time: r.start_time,
+              end_time: r.end_time,
+              status: r.status,
+              reason: r.reason,
+              notes: r.notes,
+              doctor_name: doc?.full_name ? `Dr. ${doc.full_name}` : "Unassigned",
+              doctor_specialty: doc?.specialty ?? null,
+            };
+          })
+        );
+      }
+    } catch {
+      // silent
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  }, [patientId, supabase]);
+
+  useEffect(() => {
+    if (activeTab === "appointments" && patientId) loadAppointments();
+  }, [activeTab, patientId, loadAppointments]);
+
+  // ──────────────────────────────────────────────
+  // Documents tab data (invoices + prescriptions)
+  // ──────────────────────────────────────────────
+  const loadDocuments = useCallback(async () => {
+    if (!patientId) return;
+    setDocumentsLoading(true);
+    try {
+      const [invRes, rxRes] = await Promise.all([
+        supabase
+          .from("invoices")
+          .select("id, invoice_number, status, total, created_at")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("prescriptions")
+          .select("id, diagnosis, created_at")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const docs: DocumentRecord[] = [];
+      (invRes.data ?? []).forEach((inv: any) => {
+        docs.push({
+          id: inv.id,
+          name: `Invoice #${inv.invoice_number}`,
+          date: inv.created_at,
+          category: "Billing",
+          status: inv.status,
+        });
+      });
+      (rxRes.data ?? []).forEach((rx: any) => {
+        docs.push({
+          id: rx.id,
+          name: rx.diagnosis || "Prescription Record",
+          date: rx.created_at,
+          category: "Prescription",
+        });
+      });
+
+      docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setDocumentsList(docs);
+    } catch {
+      // silent
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, [patientId, supabase]);
+
+  useEffect(() => {
+    if (activeTab === "documents" && patientId) loadDocuments();
+  }, [activeTab, patientId, loadDocuments]);
+
+  // Click-outside handler for More menu
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setMoreMenuOpenId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // ──────────────────────────────────────────────
+  // Handler: Quick Add Medication
+  // ──────────────────────────────────────────────
+  async function handleAddMedication() {
+    if (!addMedDrugName.trim() || !patientId) return;
+    setAddMedLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("clinic_id")
+        .eq("id", user.id)
+        .single();
+      if (!profile) return;
+
+      const { data: rx, error: rxErr } = await supabase
+        .from("prescriptions")
+        .insert({
+          clinic_id: profile.clinic_id,
+          patient_id: patientId,
+          doctor_id: user.id,
+          diagnosis: addMedDrugName.trim(),
+          notes: addMedInstructions || null,
+        })
+        .select("id")
+        .single();
+
+      if (rxErr || !rx) return;
+
+      const { error: itemErr } = await supabase.from("prescription_items").insert({
+        prescription_id: rx.id,
+        drug_name: addMedDrugName.trim(),
+        dosage: addMedDosage || null,
+        frequency: addMedFrequency || null,
+        duration: addMedDuration || null,
+        instructions: addMedInstructions || null,
+      });
+
+      if (itemErr) return;
+
+      setMedications((prev) => [
+        ...prev,
+        {
+          id: rx.id,
+          drug_name: addMedDrugName.trim(),
+          dosage: addMedDosage || null,
+          frequency: addMedFrequency || null,
+          duration: addMedDuration || null,
+          instructions: addMedInstructions || null,
+        },
+      ]);
+
+      setAddMedDrugName("");
+      setAddMedDosage("");
+      setAddMedFrequency("");
+      setAddMedDuration("");
+      setAddMedInstructions("");
+      setAddMedModalOpen(false);
+    } finally {
+      setAddMedLoading(false);
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Handler: Save Allergies
+  // ──────────────────────────────────────────────
+  async function handleSaveAllergies() {
+    if (!patientId) return;
+    setAllergiesSaveLoading(true);
+    try {
+      await supabase
+        .from("patients")
+        .update({ allergies: allergiesEditValue || null })
+        .eq("id", patientId);
+      setPatient((prev) => (prev ? { ...prev, allergies: allergiesEditValue || null } : prev));
+      setEditAllergiesOpen(false);
+    } finally {
+      setAllergiesSaveLoading(false);
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Handler: Prescription PDF generation
+  // ──────────────────────────────────────────────
+  function downloadPrescriptionPdf(rx: PrescriptionRecord) {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(37, 99, 235);
+    doc.text("MedFlow Clinic", 14, y);
+    doc.setFontSize(20);
+    doc.setTextColor(15, 23, 42);
+    doc.text("PRESCRIPTION", pageWidth - 14, y, { align: "right" });
+    y += 8;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text(rx.id, pageWidth - 14, y, { align: "right" });
+    y += 7;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, y, pageWidth - 14, y);
+    y += 8;
+
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("PATIENT", 14, y);
+    doc.text("PRESCRIBED BY", pageWidth / 2 + 5, y);
+    y += 5;
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "bold");
+    doc.text(patient?.full_name || "Patient", 14, y);
+    doc.text(rx.prescriber, pageWidth / 2 + 5, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`DOB: ${patient?.dob ? format(new Date(patient.dob), "MMM d, yyyy") : "—"}`, 14, y);
+    doc.text(`Date: ${rx.date}`, pageWidth / 2 + 5, y);
+    y += 8;
+
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, y, pageWidth - 14, y);
+    y += 8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("DIAGNOSIS / MEDICATION", 14, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    doc.text(rx.medication, 14, y);
+    y += 5;
+    if (rx.instruction) {
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Instructions: ${rx.instruction}`, 14, y);
+      y += 5;
+    }
+
+    y += 10;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, y, pageWidth - 14, y);
+    y += 6;
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Generated by MedFlow Clinic", 14, y);
+
+    doc.save(`${rx.id}-prescription.pdf`);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-body-sm text-on-surface-variant">
@@ -402,6 +721,7 @@ export default function PatientProfilePage() {
           <Button
             variant="secondary"
             className="flex-1 md:flex-none text-label-sm font-semibold items-center gap-2"
+            onClick={() => setMessageModalOpen(true)}
           >
             <MessageSquare className="w-4 h-4 text-on-surface-variant" /> Message
           </Button>
@@ -565,6 +885,7 @@ export default function PatientProfilePage() {
               <button
                 className="text-primary hover:bg-primary-container/20 p-1 rounded-md transition"
                 aria-label="Add medication"
+                onClick={() => setAddMedModalOpen(true)}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -603,7 +924,14 @@ export default function PatientProfilePage() {
               <h2 className="text-headline-sm text-on-surface flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-tertiary" /> Allergies & Alerts
               </h2>
-              <button className="text-on-surface-variant hover:text-on-surface p-1 rounded-md transition" aria-label="Edit allergies">
+              <button
+                className="text-on-surface-variant hover:text-on-surface p-1 rounded-md transition"
+                aria-label="Edit allergies"
+                onClick={() => {
+                  setAllergiesEditValue(patient.allergies || "");
+                  setEditAllergiesOpen(true);
+                }}
+              >
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -741,18 +1069,58 @@ export default function PatientProfilePage() {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex justify-end gap-1 text-on-surface-variant">
-                          <button className="p-1 hover:text-primary" title="View Details">
+                          <button
+                            className="p-1 hover:text-primary"
+                            title="View Details"
+                            onClick={() => router.push(`/prescriptions/${rx.id}`)}
+                          >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="p-1 hover:text-primary" title="Renew">
+                          <button
+                            className="p-1 hover:text-primary"
+                            title="Renew"
+                            onClick={() => router.push(`/prescriptions/new?patientId=${patientId}&renew=${rx.id}`)}
+                          >
                             <RotateCw className="w-4 h-4" />
                           </button>
-                          <button className="p-1 hover:text-primary" title="Print">
+                          <button
+                            className="p-1 hover:text-primary"
+                            title="Print"
+                            onClick={() => downloadPrescriptionPdf(rx)}
+                          >
                             <Printer className="w-4 h-4" />
                           </button>
-                          <button className="p-1 hover:text-on-surface" title="More">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                          <div className="relative" ref={moreMenuOpenId === rx.id ? moreMenuRef : undefined}>
+                            <button
+                              className="p-1 hover:text-on-surface"
+                              title="More"
+                              onClick={() => setMoreMenuOpenId(moreMenuOpenId === rx.id ? null : rx.id)}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            {moreMenuOpenId === rx.id && (
+                              <div className="absolute right-0 top-full mt-1 z-20 bg-surface-container-lowest border border-outline-variant rounded-lg shadow-lg py-1 min-w-[160px]">
+                                <button
+                                  className="w-full text-left px-3 py-2 text-label-sm text-on-surface hover:bg-surface-container-low flex items-center gap-2"
+                                  onClick={() => {
+                                    setMoreMenuOpenId(null);
+                                    router.push(`/prescriptions/${rx.id}`);
+                                  }}
+                                >
+                                  <Eye className="w-3.5 h-3.5" /> View Details
+                                </button>
+                                <button
+                                  className="w-full text-left px-3 py-2 text-label-sm text-on-surface hover:bg-surface-container-low flex items-center gap-2"
+                                  onClick={() => {
+                                    setMoreMenuOpenId(null);
+                                    downloadPrescriptionPdf(rx);
+                                  }}
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Download PDF
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -788,10 +1156,297 @@ export default function PatientProfilePage() {
           </div>
         </div>
 
-      ) : (
-        <div className="p-xl text-center bg-surface-container-lowest rounded-xl border border-outline-variant text-body-sm text-on-surface-variant shadow-sm">
-          <FileText className="w-5 h-5 mx-auto mb-2 text-on-surface-variant" />
-          No records found in this category for {patient.full_name}.
+      ) : activeTab === "appointments" ? (
+        /* ────────────────────────────────────────────
+           APPOINTMENTS TAB — Live data from Supabase
+           ──────────────────────────────────────────── */
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+          {appointmentsLoading ? (
+            <div className="p-xl text-center text-body-sm text-on-surface-variant">
+              Loading appointments…
+            </div>
+          ) : appointmentsList.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-label-sm">
+                <thead className="bg-surface-container-low text-on-surface-variant">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Date & Time</th>
+                    <th className="px-4 py-3 font-semibold">Doctor / Provider</th>
+                    <th className="px-4 py-3 font-semibold">Reason</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/50 text-on-surface">
+                  {appointmentsList.map((appt) => {
+                    const startDate = new Date(appt.start_time);
+                    const endDate = new Date(appt.end_time);
+                    const statusLabel = appt.status
+                      ? String(appt.status).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                      : "Scheduled";
+                    let badgeCls = "bg-primary-container/20 text-primary border border-primary-container/40";
+                    if (appt.status === "completed") badgeCls = "bg-secondary-container/30 text-secondary border border-secondary-container/50";
+                    else if (appt.status === "cancelled") badgeCls = "bg-error-container/40 text-on-error-container border border-error-container";
+                    else if (appt.status === "confirmed") badgeCls = "bg-secondary-container/30 text-secondary border border-secondary-container/50";
+
+                    return (
+                      <tr key={appt.id} className="hover:bg-surface-container-low/50 transition-colors">
+                        <td className="px-4 py-3.5">
+                          <div className="font-medium text-on-surface">{format(startDate, "MMM d, yyyy")}</div>
+                          <div className="text-label-sm text-on-surface-variant">
+                            {format(startDate, "h:mm a")} – {format(endDate, "h:mm a")}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 font-medium text-on-surface-variant">{appt.doctor_name}</td>
+                        <td className="px-4 py-3.5 text-on-surface-variant">{appt.reason || "—"}</td>
+                        <td className="px-4 py-3.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-label-sm font-semibold ${badgeCls}`}>
+                            {statusLabel}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <Link
+                            href={`/appointments/${appt.id}`}
+                            className="inline-flex items-center gap-1 text-primary hover:text-primary/80 font-semibold text-label-sm transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> View
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-xl text-center space-y-md">
+              <Calendar className="w-8 h-8 mx-auto text-on-surface-variant" />
+              <p className="text-body-sm text-on-surface-variant">No appointments found for {patient.full_name}.</p>
+              <Button asChild variant="primary" size="sm" className="bg-primary-container text-on-primary hover:bg-primary text-label-sm font-semibold">
+                <Link href={`/appointments?book=true&patientId=${patient.id}`} className="inline-flex items-center gap-1.5">
+                  <CalendarPlus className="w-3.5 h-3.5" /> Book New Appointment
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
+
+      ) : activeTab === "documents" ? (
+        /* ────────────────────────────────────────────
+           DOCUMENTS TAB — Invoices + Prescriptions
+           ──────────────────────────────────────────── */
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+          {documentsLoading ? (
+            <div className="p-xl text-center text-body-sm text-on-surface-variant">
+              Loading documents…
+            </div>
+          ) : documentsList.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-label-sm">
+                <thead className="bg-surface-container-low text-on-surface-variant">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Document Name</th>
+                    <th className="px-4 py-3 font-semibold">Date Issued</th>
+                    <th className="px-4 py-3 font-semibold">Category</th>
+                    <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/50 text-on-surface">
+                  {documentsList.map((doc) => {
+                    const catBadge =
+                      doc.category === "Billing"
+                        ? "bg-primary-container/20 text-primary border border-primary-container/40"
+                        : "bg-secondary-container/30 text-secondary border border-secondary-container/50";
+                    return (
+                      <tr key={`${doc.category}-${doc.id}`} className="hover:bg-surface-container-low/50 transition-colors">
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-on-surface-variant shrink-0" />
+                            <span className="font-medium text-on-surface">{doc.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-on-surface-variant">
+                          {format(new Date(doc.date), "MMM d, yyyy")}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-label-sm font-semibold ${catBadge}`}>
+                            {doc.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <div className="flex justify-end gap-2">
+                            <Link
+                              href={doc.category === "Billing" ? `/invoices/${doc.id}` : `/prescriptions/${doc.id}`}
+                              className="inline-flex items-center gap-1 text-primary hover:text-primary/80 font-semibold text-label-sm transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" /> View
+                            </Link>
+                            <button
+                              className="inline-flex items-center gap-1 text-on-surface-variant hover:text-on-surface font-semibold text-label-sm transition-colors"
+                              onClick={() => {
+                                if (doc.category === "Prescription") {
+                                  downloadPrescriptionPdf({
+                                    id: doc.id,
+                                    date: format(new Date(doc.date), "MMM d, yyyy"),
+                                    medication: doc.name,
+                                    instruction: "",
+                                    prescriber: "",
+                                    status: "Active",
+                                  });
+                                } else {
+                                  router.push(`/invoices/${doc.id}`);
+                                }
+                              }}
+                            >
+                              <Download className="w-3.5 h-3.5" /> PDF
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-xl text-center space-y-md">
+              <FileText className="w-8 h-8 mx-auto text-on-surface-variant" />
+              <p className="text-body-sm text-on-surface-variant">No documents found for {patient.full_name}.</p>
+            </div>
+          )}
+        </div>
+
+      ) : null}
+
+      {/* ─── MESSAGE MODAL ─── */}
+      {messageModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant w-full max-w-md overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant bg-surface-container-low">
+              <h3 className="text-headline-sm text-on-surface">Contact {patient.full_name}</h3>
+              <button onClick={() => setMessageModalOpen(false)} className="text-on-surface-variant hover:text-on-surface p-1"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <a href={`mailto:${patient.email || ""}?subject=MedFlow%20Clinic%20Notice`} className="flex items-center gap-3 p-3 rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors">
+                <div className="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center"><Mail className="w-5 h-5 text-primary" /></div>
+                <div>
+                  <p className="text-label-sm font-semibold text-on-surface">Email Patient</p>
+                  <p className="text-label-sm text-on-surface-variant">{patient.email || "No email on file"}</p>
+                </div>
+              </a>
+              {patient.phone && (
+                <div className="flex gap-2">
+                  <a href={`tel:${patient.phone}`} className="flex-1 flex items-center gap-3 p-3 rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-secondary-container/20 flex items-center justify-center"><Phone className="w-5 h-5 text-secondary" /></div>
+                    <div><p className="text-label-sm font-semibold text-on-surface">Call</p><p className="text-label-sm text-on-surface-variant">{patient.phone}</p></div>
+                  </a>
+                  <a href={`https://wa.me/${patient.phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center gap-3 p-3 rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-secondary-container/20 flex items-center justify-center"><MessageCircle className="w-5 h-5 text-secondary" /></div>
+                    <div><p className="text-label-sm font-semibold text-on-surface">WhatsApp</p><p className="text-label-sm text-on-surface-variant">Send message</p></div>
+                  </a>
+                </div>
+              )}
+              <div>
+                <label className="text-label-sm font-semibold text-on-surface-variant block mb-1">Quick Internal Note</label>
+                <textarea value={messageNote} onChange={(e) => setMessageNote(e.target.value)} rows={3} placeholder="Type a note for internal records…" className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container resize-none" />
+              </div>
+            </div>
+            <div className="px-6 py-3 border-t border-outline-variant bg-surface-container-low flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => { setMessageNote(""); setMessageModalOpen(false); }}>Close</Button>
+              <Button variant="primary" size="sm" className="bg-primary-container text-on-primary hover:bg-primary" onClick={() => { setMessageNote(""); setMessageModalOpen(false); }}><ClipboardList className="w-3.5 h-3.5" /> Save Note</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── QUICK ADD MEDICATION MODAL ─── */}
+      {addMedModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant w-full max-w-md overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant bg-surface-container-low">
+              <h3 className="text-headline-sm text-on-surface">Quick Add Medication</h3>
+              <button onClick={() => setAddMedModalOpen(false)} className="text-on-surface-variant hover:text-on-surface p-1"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-label-sm font-semibold text-on-surface-variant block mb-1">Drug Name *</label>
+                <input type="text" value={addMedDrugName} onChange={(e) => setAddMedDrugName(e.target.value)} placeholder="e.g. Metformin" className="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-low text-label-sm text-on-surface focus:bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-label-sm font-semibold text-on-surface-variant block mb-1">Dosage</label>
+                  <input type="text" value={addMedDosage} onChange={(e) => setAddMedDosage(e.target.value)} placeholder="e.g. 500mg" className="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-low text-label-sm text-on-surface focus:bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="text-label-sm font-semibold text-on-surface-variant block mb-1">Frequency</label>
+                  <input type="text" value={addMedFrequency} onChange={(e) => setAddMedFrequency(e.target.value)} placeholder="e.g. Twice daily" className="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-low text-label-sm text-on-surface focus:bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-label-sm font-semibold text-on-surface-variant block mb-1">Duration</label>
+                  <input type="text" value={addMedDuration} onChange={(e) => setAddMedDuration(e.target.value)} placeholder="e.g. 30 days" className="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-low text-label-sm text-on-surface focus:bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="text-label-sm font-semibold text-on-surface-variant block mb-1">Instructions</label>
+                  <input type="text" value={addMedInstructions} onChange={(e) => setAddMedInstructions(e.target.value)} placeholder="e.g. Take with food" className="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-low text-label-sm text-on-surface focus:bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-3 border-t border-outline-variant bg-surface-container-low flex justify-between items-center">
+              <Link href={`/prescriptions/new?patientId=${patientId}`} className="text-label-sm text-primary hover:underline font-semibold" onClick={() => setAddMedModalOpen(false)}>Full Prescription Builder →</Link>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setAddMedModalOpen(false)}>Cancel</Button>
+                <Button variant="primary" size="sm" className="bg-primary-container text-on-primary hover:bg-primary" onClick={handleAddMedication} disabled={!addMedDrugName.trim() || addMedLoading}>
+                  {addMedLoading ? "Adding…" : "Add Medication"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── EDIT ALLERGIES MODAL ─── */}
+      {editAllergiesOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant w-full max-w-md overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant bg-surface-container-low">
+              <h3 className="text-headline-sm text-on-surface">Edit Allergies & Clinical Alerts</h3>
+              <button onClick={() => setEditAllergiesOpen(false)} className="text-on-surface-variant hover:text-on-surface p-1"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-label-sm font-semibold text-on-surface-variant block mb-1">
+                  Known Allergies <span className="font-normal">(comma-separated)</span>
+                </label>
+                <textarea
+                  value={allergiesEditValue}
+                  onChange={(e) => setAllergiesEditValue(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Penicillin, Sulfa drugs, Latex"
+                  className="w-full rounded-lg border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container resize-none"
+                />
+                {allergiesEditValue && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {allergiesEditValue.split(",").map((a) => {
+                      const trimmed = a.trim();
+                      return trimmed ? (
+                        <span key={trimmed} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container/40 text-on-error-container text-label-sm font-semibold">
+                          <Pill className="w-3 h-3 text-error" /> {trimmed}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-3 border-t border-outline-variant bg-surface-container-low flex justify-end gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setEditAllergiesOpen(false)}>Cancel</Button>
+              <Button variant="primary" size="sm" className="bg-primary-container text-on-primary hover:bg-primary" onClick={handleSaveAllergies} disabled={allergiesSaveLoading}>
+                {allergiesSaveLoading ? "Saving…" : "Save Allergies"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
