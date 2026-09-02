@@ -7,11 +7,13 @@ import {
   Printer,
   RotateCcw,
   CheckCircle2,
+  CreditCard,
   X,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import { markInvoicePaidAction } from "@/app/(dashboard)/invoices/actions";
 
 type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "void";
 
@@ -161,6 +163,7 @@ export function InvoiceDetailActions({
   isAdmin?: boolean;
 }) {
   const [refunding, setRefunding] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -177,6 +180,46 @@ export function InvoiceDetailActions({
   const downloadPdf = () => {
     downloadInvoicePdf(invoice, items);
     setActionMsg("Invoice PDF downloaded.");
+  };
+
+  const handlePayInvoice = async () => {
+    setPaying(true);
+    setActionError(null);
+    setActionMsg(null);
+    try {
+      // Attempt Razorpay SDK checkout when key is available.
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (razorpayKey && typeof (window as any).Razorpay !== "undefined") {
+        const ordRes = await fetch("/api/razorpay/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoiceId: invoice.id, amount: Number(invoice.total) }),
+        });
+        if (ordRes.ok) {
+          const order = await ordRes.json();
+          const rzp = new (window as any).Razorpay({
+            key: razorpayKey,
+            order_id: order.id,
+            amount: order.amount,
+            currency: "INR",
+            name: "MedFlow Clinic",
+            description: `Invoice ${invoice.invoice_number}`,
+            handler: () => { setActionMsg("Payment successful! Refresh to see updated status."); },
+          });
+          rzp.open();
+          return;
+        }
+      }
+      // Fallback: directly mark invoice as paid via server action.
+      const result = await markInvoicePaidAction(invoice.id, Number(invoice.total));
+      if (result.error) throw new Error(result.error);
+      setActionMsg("Invoice marked as paid. Refreshing…");
+      window.setTimeout(() => window.location.reload(), 900);
+    } catch (err: any) {
+      setActionError(err.message ?? "Payment failed.");
+    } finally {
+      setPaying(false);
+    }
   };
 
   const handleRefund = async () => {
@@ -233,6 +276,19 @@ export function InvoiceDetailActions({
       {/* Actions */}
       <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm space-y-2.5">
         <h4 className="text-label-sm text-on-surface-variant uppercase tracking-wider mb-2 font-semibold">Actions</h4>
+
+        {/* Pay Invoice — shown only when not already paid/void */}
+        {status !== "paid" && status !== "void" && (
+          <Button
+            className="w-full flex items-center justify-center gap-1.5 text-label-md bg-secondary text-on-secondary hover:bg-secondary/90"
+            onClick={handlePayInvoice}
+            disabled={paying}
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            {paying ? "Processing…" : "Pay Invoice"}
+          </Button>
+        )}
+
         <Button className="w-full flex items-center justify-center gap-1.5 text-label-md" onClick={sendEmail}>
           <Send className="w-3.5 h-3.5" /> Send via Email
         </Button>

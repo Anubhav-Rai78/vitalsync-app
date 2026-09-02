@@ -13,7 +13,7 @@ export function WeeklyActivityChart({ data }: { data: { day: string; appointment
           <Tooltip
             contentStyle={{ borderRadius: 8, border: "1px solid #c3c6d7", fontSize: 13 }}
           />
-          <Bar dataKey="appointments" fill="#2563eb" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="appointments" fill="#004ac6" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -52,9 +52,9 @@ function getStatusBadge(status: string): string {
     case "new":
       return "bg-cyan-50 text-cyan-700 border border-cyan-200/80";
     case "inactive":
-      return "bg-slate-100 text-slate-600 border border-slate-200";
+      return "bg-surface-container-high text-on-surface-variant border border-outline-variant";
     default:
-      return "bg-slate-100 text-slate-700 border border-slate-200";
+      return "bg-surface-container-high text-on-surface-variant border border-outline-variant";
   }
 }
 
@@ -134,7 +134,7 @@ export default function PatientsPage() {
             Manage your clinic&apos;s patient records.
           </p>
         </div>
-        <Button asChild variant="primary" className="bg-[#2563eb] hover:bg-blue-700 text-white font-semibold">
+        <Button asChild variant="primary" className="bg-primary hover:bg-primary/90 text-on-primary font-semibold">
           <Link href="/patients/new" className="flex items-center gap-1.5">
             <Plus className="w-4 h-4" /> Add New Patient
           </Link>
@@ -263,10 +263,10 @@ export default function PatientsPage() {
                       </td>
                       <td className="py-3 px-4">
                         <Link href={`/patients/${p.id}`} className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100 flex items-center justify-center font-bold text-[10px] shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-primary-container/20 text-primary border border-primary-container/30 flex items-center justify-center font-bold text-[10px] shrink-0">
                             {initials}
                           </div>
-                          <span className="font-semibold text-on-surface group-hover:text-[#2563eb] transition-colors">
+                          <span className="font-semibold text-on-surface group-hover:text-primary transition-colors">
                             {p.name}
                           </span>
                         </Link>
@@ -284,7 +284,7 @@ export default function PatientsPage() {
                       <td className="py-3 px-4 text-right">
                         <Link
                           href={`/patients/${p.id}`}
-                          className="text-on-surface-variant hover:text-[#2563eb] transition-colors p-1 inline-flex items-center"
+                          className="text-on-surface-variant hover:text-primary transition-colors p-1 inline-flex items-center"
                           aria-label={`View ${p.name}`}
                         >
                           <MoreVertical className="w-4 h-4" />
@@ -319,7 +319,7 @@ export default function PatientsPage() {
             >
               &lt;
             </button>
-            <button className="w-7 h-7 rounded bg-blue-50 text-[#2563eb] font-semibold border border-blue-200 text-xs">
+            <button className="w-7 h-7 rounded bg-primary-container/20 text-primary font-semibold border border-primary-container/40 text-xs">
               1
             </button>
             <button className="w-7 h-7 rounded hover:bg-surface-container-low border border-outline-variant text-on-surface text-xs">

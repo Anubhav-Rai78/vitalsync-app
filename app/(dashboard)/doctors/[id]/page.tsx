@@ -320,7 +320,7 @@ if (loading) {
       <div>
         <Link
           href="/doctors"
-          className="inline-flex items-center gap-1.5 text-label-sm font-semibold text-on-surface-variant hover:text-[#2563eb] transition-colors"
+          className="inline-flex items-center gap-1.5 text-label-sm font-semibold text-on-surface-variant hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Doctors
         </Link>
@@ -335,7 +335,7 @@ if (loading) {
             className="w-28 h-28 rounded-full object-cover border-4 border-outline-variant/50 shrink-0 shadow-sm"
           />
         ) : (
-          <div className="w-28 h-28 rounded-full bg-blue-50 text-[#2563eb] border-4 border-outline-variant/40 flex items-center justify-center text-2xl font-bold shrink-0 shadow-sm">
+          <div className="w-28 h-28 rounded-full bg-primary-container/20 text-primary border-4 border-outline-variant/40 flex items-center justify-center text-2xl font-bold shrink-0 shadow-sm">
             {initials}
           </div>
         )}
@@ -365,7 +365,7 @@ if (loading) {
                   <MessageSquare className="w-4 h-4" /> Message
                 </span>
               </Button>
-              <Button asChild size="sm" className="bg-[#2563eb] hover:bg-blue-700 text-white font-semibold">
+              <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-on-primary font-semibold">
                 <Link
                   href={`/appointments?book=true&doctorId=${doctor.id}`}
                   className="flex items-center gap-1.5"
@@ -393,7 +393,7 @@ if (loading) {
             onClick={() => setActiveTab(tab.key)}
             className={`text-label-sm font-bold pb-3 border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.key
-                ? "border-[#2563eb] text-[#2563eb]"
+                ? "border-primary text-primary"
                 : "border-transparent text-on-surface-variant hover:text-on-surface"
             }`}
           >
@@ -453,8 +453,8 @@ if (loading) {
                     key={idx}
                     className={`px-md py-sm rounded-full border font-semibold text-label-sm ${
                       idx === 0
-                        ? "bg-[#2563eb]/10 text-[#2563eb] border-blue-200"
-                        : "bg-blue-50 text-[#2563eb] border-blue-100"
+                        ? "bg-primary/10 text-primary border-primary-container/40"
+                        : "bg-primary-container/20 text-primary border-primary-container/30"
                     }`}
                   >
                     {pill}
@@ -472,7 +472,7 @@ if (loading) {
                 {canEditAvailability && (
                   <button
                     onClick={() => setEditingAvailability((v) => !v)}
-                    className="text-[#2563eb] text-label-sm font-semibold hover:underline"
+                    className="text-primary text-label-sm font-semibold hover:underline"
                   >
                     {editingAvailability ? "Cancel" : "Edit"}
                   </button>
@@ -538,7 +538,7 @@ if (loading) {
                 <h3 className="text-headline-sm text-on-surface">Upcoming Today</h3>
                 <Link
                   href="/appointments"
-                  className="text-[#2563eb] text-label-sm font-semibold hover:underline"
+                  className="text-primary text-label-sm font-semibold hover:underline"
                 >
                   View All
                 </Link>
@@ -550,7 +550,7 @@ if (loading) {
                       key={idx}
                       className="flex items-center gap-sm border-b border-outline-variant/60 pb-sm last:border-0 last:pb-0"
                     >
-                      <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10px] shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-bold text-[10px] shrink-0">
                         {item.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1">

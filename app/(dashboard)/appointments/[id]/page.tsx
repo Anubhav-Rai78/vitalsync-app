@@ -198,7 +198,9 @@ export default function AppointmentDetailsPage() {
     router.push(
       `/prescriptions/new?appointmentId=${encodeURIComponent(
         appointmentId
-      )}&patientName=${encodeURIComponent(detail.patient.name)}`
+      )}&patientId=${encodeURIComponent(detail.patient.id)}&patientName=${encodeURIComponent(
+        detail.patient.name
+      )}`
     );
   };
 
@@ -254,33 +256,33 @@ export default function AppointmentDetailsPage() {
       <div>
         <Link
           href="/appointments"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#004ac6] transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Appointments
         </Link>
       </div>
 
       {/* ---- Main Drawer Container ---- */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 md:p-8 border-b border-slate-200 bg-[#f7f9fb] flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="p-6 md:p-8 border-b border-outline-variant bg-surface-container-low flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
                 <CheckCircle className="w-3.5 h-3.5" /> {detail.status}
               </span>
-              <span className="text-xs text-slate-400 font-mono font-medium">
+              <span className="text-xs text-outline font-mono font-medium">
                 {detail.id}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">{detail.title}</h1>
-            <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+            <h1 className="text-2xl font-bold text-on-surface">{detail.title}</h1>
+            <div className="flex items-center gap-3 text-xs text-on-surface-variant font-medium">
               <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" /> {detail.date}
+                <Calendar className="w-3.5 h-3.5 text-outline" /> {detail.date}
               </span>
               <span>&bull;</span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-slate-400" /> {detail.time_slot}
+                <Clock className="w-3.5 h-3.5 text-outline" /> {detail.time_slot}
               </span>
             </div>
           </div>
@@ -292,7 +294,7 @@ export default function AppointmentDetailsPage() {
                 variant="secondary"
                 size="sm"
                 onClick={() => setIsRescheduleOpen(true)}
-                className="text-xs font-semibold hover:bg-slate-50"
+                className="text-xs font-semibold hover:bg-surface-container-low"
               >
                 <CalendarCheck className="w-3.5 h-3.5 mr-1.5" /> Reschedule
               </Button>
@@ -300,7 +302,7 @@ export default function AppointmentDetailsPage() {
                 type="button"
                 size="sm"
                 onClick={handleStartVisit}
-                className="bg-[#004ac6] hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+                className="bg-primary hover:bg-primary/90 text-on-primary text-xs font-semibold shadow-sm"
               >
                 <Video className="w-3.5 h-3.5 mr-1.5" /> Start Visit
               </Button>
@@ -314,27 +316,27 @@ export default function AppointmentDetailsPage() {
         <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Patient & Provider */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="border border-slate-200 rounded-xl p-4 bg-white shadow-xs">
+            <div className="border border-outline-variant rounded-xl p-4 bg-surface-container-lowest shadow-xs">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-outline uppercase tracking-wider">
                   Patient
                 </span>
                 <Link
                   href={`/patients/${detail.patient.id}`}
-                  className="text-xs font-semibold text-[#004ac6] flex items-center gap-0.5 hover:underline"
+                  className="text-xs font-semibold text-primary flex items-center gap-0.5 hover:underline"
                 >
                   View Profile <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-blue-50 text-[#004ac6] flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
+                <div className="w-11 h-11 rounded-full bg-primary-container/20 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary-container/30">
                   {initials(detail.patient.name)}
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-900">
+                  <div className="text-sm font-bold text-on-surface">
                     {detail.patient.name}
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-on-surface-variant">
                     {detail.patient.gender}, {detail.patient.age} yrs &bull; DOB:{" "}
                     {detail.patient.dob}
                   </div>
@@ -342,19 +344,19 @@ export default function AppointmentDetailsPage() {
               </div>
             </div>
 
-            <div className="border border-slate-200 rounded-xl p-4 bg-white shadow-xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-3">
+            <div className="border border-outline-variant rounded-xl p-4 bg-surface-container-lowest shadow-xs">
+              <span className="text-[10px] font-bold text-outline uppercase tracking-wider block mb-3">
                 Provider
               </span>
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-full bg-blue-50 text-[#004ac6] flex items-center justify-center shrink-0 border border-blue-100">
+                <div className="w-11 h-11 rounded-full bg-primary-container/20 text-primary flex items-center justify-center shrink-0 border border-primary-container/30">
                   <Stethoscope className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-900">
+                  <div className="text-sm font-bold text-on-surface">
                     {detail.provider.name}
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-on-surface-variant">
                     {detail.provider.specialty}
                   </div>
                 </div>
@@ -364,18 +366,18 @@ export default function AppointmentDetailsPage() {
 
           {/* Right Column: Chief Complaint & Vitals */}
           <div className="lg:col-span-8 space-y-6">
-            <div className="border border-slate-200 rounded-xl p-5 bg-white">
-              <h2 className="text-sm font-bold text-slate-900 mb-2">
+            <div className="border border-outline-variant rounded-xl p-5 bg-surface-container-lowest">
+              <h2 className="text-sm font-bold text-on-surface mb-2">
                 Chief Complaint
               </h2>
-              <p className="text-xs text-slate-600 leading-relaxed mb-3">
+              <p className="text-xs text-on-surface-variant leading-relaxed mb-3">
                 {detail.chief_complaint}
               </p>
               <div className="flex flex-wrap gap-2">
                 {detail.symptoms.map((sym, idx) => (
                   <span
                     key={idx}
-                    className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200"
+                    className="px-2.5 py-1 rounded-md bg-surface-container-high text-on-surface-variant text-[11px] font-medium border border-outline-variant"
                   >
                     {sym}
                   </span>
@@ -383,49 +385,49 @@ export default function AppointmentDetailsPage() {
               </div>
             </div>
 
-            <div className="border border-slate-200 rounded-xl p-5 bg-[#f7f9fb]">
+            <div className="border border-outline-variant rounded-xl p-5 bg-surface-container-low">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-bold text-slate-900">Triage Vitals</h2>
-                <span className="text-[11px] text-slate-400 font-medium">
+                <h2 className="text-sm font-bold text-on-surface">Triage Vitals</h2>
+                <span className="text-[11px] text-outline font-medium">
                   Taken 15m ago
                 </span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
-                  <span className="text-slate-500 font-semibold flex items-center gap-1 text-[11px]">
+                <div className="bg-surface-container-lowest p-3 rounded-lg border border-outline-variant flex flex-col justify-between">
+                  <span className="text-on-surface-variant font-semibold flex items-center gap-1 text-[11px]">
                     <Heart className="w-3.5 h-3.5 text-red-500" /> Blood Pressure
                   </span>
-                  <div className="text-lg font-bold text-slate-900 mt-2">
+                  <div className="text-lg font-bold text-on-surface mt-2">
                     {detail.vitals.bp}
                   </div>
-                  <span className="text-[10px] text-slate-400">mmHg</span>
+                  <span className="text-[10px] text-outline">mmHg</span>
                 </div>
-                <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
-                  <span className="text-slate-500 font-semibold flex items-center gap-1 text-[11px]">
-                    <Activity className="w-3.5 h-3.5 text-[#004ac6]" /> Heart Rate
+                <div className="bg-surface-container-lowest p-3 rounded-lg border border-outline-variant flex flex-col justify-between">
+                  <span className="text-on-surface-variant font-semibold flex items-center gap-1 text-[11px]">
+                    <Activity className="w-3.5 h-3.5 text-primary" /> Heart Rate
                   </span>
-                  <div className="text-lg font-bold text-slate-900 mt-2">
+                  <div className="text-lg font-bold text-on-surface mt-2">
                     {detail.vitals.hr}
                   </div>
-                  <span className="text-[10px] text-slate-400">bpm</span>
+                  <span className="text-[10px] text-outline">bpm</span>
                 </div>
-                <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
-                  <span className="text-slate-500 font-semibold flex items-center gap-1 text-[11px]">
+                <div className="bg-surface-container-lowest p-3 rounded-lg border border-outline-variant flex flex-col justify-between">
+                  <span className="text-on-surface-variant font-semibold flex items-center gap-1 text-[11px]">
                     <Thermometer className="w-3.5 h-3.5 text-emerald-600" /> Temperature
                   </span>
-                  <div className="text-lg font-bold text-slate-900 mt-2">
+                  <div className="text-lg font-bold text-on-surface mt-2">
                     {detail.vitals.temp}
                   </div>
-                  <span className="text-[10px] text-slate-400">&deg;F</span>
+                  <span className="text-[10px] text-outline">&deg;F</span>
                 </div>
-                <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
-                  <span className="text-slate-500 font-semibold flex items-center gap-1 text-[11px]">
+                <div className="bg-surface-container-lowest p-3 rounded-lg border border-outline-variant flex flex-col justify-between">
+                  <span className="text-on-surface-variant font-semibold flex items-center gap-1 text-[11px]">
                     <Wind className="w-3.5 h-3.5 text-cyan-600" /> SpO2
                   </span>
-                  <div className="text-lg font-bold text-slate-900 mt-2">
+                  <div className="text-lg font-bold text-on-surface mt-2">
                     {detail.vitals.spo2}
                   </div>
-                  <span className="text-[10px] text-slate-400">Room Air</span>
+                  <span className="text-[10px] text-outline">Room Air</span>
                 </div>
               </div>
             </div>
@@ -438,21 +440,21 @@ export default function AppointmentDetailsPage() {
       {/* ================================================================== */}
       {isRescheduleOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
+          <div className="bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant w-full max-w-lg overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-[#f7f9fb]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant bg-surface-container-low">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="text-sm font-bold text-on-surface">
                   Reschedule Appointment
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-on-surface-variant">
                   Select a new date and time slot for {detail.patient.name}.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsRescheduleOpen(false)}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="p-1 rounded-full text-outline hover:text-on-surface-variant hover:bg-surface-container-high"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -462,30 +464,30 @@ export default function AppointmentDetailsPage() {
             <div className="p-6 space-y-4 text-xs overflow-y-auto">
               {/* Date Picker */}
               <div>
-                <label className="font-semibold text-slate-800 block mb-1.5">
+                <label className="font-semibold text-on-surface block mb-1.5">
                   Select New Date
                 </label>
-                <div className="border border-slate-200 rounded-lg p-3 bg-white">
-                  <div className="flex justify-between items-center mb-2 font-semibold text-slate-900">
+                <div className="border border-outline-variant rounded-lg p-3 bg-surface-container-lowest">
+                  <div className="flex justify-between items-center mb-2 font-semibold text-on-surface">
                     <span>{format(rescheduleMonth, "MMMM yyyy")}</span>
-                    <div className="flex gap-1 text-slate-400">
+                    <div className="flex gap-1 text-outline">
                       <button
                         type="button"
                         onClick={() => setRescheduleMonth((m) => subMonths(m, 1))}
-                        className="hover:text-slate-600 p-0.5"
+                        className="hover:text-on-surface-variant p-0.5"
                       >
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setRescheduleMonth((m) => addMonths(m, 1))}
-                        className="hover:text-slate-600 p-0.5"
+                        className="hover:text-on-surface-variant p-0.5"
                       >
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-slate-400 font-bold mb-1">
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-outline font-bold mb-1">
                     <div>Su</div>
                     <div>Mo</div>
                     <div>Tu</div>
@@ -506,8 +508,8 @@ export default function AppointmentDetailsPage() {
                           onClick={() => setRescheduleDate(d)}
                           className={`py-1 rounded font-semibold transition ${
                             rescheduleDate === d
-                              ? "bg-[#004ac6] text-white"
-                              : "text-slate-700 hover:bg-slate-100"
+                              ? "bg-primary text-on-primary"
+                              : "text-on-surface-variant hover:bg-surface-container-high"
                           }`}
                         >
                           {d}
@@ -520,7 +522,7 @@ export default function AppointmentDetailsPage() {
 
               {/* Time Slot Selection */}
               <div>
-                <label className="font-semibold text-slate-800 block mb-1.5">
+                <label className="font-semibold text-on-surface block mb-1.5">
                   Select Time Slot
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -531,8 +533,8 @@ export default function AppointmentDetailsPage() {
                       onClick={() => setRescheduleTime(slot)}
                       className={`py-2 border rounded-lg font-semibold transition ${
                         rescheduleTime === slot
-                          ? "border-[#004ac6] bg-blue-50 text-[#004ac6]"
-                          : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                          ? "border-primary bg-primary-container/20 text-primary"
+                          : "border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
                       }`}
                     >
                       {slot}
@@ -543,7 +545,7 @@ export default function AppointmentDetailsPage() {
 
               {/* Reason Input */}
               <div>
-                <label className="font-semibold text-slate-800 block mb-1">
+                <label className="font-semibold text-on-surface block mb-1">
                   Reason for Rescheduling (Optional)
                 </label>
                 <input
@@ -551,13 +553,13 @@ export default function AppointmentDetailsPage() {
                   value={rescheduleReason}
                   onChange={(e) => setRescheduleReason(e.target.value)}
                   placeholder="e.g. Patient requested morning slot change"
-                  className="w-full h-9 px-3 rounded-lg border border-slate-200 focus:border-[#004ac6] outline-none text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-outline-variant focus:border-primary outline-none text-xs"
                 />
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-3 border-t border-slate-100 bg-[#f7f9fb] flex flex-col gap-2">
+            <div className="px-6 py-3 border-t border-outline-variant bg-surface-container-low flex flex-col gap-2">
               {rescheduleError && (
                 <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
                   {rescheduleError}
@@ -577,7 +579,7 @@ export default function AppointmentDetailsPage() {
                 size="sm"
                 disabled={isRescheduling}
                 onClick={handleConfirmReschedule}
-                className="bg-[#004ac6] hover:bg-blue-700 text-white font-semibold"
+                className="bg-primary hover:bg-primary/90 text-on-primary font-semibold"
               >
                 {isRescheduling ? "Updating..." : "Confirm Reschedule"}
               </Button>

@@ -48,7 +48,7 @@ export function PayInvoiceButton({
         description: "Invoice payment",
         order_id: order.orderId,
         prefill: { name: patientName ?? "", email: patientEmail ?? "" },
-        theme: { color: "#2563eb" },
+        theme: { color: "#004ac6" },
         handler: async (response: any) => {
           const verifyRes = await fetch("/api/razorpay/verify", {
             method: "POST",

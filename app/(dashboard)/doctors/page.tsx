@@ -58,37 +58,37 @@ function getInitials(fullName: string): string {
 function getSpecialtyBadge(specialty: string | null): string {
   switch ((specialty ?? "").toLowerCase()) {
     case "cardiology":
-      return "bg-[#fef2f2] text-[#991b1b] border-[#fecaca]";
+      return "bg-primary-container/20 text-primary border-primary-container/50";
     case "pediatrics":
-      return "bg-[#f0f9ff] text-[#0369a1] border-[#e0f2fe]";
+      return "bg-secondary-container/30 text-secondary border-secondary-container/50";
     case "general medicine":
     case "general":
-      return "bg-[#f0fdf4] text-[#15803d] border-[#dcfce7]";
+      return "bg-tertiary-container/20 text-on-tertiary-container border-tertiary-container/50";
     case "neurology":
-      return "bg-[#f5f3ff] text-[#6d28d9] border-[#ede9fe]";
+      return "bg-primary-fixed text-on-primary-fixed border-primary-fixed-dim";
     default:
-      return "bg-slate-50 text-slate-700 border-slate-200";
+      return "bg-surface-container-high text-on-surface-variant border-outline-variant";
   }
 }
 
 function StatusBadge({ status }: { status: DoctorStatus }) {
   if (status === "active") {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-semibold bg-secondary-container/30 text-secondary border border-secondary-container/50">
+        <span className="w-1.5 h-1.5 rounded-full bg-secondary" /> Active
       </span>
     );
   }
   if (status === "on_leave") {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> On Leave
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-semibold bg-tertiary-container/25 text-on-tertiary-container border border-tertiary-container/50">
+        <span className="w-1.5 h-1.5 rounded-full bg-tertiary" /> On Leave
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Inactive
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-semibold bg-surface-container-high text-on-surface-variant border border-outline-variant">
+      <span className="w-1.5 h-1.5 rounded-full bg-outline" /> Inactive
     </span>
   );
 }
@@ -185,7 +185,7 @@ export default function DoctorsPage() {
             Manage your clinic&apos;s medical staff and specialties.
           </p>
         </div>
-        <Button asChild variant="primary" className="bg-[#2563eb] hover:bg-blue-700 text-white font-semibold">
+        <Button asChild variant="primary" className="bg-primary hover:bg-primary/90 text-on-primary font-semibold">
           <Link href="/doctors/new" className="flex items-center gap-1.5">
             <Plus className="w-4 h-4" /> Add New Doctor
           </Link>
@@ -309,12 +309,12 @@ export default function DoctorsPage() {
                             className="w-9 h-9 rounded-full object-cover border border-outline-variant shrink-0"
                           />
                         ) : (
-                          <div className="w-9 h-9 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100 flex items-center justify-center font-bold text-xs shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-primary-container/20 text-primary border border-primary-container/40 flex items-center justify-center font-bold text-xs shrink-0">
                             {doc.initials}
                           </div>
                         )}
                         <div>
-                          <p className="font-semibold text-on-surface group-hover:text-[#2563eb] transition-colors">
+                          <p className="font-semibold text-on-surface group-hover:text-primary transition-colors">
                             {doc.name}
                           </p>
                           <p className="text-on-surface-variant text-[11px]">ID: {doc.doctor_id}</p>
@@ -343,13 +343,13 @@ export default function DoctorsPage() {
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
                           href={`/doctors/${doc.id}`}
-                          className="p-1.5 text-on-surface-variant hover:text-[#2563eb] hover:bg-blue-50 rounded-md transition-colors"
+                          className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary-container/20 rounded-md transition-colors"
                           title="View Profile"
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
                         <button
-                          className="p-1.5 text-on-surface-variant hover:text-[#2563eb] hover:bg-blue-50 rounded-md transition-colors"
+                          className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary-container/20 rounded-md transition-colors"
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -384,7 +384,7 @@ export default function DoctorsPage() {
             >
               &lt;
             </button>
-            <button className="w-7 h-7 rounded bg-blue-50 text-[#2563eb] font-semibold border border-blue-200 text-xs">
+            <button className="w-7 h-7 rounded bg-primary-container/20 text-primary font-semibold border border-primary-container/40 text-label-sm">
               1
             </button>
             <button className="w-7 h-7 rounded hover:bg-surface-container-low border border-outline-variant text-on-surface text-xs">

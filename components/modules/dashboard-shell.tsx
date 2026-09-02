@@ -152,9 +152,9 @@ export function DashboardShell({
     .toUpperCase();
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-sans">
+    <div className="flex min-h-screen bg-surface-container-low text-on-surface font-sans">
       {/* Left Sidebar */}
-      <aside className="w-60 border-r border-slate-200 bg-white flex flex-col justify-between p-4 shrink-0">
+      <aside className="w-60 border-r border-outline-variant bg-surface-container-lowest flex flex-col justify-between p-4 shrink-0">
         <div>
           <div className="px-2 py-2 mb-6">
             <MedFlowLogo size="md" showSubtitle subtitle="Admin Console" />
@@ -169,11 +169,11 @@ export function DashboardShell({
                   key={item.href}
                   href={item.href}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition ${isActive
-                    ? "bg-blue-50 text-[#2563eb] border-r-4 border-[#2563eb] rounded-r-none"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-primary-container/20 text-primary border-r-4 border-primary rounded-r-none"
+                    : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
                     }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-[#2563eb]" : "text-slate-400"}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-outline"}`} />
                   {item.label}
                 </Link>
               );
@@ -182,24 +182,24 @@ export function DashboardShell({
         </div>
 
         {/* Bottom Sidebar Action Buttons */}
-        <div className="space-y-3 pt-4 border-t border-slate-100">
-          <Button asChild className="w-full bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-semibold py-2 rounded-lg shadow-sm">
+        <div className="space-y-3 pt-4 border-t border-outline-variant">
+          <Button asChild className="w-full bg-primary hover:bg-primary/90 text-on-primary text-xs font-semibold py-2 rounded-lg shadow-sm">
             <Link href="/appointments?book=true" className="flex items-center justify-center gap-1.5">
               <Plus className="w-3.5 h-3.5" /> New Record
             </Link>
           </Button>
 
-          <div className="space-y-1 text-xs font-medium text-slate-500">
+          <div className="space-y-1 text-xs font-medium text-on-surface-variant">
             <button
               onClick={() => setIsSupportOpen(true)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-slate-50 text-slate-600 text-left transition"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-surface-container-low text-on-surface-variant text-left transition"
             >
-              <HelpCircle className="w-4 h-4 text-slate-400" /> Support
+              <HelpCircle className="w-4 h-4 text-outline" /> Support
             </button>
             <button
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-slate-500 hover:bg-red-50 hover:text-red-600 text-left transition"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface-variant hover:bg-error-container/30 hover:text-error text-left transition"
             >
               <LogOut className="w-4 h-4" /> {isSigningOut ? "Signing out..." : "Sign Out"}
             </button>
@@ -209,13 +209,13 @@ export function DashboardShell({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 shrink-0 relative z-20">
+        <header className="h-16 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between px-8 shrink-0 relative z-20">
           <div className="flex items-center gap-6">
-            <h1 className="text-sm font-bold text-slate-900 tracking-tight">MedFlow Admin</h1>
+            <h1 className="text-sm font-bold text-on-surface tracking-tight">MedFlow Admin</h1>
 
             {/* Global Search */}
             <div className="relative w-80">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-outline" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -223,20 +223,20 @@ export function DashboardShell({
                 onFocus={() => setIsSearchOpen(true)}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search patients, doctors, records... (Ctrl + K)"
-                className="w-full pl-8 pr-12 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#2563eb]"
+                className="w-full pl-8 pr-12 py-1.5 text-xs bg-surface-container-low border border-outline-variant rounded-lg focus:outline-none focus:border-primary"
               />
-              <kbd className="absolute right-2.5 top-2.5 text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded border border-slate-300 font-mono">
+              <kbd className="absolute right-2.5 top-2.5 text-[10px] bg-surface-container-high text-on-surface-variant px-1.5 py-0.5 rounded border border-outline font-mono">
                 ⌘K
               </kbd>
 
 
               {isSearchOpen && searchQuery.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-slate-200 shadow-xl p-3 z-50">
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-100 text-[11px] font-semibold text-slate-400">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl p-3 z-50">
+                  <div className="flex justify-between items-center pb-2 border-b border-outline-variant text-[11px] font-semibold text-outline">
                     <span>Quick Navigation</span>
                     <button
                       onClick={() => setIsSearchOpen(false)}
-                      className="text-slate-400 hover:text-slate-600"
+                      className="text-outline hover:text-on-surface-variant"
                       aria-label="Close search"
                     >
                       <X className="w-3 h-3" />
@@ -246,14 +246,14 @@ export function DashboardShell({
                     <Link
                       href={`/patients?q=${encodeURIComponent(searchQuery)}`}
                       onClick={() => setIsSearchOpen(false)}
-                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 text-xs text-slate-700"
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-surface-container-low text-xs text-on-surface-variant"
                     >
-                      <UserIcon className="w-3.5 h-3.5 text-[#2563eb]" /> Search Patients matching &ldquo;{searchQuery}&rdquo;
+                      <UserIcon className="w-3.5 h-3.5 text-primary" /> Search Patients matching &ldquo;{searchQuery}&rdquo;
                     </Link>
                     <Link
                       href={`/appointments?q=${encodeURIComponent(searchQuery)}`}
                       onClick={() => setIsSearchOpen(false)}
-                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 text-xs text-slate-700"
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-surface-container-low text-xs text-on-surface-variant"
                     >
                       <Calendar className="w-3.5 h-3.5 text-emerald-600" /> Search Appointments matching &ldquo;{searchQuery}&rdquo;
                     </Link>
@@ -268,7 +268,7 @@ export function DashboardShell({
             <div className="relative">
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 relative transition"
+                className="p-2 text-outline hover:text-on-surface-variant rounded-lg hover:bg-surface-container-low relative transition"
                 aria-label="Notifications"
               >
                 <Bell className="w-4 h-4" />
@@ -278,13 +278,13 @@ export function DashboardShell({
               </button>
 
               {isNotificationsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-slate-200 shadow-xl p-4 z-50">
-                  <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
-                    <span className="text-xs font-bold text-slate-900">Notifications ({unreadCount})</span>
+                <div className="absolute right-0 top-full mt-2 w-80 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl p-4 z-50">
+                  <div className="flex justify-between items-center pb-2.5 border-b border-outline-variant">
+                    <span className="text-xs font-bold text-on-surface">Notifications ({unreadCount})</span>
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllNotificationsAsRead}
-                        className="text-[11px] font-semibold text-[#2563eb] hover:underline"
+                        className="text-[11px] font-semibold text-primary hover:underline"
                       >
                         Mark all read
                       </button>
@@ -293,12 +293,12 @@ export function DashboardShell({
                   <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
                     {notifications.map((n) => (
                       <div key={n.id} className="py-2.5 text-xs space-y-0.5">
-                        <div className="flex items-center justify-between font-semibold text-slate-800">
+                        <div className="flex items-center justify-between font-semibold text-on-surface">
                           <span>{n.title}</span>
-                          {n.unread && <span className="w-1.5 h-1.5 rounded-full bg-[#2563eb]" />}
+                          {n.unread && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
                         </div>
-                        <p className="text-slate-500 text-[11px]">{n.desc}</p>
-                        <span className="text-[10px] text-slate-400 block">{n.time}</span>
+                        <p className="text-on-surface-variant text-[11px]">{n.desc}</p>
+                        <span className="text-[10px] text-outline block">{n.time}</span>
                       </div>
                     ))}
                   </div>
@@ -308,24 +308,24 @@ export function DashboardShell({
 
             <button
               onClick={() => setIsSupportOpen(true)}
-              className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition"
+              className="p-2 text-outline hover:text-on-surface-variant rounded-lg hover:bg-surface-container-low transition"
               aria-label="Help & Support"
             >
               <HelpCircle className="w-4 h-4" />
             </button>
 
-            <span className="text-xs font-medium text-slate-300">|</span>
+            <span className="text-xs font-medium text-outline">|</span>
 
             <button
               onClick={() => setIsSupportOpen(true)}
-              className="text-xs font-medium text-slate-600 hover:text-slate-900 transition"
+              className="text-xs font-medium text-on-surface-variant hover:text-on-surface transition"
             >
               Support
             </button>
 
             <button
               onClick={() => setIsUpgradeOpen(true)}
-              className="px-3 py-1 text-xs font-semibold border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 flex items-center gap-1 transition"
+              className="px-3 py-1 text-xs font-semibold border border-outline-variant rounded-md text-on-surface-variant hover:bg-surface-container-low flex items-center gap-1 transition"
             >
               <Zap className="w-3 h-3 text-amber-500 fill-amber-500" /> Upgrade
             </button>
@@ -335,7 +335,7 @@ export function DashboardShell({
               <button
                 onClick={() => setIsProfileMenuOpen((open) => !open)}
                 title={`${currentUser?.name || userName} — account menu`}
-                className="w-7 h-7 rounded-full overflow-hidden ml-1 border border-slate-300 flex items-center justify-center bg-slate-800 text-white text-[10px] font-bold hover:ring-2 hover:ring-[#2563eb]/40 transition shrink-0"
+                className="w-7 h-7 rounded-full overflow-hidden ml-1 border border-outline flex items-center justify-center bg-primary text-on-primary text-[10px] font-bold hover:ring-2 hover:ring-primary/40 transition shrink-0"
               >
                 {avatarUrl ? (
                   <img src={avatarUrl} alt={currentUser?.name || userName} className="w-full h-full object-cover" />
@@ -346,9 +346,9 @@ export function DashboardShell({
 
               {/* Account Details Dropdown */}
               {isProfileMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl border border-slate-200 shadow-xl p-3 z-50">
-                  <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 text-[#2563eb] flex items-center justify-center font-bold text-sm shrink-0">
+                <div className="absolute right-0 top-full mt-2 w-64 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-xl p-3 z-50">
+                  <div className="flex items-center gap-3 pb-3 border-b border-outline-variant">
+                    <div className="w-10 h-10 rounded-full bg-primary-container/20 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                       {avatarUrl ? (
                         <img src={avatarUrl} alt={currentUser?.name || userName} className="w-full h-full object-cover rounded-full" />
                       ) : (
@@ -356,28 +356,28 @@ export function DashboardShell({
                       )}
                     </div>
                     <div className="overflow-hidden">
-                      <div className="font-bold text-xs text-slate-900 truncate">{currentUser?.name || userName}</div>
-                      <div className="text-[11px] text-slate-500 truncate">{currentUser?.email}</div>
-                      <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] rounded font-medium capitalize">
+                      <div className="font-bold text-xs text-on-surface truncate">{currentUser?.name || userName}</div>
+                      <div className="text-[11px] text-on-surface-variant truncate">{currentUser?.email}</div>
+                      <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-slate-100 text-on-surface-variant text-[10px] rounded font-medium capitalize">
                         {currentUser?.role || userRole}
                       </span>
                     </div>
                   </div>
 
-                  <div className="py-2 space-y-1 text-xs text-slate-700 border-b border-slate-100">
+                  <div className="py-2 space-y-1 text-xs text-on-surface-variant border-b border-outline-variant">
                     <Link
                       href="/profile"
                       onClick={() => setIsProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 font-medium"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-low font-medium"
                     >
-                      <UserIcon className="w-3.5 h-3.5 text-slate-400" /> Account Profile
+                      <UserIcon className="w-3.5 h-3.5 text-outline" /> Account Profile
                     </Link>
                     <Link
                       href="/settings"
                       onClick={() => setIsProfileMenuOpen(false)}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 font-medium"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-low font-medium"
                     >
-                      <Settings className="w-3.5 h-3.5 text-slate-400" /> Clinic Settings
+                      <Settings className="w-3.5 h-3.5 text-outline" /> Clinic Settings
                     </Link>
                   </div>
 
@@ -385,7 +385,7 @@ export function DashboardShell({
                     <button
                       onClick={handleSignOut}
                       disabled={isSigningOut}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition"
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-error-container/30 transition"
                     >
                       <LogOut className="w-3.5 h-3.5" /> {isSigningOut ? "Signing out..." : "Sign Out"}
                     </button>
@@ -403,37 +403,37 @@ export function DashboardShell({
       {/* Support Modal */}
       {isSupportOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-outline-variant bg-surface-container-low/50">
               <div className="flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-[#2563eb]" />
-                <h3 className="font-bold text-slate-900 text-sm">MedFlow Clinic Support</h3>
+                <HelpCircle className="w-5 h-5 text-primary" />
+                <h3 className="font-bold text-on-surface text-sm">MedFlow Clinic Support</h3>
               </div>
-              <button onClick={() => setIsSupportOpen(false)} className="text-slate-400 hover:text-slate-600" aria-label="Close support">
+              <button onClick={() => setIsSupportOpen(false)} className="text-outline hover:text-on-surface-variant" aria-label="Close support">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="p-6 space-y-4 text-xs">
-              <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-100 space-y-1">
-                <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-[#2563eb]" /> 24/7 Clinical Support Desk
+              <div className="p-3.5 bg-primary-container/20/60 rounded-xl border border-primary-container/30 space-y-1">
+                <div className="font-bold text-on-surface flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-primary" /> 24/7 Clinical Support Desk
                 </div>
-                <p className="text-slate-600">Email: support@medflow.clinic</p>
-                <p className="text-slate-600">Clinical Desk Toll-Free: +91 (800) 492-3829</p>
+                <p className="text-on-surface-variant">Email: support@medflow.clinic</p>
+                <p className="text-on-surface-variant">Clinical Desk Toll-Free: +91 (800) 492-3829</p>
               </div>
 
               <div className="space-y-2">
-                <div className="font-bold text-slate-700">Clinical Documentation</div>
-                <div className="p-3 rounded-lg border border-slate-100 flex items-center justify-between text-slate-700">
+                <div className="font-bold text-on-surface-variant">Clinical Documentation</div>
+                <div className="p-3 rounded-lg border border-outline-variant flex items-center justify-between text-on-surface-variant">
                   <span className="flex items-center gap-2 font-medium">
-                    <FileQuestion className="w-4 h-4 text-slate-400" /> HIPAA Security & Audit Compliance Guide
+                    <FileQuestion className="w-4 h-4 text-outline" /> HIPAA Security & Audit Compliance Guide
                   </span>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  <ExternalLink className="w-3.5 h-3.5 text-outline" />
                 </div>
               </div>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 text-right">
-              <Button onClick={() => setIsSupportOpen(false)} size="sm" className="bg-[#2563eb] text-white">
+            <div className="p-4 bg-surface-container-low border-t border-outline-variant text-right">
+              <Button onClick={() => setIsSupportOpen(false)} size="sm" className="bg-primary text-on-primary">
                 Close
               </Button>
             </div>
@@ -444,24 +444,24 @@ export function DashboardShell({
       {/* Upgrade Modal */}
       {isUpgradeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-outline-variant bg-surface-container-low/50">
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
-                <h3 className="font-bold text-slate-900 text-sm">Upgrade MedFlow Clinic Plan</h3>
+                <h3 className="font-bold text-on-surface text-sm">Upgrade MedFlow Clinic Plan</h3>
               </div>
-              <button onClick={() => setIsUpgradeOpen(false)} className="text-slate-400 hover:text-slate-600" aria-label="Close upgrade">
+              <button onClick={() => setIsUpgradeOpen(false)} className="text-outline hover:text-on-surface-variant" aria-label="Close upgrade">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="p-6 space-y-4 text-xs">
-              <div className="p-4 rounded-xl border-2 border-[#2563eb] bg-blue-50/30 space-y-2">
+              <div className="p-4 rounded-xl border-2 border-primary bg-primary-container/20/30 space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-sm text-slate-900">MedFlow Enterprise</span>
-                  <span className="font-bold text-base text-[#2563eb]">₹4,999/mo</span>
+                  <span className="font-bold text-sm text-on-surface">MedFlow Enterprise</span>
+                  <span className="font-bold text-base text-primary">₹4,999/mo</span>
                 </div>
-                <p className="text-slate-600">Complete multi-doctor clinical operations with automated triage.</p>
-                <div className="space-y-1.5 pt-2 text-slate-700">
+                <p className="text-on-surface-variant">Complete multi-doctor clinical operations with automated triage.</p>
+                <div className="space-y-1.5 pt-2 text-on-surface-variant">
                   <div className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Unlimited Patients & Consultations
                   </div>
@@ -474,11 +474,11 @@ export function DashboardShell({
                 </div>
               </div>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+            <div className="p-4 bg-surface-container-low border-t border-outline-variant flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setIsUpgradeOpen(false)} size="sm">
                 Cancel
               </Button>
-              <Button onClick={() => setIsUpgradeOpen(false)} size="sm" className="bg-[#2563eb] text-white">
+              <Button onClick={() => setIsUpgradeOpen(false)} size="sm" className="bg-primary text-on-primary">
                 Proceed
               </Button>
             </div>

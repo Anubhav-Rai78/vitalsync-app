@@ -112,16 +112,16 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
       {/* Dynamic Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl font-bold text-on-surface tracking-tight">
             Welcome back, {userGreetingName}
           </h1>
-          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1 font-medium">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+          <p className="text-xs text-on-surface-variant flex items-center gap-1.5 mt-1 font-medium">
+            <Calendar className="w-3.5 h-3.5 text-on-surface-variant" />
             {currentDateFormatted}
           </p>
         </div>
 
-        <Button asChild className="bg-[#2563eb] hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2 rounded-lg shadow-sm">
+        <Button asChild className="bg-primary-container text-on-primary hover:brightness-95 font-semibold text-xs px-4 py-2 rounded-lg shadow-sm">
           <Link href="/appointments?book=true" className="flex items-center gap-1.5">
             <Plus className="w-3.5 h-3.5" /> Book Appointment
           </Link>
@@ -131,66 +131,66 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
       {/* Live KPI Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Total Patients */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-semibold text-slate-600">Total Patients</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563eb] flex items-center justify-center">
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-on-surface-variant">
+            <span className="text-[11px] font-semibold text-on-surface-variant">Total Patients</span>
+            <div className="w-7 h-7 rounded-lg bg-primary-fixed/20 text-primary flex items-center justify-center">
               <Users className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-slate-900">{patientCount || 0}</div>
-            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
+            <div className="text-2xl font-bold text-on-surface">{patientCount || 0}</div>
+            <span className="text-[11px] font-semibold text-secondary flex items-center gap-1 mt-0.5">
               ↑ Live count
             </span>
           </div>
         </div>
 
         {/* Today's Appointments */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-semibold text-slate-600">Today's Appointments</span>
-            <div className="w-7 h-7 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center">
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-on-surface-variant">
+            <span className="text-[11px] font-semibold text-on-surface-variant">Today's Appointments</span>
+            <div className="w-7 h-7 rounded-lg bg-tertiary-fixed/20 text-tertiary flex items-center justify-center">
               <CalendarCheck className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-slate-900">{todayAppointments?.length || 0}</div>
-            <span className="text-[11px] font-medium text-slate-500 mt-0.5 block">Active schedule</span>
+            <div className="text-2xl font-bold text-on-surface">{todayAppointments?.length || 0}</div>
+            <span className="text-[11px] font-medium text-on-surface-variant mt-0.5 block">Active schedule</span>
           </div>
         </div>
 
         {/* Pending Invoices */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-semibold text-slate-600">Pending Invoices</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-on-surface-variant">
+            <span className="text-[11px] font-semibold text-on-surface-variant">Pending Invoices</span>
+            <div className="w-7 h-7 rounded-lg bg-error-container/40 text-error flex items-center justify-center">
               <AlertTriangle className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl font-bold text-on-surface">
               ₹{pendingAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[11px] font-semibold text-rose-600 flex items-center gap-1 mt-0.5">
+            <span className="text-[11px] font-semibold text-error flex items-center gap-1 mt-0.5">
               {pendingCount > 0 ? `${pendingCount} require follow-up` : "All settled"}
             </span>
           </div>
         </div>
 
         {/* Monthly Revenue */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-semibold text-slate-600">Monthly Revenue</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-on-surface-variant">
+            <span className="text-[11px] font-semibold text-on-surface-variant">Monthly Revenue</span>
+            <div className="w-7 h-7 rounded-lg bg-secondary-container/20 text-secondary flex items-center justify-center">
               <TrendingUp className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl font-bold text-on-surface">
               ₹{monthlyRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
+            <span className="text-[11px] font-semibold text-secondary flex items-center gap-1 mt-0.5">
               ↑ This month
             </span>
           </div>
@@ -199,17 +199,17 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
 {/* Live Recent Patients & Schedule */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Patients Table */}
-        <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="lg:col-span-2 rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-900">Recent Patients</h3>
-            <Link href="/patients" className="text-xs font-semibold text-[#2563eb] hover:underline">
+            <h3 className="text-sm font-bold text-on-surface">Recent Patients</h3>
+            <Link href="/patients" className="text-xs font-semibold text-primary hover:underline">
               View All
             </Link>
           </div>
 
           {recentPatients && recentPatients.length > 0 ? (
             <table className="w-full text-left text-xs">
-              <thead className="text-[11px] uppercase font-bold text-slate-400 border-b border-slate-100">
+              <thead className="text-[11px] uppercase font-bold text-on-surface-variant border-b border-outline-variant">
                 <tr>
                   <th className="pb-3">Patient Name</th>
                   <th className="pb-3">Sex</th>
@@ -217,40 +217,40 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
                   <th className="pb-3 text-right">Registered</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-outline-variant">
                 {recentPatients.map((p) => {
                   const initials = p.full_name ? p.full_name.slice(0, 2).toUpperCase() : "PT";
                   const registeredTime = p.created_at ? format(new Date(p.created_at), "hh:mm a") : "—";
 
                   return (
-                    <tr key={p.id} className="hover:bg-slate-50/50">
-                      <td className="py-3 font-semibold text-slate-800 flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold">
+                    <tr key={p.id} className="hover:bg-surface-container-low/50">
+                      <td className="py-3 font-semibold text-on-surface flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-primary-container text-on-primary flex items-center justify-center text-[10px] font-bold">
                           {initials}
                         </div>
                         <Link href={`/patients/${p.id}`} className="hover:underline">
                           {p.full_name}
                         </Link>
                       </td>
-                      <td className="py-3 text-slate-600 capitalize">{p.sex ?? "—"}</td>
-                      <td className="py-3 font-medium text-slate-500">{p.phone ?? "—"}</td>
-                      <td className="py-3 text-right font-medium text-slate-500">{registeredTime}</td>
+                      <td className="py-3 text-on-surface-variant capitalize">{p.sex ?? "—"}</td>
+                      <td className="py-3 font-medium text-on-surface-variant">{p.phone ?? "—"}</td>
+                      <td className="py-3 text-right font-medium text-on-surface-variant">{registeredTime}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           ) : (
-            <div className="py-12 text-center text-xs text-slate-400">
+            <div className="py-12 text-center text-xs text-on-surface-variant">
               No registered patients found in database.
             </div>
           )}
         </div>
 
         {/* Live Upcoming Schedule */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between">
+        <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-sm flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-4">Upcoming Schedule</h3>
+            <h3 className="text-sm font-bold text-on-surface mb-4">Upcoming Schedule</h3>
 
             {todayAppointments && todayAppointments.length > 0 ? (
               <div className="space-y-3">
@@ -262,12 +262,12 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
                   const doctorName = (slot as any).profiles?.full_name || "Attending Physician";
 
                   return (
-                    <div key={slot.id || idx} className="flex items-start gap-3 p-2.5 rounded-lg border border-slate-100 bg-slate-50/50">
-                      <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${idx === 0 ? "bg-[#2563eb]" : "bg-slate-300"}`} />
+                    <div key={slot.id || idx} className="flex items-start gap-3 p-2.5 rounded-lg border border-outline-variant bg-surface-container-low/50">
+                      <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${idx === 0 ? "bg-primary" : "bg-outline-variant"}`} />
                       <div className="text-xs">
-                        <span className="font-bold text-slate-900 block">{appointmentTime}</span>
-                        <span className="text-slate-700 font-medium">{patientName}</span>
-                        <span className="text-[11px] text-slate-400 block">
+                        <span className="font-bold text-on-surface block">{appointmentTime}</span>
+                        <span className="text-on-surface font-medium">{patientName}</span>
+                        <span className="text-[11px] text-on-surface-variant block">
                           🩺 Dr. {doctorName}
                         </span>
                       </div>
@@ -276,7 +276,7 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
                 })}
               </div>
             ) : (
-              <div className="py-10 text-center text-xs text-slate-400">
+              <div className="py-10 text-center text-xs text-on-surface-variant">
                 No appointments scheduled for today.
               </div>
             )}
@@ -287,13 +287,13 @@ const currentDateFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
           </Button>
         </div>
       </div>
-{/* Clinic Activity Chart (last 7 days — live data) */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      {/* Clinic Activity Chart (last 7 days — live data) */}
+      <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-slate-900">Clinic Activity (Last 7 Days)</h3>
-          <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
+          <h3 className="text-sm font-bold text-on-surface">Clinic Activity (Last 7 Days)</h3>
+          <div className="flex items-center gap-4 text-xs font-semibold text-on-surface-variant">
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#2563eb]" /> Appointments
+              <span className="w-2.5 h-2.5 rounded-sm bg-primary" /> Appointments
             </span>
           </div>
         </div>

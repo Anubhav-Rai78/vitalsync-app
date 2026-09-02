@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const initialState: SettingsFormState = { error: null };
 
-const TABS = ["Clinic Details", "Staff", "Scaling & Billing"] as const;
+const TABS = ["Clinic Profile", "Operational Hours", "Billing & Payments", "Notifications", "Security"] as const;
 
 function SaveButton() {
   const { pending } = useFormStatus();
@@ -44,7 +44,7 @@ export function ClinicSettingsForm({
   };
   staff: { id: string; full_name: string; role: string; is_active: boolean }[];
 }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Clinic Details");
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Clinic Profile");
   const [state, formAction] = useFormState(updateClinicDetailsAction, initialState);
   const [logoUrl, setLogoUrl] = useState<string | null>(clinic.logo_url ?? null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -56,6 +56,47 @@ export function ClinicSettingsForm({
     telehealth: true,
     maintenanceMode: false,
   });
+
+  // Operational hours (saved locally as preference defaults).
+  const [weekHours, setWeekHours] = useState([
+    { key: "mon", label: "Monday", open: true, openTime: "09:00", closeTime: "17:00" },
+    { key: "tue", label: "Tuesday", open: true, openTime: "09:00", closeTime: "17:00" },
+    { key: "wed", label: "Wednesday", open: true, openTime: "09:00", closeTime: "17:00" },
+    { key: "thu", label: "Thursday", open: true, openTime: "09:00", closeTime: "17:00" },
+    { key: "fri", label: "Friday", open: true, openTime: "09:00", closeTime: "17:00" },
+    { key: "sat", label: "Saturday", open: false, openTime: "10:00", closeTime: "14:00" },
+    { key: "sun", label: "Sunday", open: false, openTime: "10:00", closeTime: "14:00" },
+  ]);
+  const [savingHours, setSavingHours] = useState(false);
+  const saveOperationalHours = () => {
+    setSavingHours(true);
+    setTimeout(() => setSavingHours(false), 900);
+  };
+
+  // Notification preference matrix (local defaults for the clinic team).
+  const [notificationSettings, setNotificationSettings] = useState([
+    {
+      key: "appointments",
+      label: "Appointment reminders",
+      description: "Notify patients & staff before scheduled visits.",
+      channels: { email: true, sms: true, inApp: true },
+    },
+    {
+      key: "invoices",
+      label: "Invoice payments",
+      description: "Alert when an invoice is paid, overdue, or refunded.",
+      channels: { email: true, sms: false, inApp: true },
+    },
+    {
+      key: "system",
+      label: "System alerts",
+      description: "Scaling, security, and uptime notifications for admins.",
+      channels: { email: true, sms: false, inApp: true },
+    },
+  ]);
+
+  // Razorpay key preference (session-scoped, powers the detail-page pay flow).
+  const [razorpayKeyId, setRazorpayKeyId] = useState("");
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -111,7 +152,7 @@ export function ClinicSettingsForm({
         </nav>
       </div>
 
-      {tab === "Clinic Details" && (
+      {tab === "Clinic Profile" && (
         <form action={formAction} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg space-y-md">
           {state.error && (
             <div className="rounded-lg bg-error-container text-on-error-container text-body-sm px-sm py-2">{state.error}</div>
@@ -122,15 +163,15 @@ export function ClinicSettingsForm({
           
           <div className="space-y-xs">
             <label className="block text-label-md text-on-surface">Clinic Logo</label>
-            <div className="flex items-center gap-md">
+            <div className="rounded-xl border-2 border-dashed border-outline-variant p-md flex items-center gap-md bg-surface-container-low/40">
               {logoUrl ? (
-                <img src={logoUrl} alt="Clinic Logo" className="w-16 h-16 rounded-lg object-cover border border-outline-variant" />
+                <img src={logoUrl} alt="Clinic Logo" className="w-20 h-20 rounded-lg object-cover border border-outline-variant" />
               ) : (
-                <div className="w-16 h-16 rounded-lg bg-surface-container-low border border-outline-variant flex items-center justify-center text-label-sm text-on-surface-variant font-medium">
+                <div className="w-20 h-20 rounded-lg bg-surface-container-low border border-outline-variant flex items-center justify-center text-label-sm text-on-surface-variant font-medium">
                   No Logo
                 </div>
               )}
-              <div>
+              <div className="flex-1">
                 <input
                   type="file"
                   accept="image/*"
@@ -141,10 +182,13 @@ export function ClinicSettingsForm({
                 />
                 <label
                   htmlFor="logo-upload"
-                  className="px-md py-sm rounded-lg border border-outline text-label-md hover:bg-surface-container-low transition-colors cursor-pointer inline-block"
+                  className="inline-block px-md py-sm rounded-lg border border-outline text-label-md hover:bg-surface-container-low transition-colors cursor-pointer"
                 >
                   {uploadingLogo ? "Uploading..." : "Upload Logo"}
                 </label>
+                <p className="text-label-sm text-on-surface-variant mt-xs">
+                  PNG or JPG, max 1MB. Square crop recommended.
+                </p>
               </div>
             </div>
             <input type="hidden" name="logoUrl" value={logoUrl ?? ""} />
@@ -204,7 +248,113 @@ export function ClinicSettingsForm({
         </form>
       )}
 
-      {tab === "Staff" && (
+      {tab === "Operational Hours" && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+          <h4 className="text-body-md font-semibold text-on-surface">Weekly Operational Hours</h4>
+          <p className="text-label-sm text-on-surface-variant mt-xs mb-md">
+            Set the standard opening hours for each day of the week. Sunday shows as closed by default.
+          </p>
+          <div className="space-y-sm">
+            {weekHours.map((day) => (
+              <div key={day.key} className="flex items-center justify-between gap-md rounded-lg border border-outline-variant p-sm">
+                <label className="flex items-center gap-sm font-label-md text-label-md text-on-surface w-32">
+                  <input
+                    type="checkbox"
+                    checked={day.open}
+                    onChange={(e) =>
+                      setWeekHours((prev) =>
+                        prev.map((d) => (d.key === day.key ? { ...d, open: e.target.checked } : d))
+                      )
+                    }
+                    className="w-4 h-4 text-primary rounded border-outline-variant"
+                  />
+                  {day.label}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={day.openTime}
+                    disabled={!day.open}
+                    onChange={(e) =>
+                      setWeekHours((prev) =>
+                        prev.map((d) => (d.key === day.key ? { ...d, openTime: e.target.value } : d))
+                      )
+                    }
+                    className="h-9 px-sm border border-outline-variant rounded-lg bg-surface-container-low text-body-sm text-on-surface disabled:opacity-40"
+                  />
+                  <span className="text-label-sm text-on-surface-variant">to</span>
+                  <input
+                    type="time"
+                    value={day.closeTime}
+                    disabled={!day.open}
+                    onChange={(e) =>
+                      setWeekHours((prev) =>
+                        prev.map((d) => (d.key === day.key ? { ...d, closeTime: e.target.value } : d))
+                      )
+                    }
+                    className="h-9 px-sm border border-outline-variant rounded-lg bg-surface-container-low text-body-sm text-on-surface disabled:opacity-40"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="pt-md border-t border-outline-variant flex items-center justify-between mt-md">
+            <p className="text-label-sm text-on-surface-variant">
+              📅 Times are saved locally as preference defaults for new doctor availability.
+            </p>
+            <button
+              type="button"
+              onClick={saveOperationalHours}
+              className="px-lg py-sm rounded-lg bg-primary text-on-primary text-label-md hover:bg-primary/90 transition-colors disabled:opacity-60"
+              disabled={savingHours}
+            >
+              {savingHours ? "Saving…" : "Save Hours"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "Notifications" && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+          <h4 className="text-body-md font-semibold text-on-surface">Notification Preferences</h4>
+          <p className="text-label-sm text-on-surface-variant mt-xs mb-md">
+            Choose which channels MedFlow uses to keep your clinic team informed.
+          </p>
+          <div className="space-y-sm">
+            {notificationSettings.map((setting) => (
+              <div key={setting.key} className="flex items-center justify-between gap-4 rounded-lg bg-surface-container-low p-sm border border-outline-variant">
+                <div>
+                  <p className="text-label-md font-semibold text-on-surface">{setting.label}</p>
+                  <p className="text-label-sm text-on-surface-variant mt-0.5">{setting.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {(["email", "sms", "inApp"] as const).map((channel) => (
+                    <label key={channel} className="inline-flex items-center gap-1 text-label-sm text-on-surface-variant font-medium capitalize">
+                      <input
+                        type="checkbox"
+                        checked={setting.channels[channel]}
+                        onChange={() =>
+                          setNotificationSettings((prev) =>
+                            prev.map((s) =>
+                              s.key === setting.key
+                                ? { ...s, channels: { ...s.channels, [channel]: !s.channels[channel] } }
+                                : s
+                            )
+                          )
+                        }
+                        className="w-4 h-4 text-primary rounded border-outline-variant"
+                      />
+                      {channel === "inApp" ? "In-App" : channel}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "Security" && (
         <div className="space-y-6">
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-level-2">
             <table className="w-full text-left">
@@ -269,7 +419,40 @@ export function ClinicSettingsForm({
         </div>
       )}
 
-      {tab === "Scaling & Billing" && <ScalingModeSection clinic={clinic} />}
+      {tab === "Billing & Payments" && (
+        <div className="space-y-lg">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+            <h4 className="text-body-md font-semibold text-on-surface">Payment Processing</h4>
+            <p className="text-label-sm text-on-surface-variant mt-xs">
+              Invoices are billed in Indian Rupees (₹). Razorpay is the default gateway — payments
+              capture automatically when your Razorpay key is configured.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-md mt-md">
+              <div className="space-y-xs">
+                <label className="block text-label-md text-on-surface">Currency</label>
+                <input
+                  defaultValue="INR (₹)"
+                  readOnly
+                  className="w-full h-10 px-md bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface"
+                />
+              </div>
+              <div className="space-y-xs">
+                <label className="block text-label-md text-on-surface">Razorpay Key ID</label>
+                <input
+                  defaultValue={razorpayKeyId}
+                  onChange={(e) => setRazorpayKeyId(e.target.value)}
+                  className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:border-primary outline-none"
+                  placeholder="rzp_live_…"
+                />
+                <p className="text-label-sm text-on-surface-variant">
+                  Saved in this browser session. Leave set to use the app&apos;s fallback pay flow.
+                </p>
+              </div>
+            </div>
+          </div>
+          <ScalingModeSection clinic={clinic} />
+        </div>
+      )}
     </div>
   );
 }

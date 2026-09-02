@@ -4,7 +4,7 @@ import { CreatePrescriptionForm } from "@/components/modules/create-prescription
 export default async function NewPrescriptionPage({
   searchParams,
 }: {
-  searchParams: { patient?: string };
+  searchParams: { patient?: string; patientId?: string; appointmentId?: string };
 }) {
   const supabase = createClient();
   const { data: patients } = await supabase
@@ -12,10 +12,14 @@ export default async function NewPrescriptionPage({
     .select("id, full_name")
     .order("full_name");
 
+  // Accept both ?patientId= and ?patient= (the appointment detail uses patientId;
+  // other flows may use ?patient= as a legacy parameter).
+  const preselectedId = searchParams.patientId ?? searchParams.patient ?? undefined;
+
   return (
     <CreatePrescriptionForm
       patients={patients ?? []}
-      preselectedPatientId={searchParams.patient}
+      preselectedPatientId={preselectedId}
     />
   );
 }

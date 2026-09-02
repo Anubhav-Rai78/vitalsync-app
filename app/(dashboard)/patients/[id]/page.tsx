@@ -104,13 +104,13 @@ function formatPatientId(id: string): string {
 function getRxStatusBadge(status: string): string {
   switch (status) {
     case "Active":
-      return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+      return "bg-secondary-container/30 text-secondary border border-secondary-container/50";
     case "Completed":
-      return "bg-slate-100 text-slate-600 border border-slate-200";
+      return "bg-surface-container-high text-on-surface-variant border border-outline-variant";
     case "Discontinued":
-      return "bg-rose-50 text-rose-700 border border-rose-200";
+      return "bg-error-container/40 text-on-error-container border border-error-container";
     default:
-      return "bg-slate-100 text-slate-700";
+      return "bg-surface-container-high text-on-surface-variant";
   }
 }
 
@@ -377,7 +377,7 @@ export default function PatientProfilePage() {
       {/* Patient Header (Level 1 Surface) */}
       <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col md:flex-row gap-lg justify-between items-start md:items-center shadow-sm">
         <div className="flex items-center gap-lg">
-          <div className="w-20 h-20 rounded-full bg-blue-50 text-[#2563eb] border-2 border-blue-100 flex items-center justify-center text-xl font-bold shrink-0">
+          <div className="w-20 h-20 rounded-full bg-primary-container/20 text-primary border-2 border-primary-container/30 flex items-center justify-center text-xl font-bold shrink-0">
             {initials}
           </div>
           <div>
@@ -408,7 +408,7 @@ export default function PatientProfilePage() {
           <Button
             asChild
             variant="primary"
-            className="flex-1 md:flex-none bg-[#2563eb] hover:bg-blue-700 text-white text-label-sm font-semibold shadow-sm items-center gap-2"
+            className="flex-1 md:flex-none bg-primary hover:bg-primary/90 text-on-primary text-label-sm font-semibold shadow-sm items-center gap-2"
           >
             <Link href={`/appointments?book=true&patientId=${patient.id}`}>
               <CalendarPlus className="w-4 h-4" /> Book Appointment
@@ -425,7 +425,7 @@ export default function PatientProfilePage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-2 py-3 border-b-2 text-label-sm font-semibold whitespace-nowrap transition-colors ${activeTab === tab.key
-                ? "border-[#2563eb] text-[#2563eb]"
+                ? "border-primary text-primary"
                 : "border-transparent text-on-surface-variant hover:text-on-surface"
                 }`}
             >
@@ -443,7 +443,7 @@ export default function PatientProfilePage() {
           <div className="md:col-span-8 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
             <div className="flex items-center justify-between mb-md">
               <h2 className="text-headline-sm text-on-surface flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#2563eb]" /> Recent Vitals
+                <Activity className="w-4 h-4 text-primary" /> Recent Vitals
               </h2>
               <span className="text-label-sm font-medium text-on-surface-variant">
                 {latestVitals ? formatVitalsTime(latestVitals.recorded_at) : "No readings yet"}
@@ -456,21 +456,21 @@ export default function PatientProfilePage() {
                   key={v.label}
                   className={
                     v.alert
-                      ? "bg-rose-50/60 p-md rounded-xl border border-rose-200/80"
+                      ? "bg-error-container/30 p-md rounded-xl border border-error-container/60"
                       : "bg-surface-container-low p-md rounded-xl border border-outline-variant/50"
                   }
                 >
                   <span
-                    className={`text-label-sm font-medium block mb-1 ${v.alert ? "text-rose-600" : "text-on-surface-variant"
+                    className={`text-label-sm font-medium block mb-1 ${v.alert ? "text-error" : "text-on-surface-variant"
                       }`}
                   >
                     {v.label}
                   </span>
                   <div className="flex items-baseline gap-1">
-                    <span className={`text-headline-sm font-bold ${v.alert ? "text-rose-600" : "text-on-surface"}`}>
+                    <span className={`text-headline-sm font-bold ${v.alert ? "text-error" : "text-on-surface"}`}>
                       {v.value}
                     </span>
-                    <span className={`text-label-sm ${v.alert ? "text-rose-500" : "text-on-surface-variant"}`}>
+                    <span className={`text-label-sm ${v.alert ? "text-error" : "text-on-surface-variant"}`}>
                       {v.unit}
                     </span>
                   </div>
@@ -523,7 +523,7 @@ export default function PatientProfilePage() {
           {/* Personal Details (Bento Top Right) */}
           <div className="md:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
             <h2 className="text-headline-sm text-on-surface mb-md flex items-center gap-2">
-              <User className="w-4 h-4 text-[#2563eb]" /> Personal Details
+              <User className="w-4 h-4 text-primary" /> Personal Details
             </h2>
 
             <div className="space-y-3 text-body-sm">
@@ -549,7 +549,7 @@ export default function PatientProfilePage() {
               <div className="pt-1">
                 <span className="text-label-sm text-on-surface-variant block font-medium">Primary Care</span>
                 <span className="text-on-surface font-semibold flex items-center gap-1.5 mt-0.5">
-                  <Stethoscope className="w-3.5 h-3.5 text-[#2563eb]" /> {primaryDoctor}
+                  <Stethoscope className="w-3.5 h-3.5 text-primary" /> {primaryDoctor}
                 </span>
               </div>
             </div>
@@ -560,10 +560,10 @@ export default function PatientProfilePage() {
           <div className="md:col-span-6 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
             <div className="flex items-center justify-between mb-md">
               <h2 className="text-headline-sm text-on-surface flex items-center gap-2">
-                <Pill className="w-4 h-4 text-[#2563eb]" /> Current Medications
+                <Pill className="w-4 h-4 text-primary" /> Current Medications
               </h2>
               <button
-                className="text-[#2563eb] hover:bg-blue-50 p-1 rounded-md transition"
+                className="text-primary hover:bg-primary-container/20 p-1 rounded-md transition"
                 aria-label="Add medication"
               >
                 <Plus className="w-4 h-4" />
@@ -586,7 +586,7 @@ export default function PatientProfilePage() {
                         <span className="text-label-sm text-on-surface-variant block mt-0.5">{med.instructions}</span>
                       ) : null}
                     </div>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold whitespace-nowrap">
+                    <span className="px-2 py-0.5 rounded-full bg-secondary-container/30 text-secondary border border-secondary-container/50 text-[10px] font-semibold whitespace-nowrap">
                       Active
                     </span>
                   </li>
@@ -601,7 +601,7 @@ export default function PatientProfilePage() {
           <div className="md:col-span-6 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
             <div className="flex items-center justify-between mb-md">
               <h2 className="text-headline-sm text-on-surface flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" /> Allergies & Alerts
+                <AlertTriangle className="w-4 h-4 text-tertiary" /> Allergies & Alerts
               </h2>
               <button className="text-on-surface-variant hover:text-on-surface p-1 rounded-md transition" aria-label="Edit allergies">
                 <Edit2 className="w-3.5 h-3.5" />
@@ -620,9 +620,9 @@ export default function PatientProfilePage() {
                       return allergy ? (
                         <span
                           key={allergy}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold text-label-sm"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-error-container/40 text-on-error-container border border-error-container font-semibold text-label-sm"
                         >
-                          <Pill className="w-3 h-3 text-rose-500" /> {allergy}
+                          <Pill className="w-3 h-3 text-error" /> {allergy}
                         </span>
                       ) : null;
                     })}
@@ -638,8 +638,8 @@ export default function PatientProfilePage() {
                 <h3 className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">
                   Clinical Alerts
                 </h3>
-                <div className="bg-blue-50/70 border border-blue-100 p-3 rounded-xl flex items-start gap-2.5">
-                  <Info className="w-4 h-4 text-[#2563eb] mt-0.5 shrink-0" />
+                <div className="bg-primary-container/20/70 border border-primary-container/30 p-3 rounded-xl flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                   <div>
                     <span className="font-bold text-on-surface block text-label-sm">Elevated HbA1c</span>
                     <span className="text-on-surface-variant text-label-sm leading-relaxed">
@@ -662,14 +662,14 @@ export default function PatientProfilePage() {
                 value={prescriptionSearch}
                 onChange={(e) => setPrescriptionSearch(e.target.value)}
                 placeholder="Search medication or prescriber..."
-                className="w-full h-10 pl-9 pr-3 rounded-lg border border-outline-variant bg-[#f8fafc] text-label-sm text-on-surface focus:bg-white focus:border-[#2563eb] outline-none"
+                className="w-full h-10 pl-9 pr-3 rounded-lg border border-outline-variant bg-surface-container-low text-label-sm text-on-surface focus:bg-surface-container-lowest focus:border-primary outline-none"
               />
             </div>
 
             <div className="flex gap-2.5 w-full md:w-auto">
               <Button
                 asChild
-                className="bg-[#2563eb] hover:bg-blue-700 text-white text-label-sm font-semibold h-10 px-4 rounded-lg shadow-sm"
+                className="bg-primary hover:bg-primary/90 text-on-primary text-label-sm font-semibold h-10 px-4 rounded-lg shadow-sm"
               >
                 <Link href={`/prescriptions/new?patientId=${patient.id}`} className="flex items-center gap-1.5">
                   <Plus className="w-4 h-4" /> New Prescription
@@ -679,7 +679,7 @@ export default function PatientProfilePage() {
               <select
                 value={prescriptionStatus}
                 onChange={(e) => setPrescriptionStatus(e.target.value)}
-                className="h-10 px-3 rounded-lg border border-outline-variant bg-white text-label-sm text-on-surface outline-none cursor-pointer"
+                className="h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-lowest text-label-sm text-on-surface outline-none cursor-pointer"
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active</option>
@@ -692,7 +692,7 @@ export default function PatientProfilePage() {
                   setPrescriptionSearch("");
                   setPrescriptionStatus("all");
                 }}
-                className="h-10 px-3 flex items-center gap-1.5 rounded-lg border border-outline-variant bg-white text-label-sm font-semibold text-on-surface hover:bg-slate-50"
+                className="h-10 px-3 flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-lowest text-label-sm font-semibold text-on-surface hover:bg-surface-container-low"
               >
                 <Filter className="w-3.5 h-3.5 text-on-surface-variant" /> Reset
               </button>
@@ -703,7 +703,7 @@ export default function PatientProfilePage() {
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-sm">
             <table className="w-full text-left border-collapse text-label-sm">
               <thead>
-                <tr className="border-b border-outline-variant bg-[#f8fafc] text-on-surface-variant font-semibold">
+                <tr className="border-b border-outline-variant bg-surface-container-low text-on-surface-variant font-semibold">
                   <th className="py-3 px-4">Date Issued</th>
                   <th className="py-3 px-4">Medication &amp; Dosage</th>
                   <th className="py-3 px-4">Patient</th>
@@ -721,7 +721,7 @@ export default function PatientProfilePage() {
                   </tr>
                 ) : filteredPrescriptions.length > 0 ? (
                   filteredPrescriptions.map((rx) => (
-                    <tr key={rx.id} className="hover:bg-slate-50/60 transition">
+                    <tr key={rx.id} className="hover:bg-surface-container-low/60 transition">
                       <td className="py-3.5 px-4 font-medium text-on-surface-variant">{rx.date}</td>
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-on-surface">{rx.medication}</div>
@@ -741,13 +741,13 @@ export default function PatientProfilePage() {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex justify-end gap-1 text-on-surface-variant">
-                          <button className="p-1 hover:text-[#2563eb]" title="View Details">
+                          <button className="p-1 hover:text-primary" title="View Details">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="p-1 hover:text-[#2563eb]" title="Renew">
+                          <button className="p-1 hover:text-primary" title="Renew">
                             <RotateCw className="w-4 h-4" />
                           </button>
-                          <button className="p-1 hover:text-[#2563eb]" title="Print">
+                          <button className="p-1 hover:text-primary" title="Print">
                             <Printer className="w-4 h-4" />
                           </button>
                           <button className="p-1 hover:text-on-surface" title="More">
@@ -776,11 +776,11 @@ export default function PatientProfilePage() {
                 <button className="px-2 py-1 rounded border border-outline-variant disabled:opacity-40" disabled>
                   &lt;
                 </button>
-                <button className="w-7 h-7 rounded bg-blue-50 text-[#2563eb] font-semibold border border-blue-200">
+                <button className="w-7 h-7 rounded bg-primary-container/20 text-primary font-semibold border border-primary-container/40">
                   1
                 </button>
                 <span className="px-1 text-on-surface-variant">...</span>
-                <button className="px-2 py-1 rounded border border-outline-variant hover:bg-slate-50">
+                <button className="px-2 py-1 rounded border border-outline-variant hover:bg-surface-container-low">
                   &gt;
                 </button>
               </div>

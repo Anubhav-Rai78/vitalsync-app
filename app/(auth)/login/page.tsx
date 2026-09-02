@@ -39,14 +39,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-center items-center p-6">
-      <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+    <div className="min-h-screen bg-surface-container-low flex flex-col justify-center items-center p-6">
+      <div className="w-full max-w-md bg-surface-container-lowest rounded-2xl border border-outline-variant p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <MedFlowLogo size="lg" />
-          <h1 className="text-lg font-bold text-slate-900 mt-5">
+          <h1 className="text-lg font-bold text-on-surface mt-5">
             Sign in to MedFlow
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-on-surface-variant mt-1">
             Clinical precision workspace and portal
           </p>
         </div>
@@ -61,7 +61,7 @@ export default function LoginPage() {
           <div>
             <Label htmlFor="email">Work Email</Label>
             <div className="relative mt-1">
-              <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              <Mail className="absolute left-3 top-3 w-4 h-4 text-outline" />
               <Input
                 id="email"
                 type="email"
@@ -77,7 +77,7 @@ export default function LoginPage() {
           <div>
             <Label htmlFor="password">Password</Label>
             <div className="relative mt-1">
-              <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              <Lock className="absolute left-3 top-3 w-4 h-4 text-outline" />
               <Input
                 id="password"
                 type="password"
@@ -91,11 +91,11 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center justify-between text-xs">
-            <label className="flex items-center gap-2 cursor-pointer text-slate-600">
-              <input type="checkbox" className="rounded border-slate-300 text-[#2563eb] focus:ring-[#2563eb]" />
+            <label className="flex items-center gap-2 cursor-pointer text-on-surface-variant">
+              <input type="checkbox" className="rounded border-outline text-primary focus:ring-primary" />
               Remember me
             </label>
-            <a href="#" className="text-[#2563eb] font-semibold hover:underline">
+            <a href="#" className="text-primary font-semibold hover:underline">
               Forgot password?
             </a>
           </div>
@@ -103,15 +103,15 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-[#2563eb] hover:bg-blue-700 text-white font-semibold py-2 rounded-lg"
+            className="w-full bg-primary hover:bg-primary/90 text-on-primary font-semibold py-2 rounded-lg"
           >
             {isLoading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
+        <div className="mt-6 pt-4 border-t border-outline-variant text-center text-xs text-on-surface-variant">
           Need to register a new clinic?{" "}
-          <Link href="/register" className="text-[#2563eb] font-semibold hover:underline">
+          <Link href="/register" className="text-primary font-semibold hover:underline">
             Register here
           </Link>
         </div>

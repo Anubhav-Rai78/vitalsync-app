@@ -25,11 +25,11 @@ export default function RegisterClinicPage() {
         <div className="flex items-center justify-between border-b border-outline-variant pb-6 mb-6">
           <MedFlowLogo size="lg" />
           <div className="flex items-center gap-2 text-xs font-semibold">
-            <span className={`px-2.5 py-1 rounded-full ${step >= 1 ? "bg-primary text-white" : "bg-surface-container text-outline"}`}>1. Clinic</span>
+            <span className={`px-2.5 py-1 rounded-full ${step >= 1 ? "bg-primary text-on-primary" : "bg-surface-container text-outline"}`}>1. Clinic</span>
             <span className="text-outline-variant">→</span>
-            <span className={`px-2.5 py-1 rounded-full ${step >= 2 ? "bg-primary text-white" : "bg-surface-container text-outline"}`}>2. Admin</span>
+            <span className={`px-2.5 py-1 rounded-full ${step >= 2 ? "bg-primary text-on-primary" : "bg-surface-container text-outline"}`}>2. Admin</span>
             <span className="text-outline-variant">→</span>
-            <span className={`px-2.5 py-1 rounded-full ${step >= 3 ? "bg-primary text-white" : "bg-surface-container text-outline"}`}>3. Confirmation</span>
+            <span className={`px-2.5 py-1 rounded-full ${step >= 3 ? "bg-primary text-on-primary" : "bg-surface-container text-outline"}`}>3. Confirmation</span>
           </div>
         </div>
 
@@ -71,7 +71,7 @@ export default function RegisterClinicPage() {
                 </div>
               </div>
             </div>
-            <Button onClick={() => setStep(2)} className="w-full mt-4 bg-primary text-white font-semibold">
+            <Button onClick={() => setStep(2)} className="w-full mt-4 bg-primary text-on-primary font-semibold">
               Continue to Admin Setup
             </Button>
           </div>
@@ -133,7 +133,7 @@ export default function RegisterClinicPage() {
               <Button variant="secondary" onClick={() => setStep(1)} className="w-1/3">
                 Back
               </Button>
-              <Button onClick={() => setStep(3)} className="w-2/3 bg-primary text-white font-semibold">
+              <Button onClick={() => setStep(3)} className="w-2/3 bg-primary text-on-primary font-semibold">
                 Register Clinic
               </Button>
             </div>
@@ -149,7 +149,7 @@ export default function RegisterClinicPage() {
             <p className="text-body-sm text-on-surface-variant max-w-md mx-auto">
               {formData.clinicName} has been registered in the MedFlow network. You can now access your staff dashboard.
             </p>
-            <Button asChild className="mt-4 bg-primary text-white">
+            <Button asChild className="mt-4 bg-primary text-on-primary">
               <a href="/dashboard">Launch Clinic Dashboard</a>
             </Button>
           </div>

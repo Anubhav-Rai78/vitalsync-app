@@ -42,7 +42,7 @@ function SubmitButton() {
     <Button
       type="submit"
       disabled={pending}
-      className="bg-primary hover:bg-blue-700 text-on-primary text-label-md font-semibold px-lg shadow-sm"
+      className="bg-primary hover:bg-primary/90 text-on-primary text-label-md font-semibold px-lg shadow-sm"
     >
       {pending ? "Saving…" : "Save Doctor Profile"}
     </Button>

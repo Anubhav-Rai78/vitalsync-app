@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ChevronRight, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { PayInvoiceButton } from "@/components/modules/pay-invoice-button";
 import {
   InvoiceDetailActions,
   type InvoiceActionItem,
@@ -297,17 +296,6 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
             </div>
           </div>
 
-          {invoice.status !== "paid" && invoice.status !== "void" && (
-            <div className="mt-lg">
-              <PayInvoiceButton
-                invoiceId={invoice.id}
-                amount={Number(invoice.total)}
-                currency={invoice.currency}
-                patientEmail={patient?.email}
-                patientName={patient?.full_name}
-              />
-            </div>
-          )}
           {invoice.status === "paid" && (
             <div className="mt-lg flex items-center gap-2 rounded-xl bg-secondary-container/20 text-secondary p-lg text-label-md">
               <ShieldCheck className="w-4 h-4" /> Payment received in full. Thank you for choosing MedFlow Clinic.

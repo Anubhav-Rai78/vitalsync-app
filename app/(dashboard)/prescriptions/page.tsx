@@ -32,11 +32,11 @@ const getStatusBadge = (status: string) => {
     case "Active":
       return "bg-[#6cf8bb]/30 text-[#00714d] border border-[#6cf8bb]";
     case "Completed":
-      return "bg-slate-100 text-slate-600 border border-slate-200";
+      return "bg-surface-container-high text-on-surface-variant border border-outline-variant";
     case "Discontinued":
       return "bg-rose-50 text-rose-700 border border-rose-200";
     default:
-      return "bg-slate-100 text-slate-700";
+      return "bg-surface-container-high text-on-surface-variant";
   }
 };
 
@@ -103,40 +103,40 @@ export default function PrescriptionHistoryPage() {
   return (
     <div className="space-y-6 max-w-[1280px] mx-auto font-sans">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Prescription History</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Review and manage patient medication records across the clinic.</p>
+        <h1 className="text-2xl font-bold text-on-surface tracking-tight">Prescription History</h1>
+        <p className="text-xs text-on-surface-variant mt-0.5">Review and manage patient medication records across the clinic.</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
         <div className="relative w-full md:w-96">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search medication, patient, or prescriber..."
-            className="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-200 bg-[#f7f9fb] text-xs text-slate-900 focus:bg-white focus:border-[#004ac6] outline-none" />
+            className="w-full h-10 pl-9 pr-3 rounded-lg border border-outline-variant bg-surface-container-low text-xs text-on-surface focus:bg-surface-container-lowest focus:border-primary outline-none" />
         </div>
         <div className="flex gap-2.5 w-full md:w-auto">
-          <Button asChild className="bg-[#004ac6] hover:bg-blue-700 text-white text-xs font-semibold h-10 px-4 rounded-lg shadow-sm">
+          <Button asChild className="bg-primary hover:bg-primary/90 text-on-primary text-xs font-semibold h-10 px-4 rounded-lg shadow-sm">
             <Link href="/prescriptions/new" className="flex items-center gap-1.5">
               <Plus className="w-4 h-4" /> New Prescription
             </Link>
           </Button>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-700 outline-none">
+            className="h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-lowest text-xs text-on-surface-variant outline-none">
             <option value="">All Statuses</option>
             <option value="active">Active</option>
             <option value="completed">Completed</option>
             <option value="discontinued">Discontinued</option>
           </select>
-          <button className="h-10 px-3 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50">
-            <Filter className="w-3.5 h-3.5 text-slate-500" /> More Filters
+          <button className="h-10 px-3 flex items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-lowest text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low">
+            <Filter className="w-3.5 h-3.5 text-on-surface-variant" /> More Filters
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
-            <tr className="border-b border-slate-200 bg-[#f7f9fb] text-slate-500 font-semibold">
+            <tr className="border-b border-outline-variant bg-surface-container-low text-on-surface-variant font-semibold">
               <th className="py-3 px-4">Date Issued</th>
               <th className="py-3 px-4">Medication &amp; Dosage</th>
               <th className="py-3 px-4">Patient</th>
@@ -145,54 +145,54 @@ export default function PrescriptionHistoryPage() {
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-slate-800">
+          <tbody className="divide-y divide-slate-100 text-on-surface">
             {loading ? (
               <tr>
-                <td colSpan={6} className="py-10 text-center text-slate-400 text-sm">
-                  <Pill className="w-5 h-5 mx-auto mb-2 text-slate-300" /> Loading prescription records…
+                <td colSpan={6} className="py-10 text-center text-outline text-sm">
+                  <Pill className="w-5 h-5 mx-auto mb-2 text-outline" /> Loading prescription records…
                 </td>
               </tr>
             ) : filtered.length > 0 ? (
               filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50/60 transition">
-                  <td className="py-3.5 px-4 font-medium text-slate-600">{p.date}</td>
+                <tr key={p.id} className="hover:bg-surface-container-low/60 transition">
+                  <td className="py-3.5 px-4 font-medium text-on-surface-variant">{p.date}</td>
                   <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-900">{p.medication}</div>
-                    <div className="text-[11px] text-slate-500">{p.instruction}</div>
+                    <div className="font-bold text-on-surface">{p.medication}</div>
+                    <div className="text-[11px] text-on-surface-variant">{p.instruction}</div>
                   </td>
                   <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-900">{p.patient}</div>
-                    <div className="text-[11px] text-slate-500">DOB: {p.patient_dob}</div>
+                    <div className="font-bold text-on-surface">{p.patient}</div>
+                    <div className="text-[11px] text-on-surface-variant">DOB: {p.patient_dob}</div>
                   </td>
-                  <td className="py-3.5 px-4 font-medium text-slate-700">{p.prescriber}</td>
+                  <td className="py-3.5 px-4 font-medium text-on-surface-variant">{p.prescriber}</td>
                   <td className="py-3.5 px-4">
                     <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${getStatusBadge(p.status)}`}>{p.status}</span>
                   </td>
                   <td className="py-3.5 px-4 text-right">
-                    <div className="flex justify-end gap-1 text-slate-400">
-                      <Link href={`/prescriptions/${p.id}`} className="p-1 hover:text-[#004ac6]" title="View Details"><Eye className="w-4 h-4" /></Link>
-                      <button className="p-1 hover:text-[#004ac6]" title="Print"><Printer className="w-4 h-4" /></button>
-                      <button className="p-1 hover:text-slate-600" title="More"><MoreVertical className="w-4 h-4" /></button>
+                    <div className="flex justify-end gap-1 text-outline">
+                      <Link href={`/prescriptions/${p.id}`} className="p-1 hover:text-primary" title="View Details"><Eye className="w-4 h-4" /></Link>
+                      <button className="p-1 hover:text-primary" title="Print"><Printer className="w-4 h-4" /></button>
+                      <button className="p-1 hover:text-on-surface-variant" title="More"><MoreVertical className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="py-10 text-center text-slate-400 text-sm">No prescription records matched your filter criteria.</td>
+                <td colSpan={6} className="py-10 text-center text-outline text-sm">No prescription records matched your filter criteria.</td>
               </tr>
             )}
           </tbody>
         </table>
-        <div className="px-4 py-3 border-t border-slate-200 bg-white flex items-center justify-between text-xs text-slate-500">
+        <div className="px-4 py-3 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-xs text-on-surface-variant">
           <span>Showing 1 to {filtered.length} of {prescriptions.length} entries</span>
           <div className="flex items-center gap-1">
-            <button className="px-2 py-1 rounded border border-slate-200 disabled:opacity-40" disabled>&lt;</button>
-            <button className="w-7 h-7 rounded bg-blue-50 text-[#004ac6] font-semibold border border-blue-200">1</button>
-            <button className="w-7 h-7 rounded hover:bg-slate-50 border border-slate-200">2</button>
-            <button className="w-7 h-7 rounded hover:bg-slate-50 border border-slate-200">3</button>
-            <span className="px-1 text-slate-400">...</span>
-            <button className="px-2 py-1 rounded border border-slate-200 hover:bg-slate-50">&gt;</button>
+            <button className="px-2 py-1 rounded border border-outline-variant disabled:opacity-40" disabled>&lt;</button>
+            <button className="w-7 h-7 rounded bg-primary-container/20 text-primary font-semibold border border-primary-container/40">1</button>
+            <button className="w-7 h-7 rounded hover:bg-surface-container-low border border-outline-variant">2</button>
+            <button className="w-7 h-7 rounded hover:bg-surface-container-low border border-outline-variant">3</button>
+            <span className="px-1 text-outline">...</span>
+            <button className="px-2 py-1 rounded border border-outline-variant hover:bg-surface-container-low">&gt;</button>
           </div>
         </div>
       </div>
