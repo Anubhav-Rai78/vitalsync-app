@@ -58,6 +58,45 @@ export async function createPrescriptionAction(
     const patientId = payload.patientId?.trim();
     if (!patientId) return { error: "Please select a patient." };
 
+    // ── Resolve a valid doctor_id ───────────────────────────────────────
+    // The prescriptions table has a foreign key on doctor_id → profiles.id
+    // and the original RLS policy expected doctor_id = auth.uid().
+    // When an admin or front-desk staff creates a prescription on behalf of
+    // a doctor we must look up an actual doctor in the same clinic.
+    let assignedDoctorId = user.id;
+
+    if (profile.role !== "doctor") {
+      // Try the appointment's doctor first (if an appointment was linked)
+      if (payload.appointmentId?.trim()) {
+        const { data: appt } = await supabase
+          .from("appointments")
+          .select("doctor_id")
+          .eq("id", payload.appointmentId.trim())
+          .maybeSingle();
+        if (appt?.doctor_id) assignedDoctorId = appt.doctor_id;
+      }
+
+      // Fallback: pick the first active doctor in the same clinic
+      if (assignedDoctorId === user.id) {
+        const { data: fallbackDoc } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("clinic_id", profile.clinic_id)
+          .eq("role", "doctor")
+          .limit(1)
+          .maybeSingle();
+        if (fallbackDoc) assignedDoctorId = fallbackDoc.id;
+      }
+
+      // If we still can't find any doctor, the insert will fail with a
+      // meaningful FK error — but we surface a friendlier message.
+      if (assignedDoctorId === user.id) {
+        return {
+          error: "No doctor found in your clinic to assign this prescription to. Please add a doctor profile first.",
+        };
+      }
+    }
+
     const items = (payload.items ?? [])
       .map((item) => ({
         prescription_id: "" as string, // set after insert
@@ -87,7 +126,7 @@ export async function createPrescriptionAction(
       .insert({
         clinic_id: profile.clinic_id,
         patient_id: patientId,
-        doctor_id: user.id,
+        doctor_id: assignedDoctorId,
         appointment_id: payload.appointmentId?.trim() || null,
         diagnosis: payload.diagnosis?.trim() || "General Consultation",
         notes: payload.notes?.trim() || null,
