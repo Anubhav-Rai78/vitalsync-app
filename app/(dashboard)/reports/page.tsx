@@ -261,9 +261,9 @@ export default function AnalyticsReportsPage() {
   const handleTemplateSelect = (title: string, icon: string) => {
     setDataSource(
       title === "Patient Demographics" ? "Clinical Outcomes"
-      : title === "Staff Productivity" ? "Operational Efficiency"
-      : title === "Insurance Claim Success" ? "Patient Feedback"
-      : "Financial & Billing"
+        : title === "Staff Productivity" ? "Operational Efficiency"
+          : title === "Insurance Claim Success" ? "Patient Feedback"
+            : "Financial & Billing"
     );
     setNotice(`Report template "${title}" selected. Choose a date range and click Generate Report.`);
   };
@@ -352,22 +352,90 @@ export default function AnalyticsReportsPage() {
   };
 
   const exportReportPdf = (report: GeneratedReport) => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text(report.name, 14, 20);
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    // Strip any non-ASCII characters so Helvetica can render the full title
+    const cleanTitle = report.name.replace(/[^\x00-\x7F]/g, "-");
+
+    // ── Header Banner ───────────────────────────────────────────────
+    doc.setFillColor(248, 250, 252);
+    doc.rect(0, 0, 210, 38, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(0, 74, 198);
+    doc.text("MedFlow Clinic", 16, 16);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Operational Intelligence & Clinical Reports", 16, 22);
+    doc.text(`Generated on: ${report.date}`, 16, 27);
+
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(16, 38, 194, 38);
+
+    // ── Document Title (word-wrapped) ───────────────────────────────
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(15, 23, 42);
+    const splitTitle = doc.splitTextToSize(cleanTitle, 178);
+    doc.text(splitTitle, 16, 48);
+
+    let y = 48 + splitTitle.length * 6 + 4;
+
+    // ── Table Column Headers (printed ONCE) ─────────────────────────
+    doc.setFillColor(241, 245, 249);
+    doc.rect(16, y - 5, 178, 8, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text("METRIC / FIELD", 20, y);
+    doc.text("VALUE", 190, y, { align: "right" });
+
+    y += 7;
+
+    // ── Table Data Rows ─────────────────────────────────────────────
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Generated ${report.date}`, 14, 27);
-    doc.setFontSize(11);
-    doc.setTextColor(0);
-    let y = 40;
-    report.rows.forEach((row) => {
-      const [key, val] = Object.entries(row)[0] ?? [];
-      doc.text(String(key ?? ""), 14, y);
-      doc.text(String(val ?? ""), 120, y);
-      y += 9;
+    doc.setTextColor(15, 23, 42);
+
+    report.rows.forEach((row, index) => {
+      // Zebra-stripe alternating rows
+      if (index % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(16, y - 4.5, 178, 7.5, "F");
+      }
+
+      const entries = Object.entries(row);
+      const label = String(entries[0]?.[0] ?? "").replace(/[^\x00-\x7F]/g, "");
+      const val = String(entries[0]?.[1] ?? "N/A")
+        .replace(/\u20B9/g, "INR ")   // ₹ → INR  (Helvetica lacks the glyph)
+        .replace(/[^\x00-\x7F]/g, "");
+
+      doc.text(label, 20, y);
+      doc.text(val, 190, y, { align: "right" });
+
+      y += 7.5;
+
+      // Page-break handling
+      if (y > 275) {
+        doc.addPage();
+        y = 20;
+      }
     });
-    doc.save(`${report.name.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}.pdf`);
+
+    // ── Footer ──────────────────────────────────────────────────────
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.line(16, 280, 194, 280);
+    doc.text("MedFlow Clinic - Confidential Medical Management Record", 16, 285);
+
+    const fileSlug = cleanTitle.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+    doc.save(`${fileSlug}.pdf`);
   };
 
   const exportReportCsv = (report: GeneratedReport) => {
@@ -387,7 +455,7 @@ export default function AnalyticsReportsPage() {
     setNotice("Generating your report...");
     try {
       const rows = await buildReportRows();
-      const name = `Custom: ${dataSource} (${startDate} \u2192 ${endDate})`;
+      const name = `Custom: ${dataSource} (${startDate} - ${endDate})`;
       const newReport: GeneratedReport = {
         id: `r-${Date.now()}`,
         name,
