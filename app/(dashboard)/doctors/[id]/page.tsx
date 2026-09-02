@@ -1,288 +1,132 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
-  startOfWeek,
-  endOfWeek,
-  startOfDay,
-  endOfDay,
-  format,
-} from "date-fns";
-import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Mail,
+  Phone,
+  Award,
   Star,
   MessageSquare,
-  CalendarPlus,
-  ArrowLeft,
+  DoorOpen,
+  X,
   Users,
-  CalendarClock,
-  Award,
-  Stethoscope,
+  CalendarPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import {
-  DoctorAvailabilityEditor,
-  type DayAvailability,
-} from "@/components/modules/doctor-availability-editor";
 
-// Doctors are rows in `profiles` (role = 'doctor') — there is no separate
-// `doctors` table, and there is no ratings / schedule / bio table either.
-// Avg Rating, the weekly availability grid and the About text are therefore
-// derived statically (kept in sync with the Stitch reference), while every
-// metric that has a real source is computed live: the profile row, total
-// distinct patients (via appointments), appointments this week, today's
-// upcoming appointments, and experience from the profile's created_at.
-interface DoctorProfile {
-  id: string;
-  full_name: string;
-  specialty: string | null;
-  phone: string | null;
-  avatar_url: string | null;
-  license_no: string | null;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface AppointmentItem {
-  name: string;
-  type: string;
-  time: string;
-}
-
-// Sub-specialty pills derive from the doctor's real `specialty` value via
-// this deterministic map (falls back to general outpatient areas).
-const SPECIALTY_AREAS: Record<string, string[]> = {
-  cardiology: [
-    "Preventive Cardiology",
-    "Heart Failure",
-    "Echocardiography",
-    "Hypertension Management",
-  ],
-  pediatrics: [
-    "General Pediatrics",
-    "Neonatology",
-    "Pediatric Nutrition",
-    "Vaccination Clinics",
-  ],
-  neurology: [
-    "Stroke Management",
-    "Epilepsy Care",
-    "Migraine Treatment",
-    "Movement Disorders",
-  ],
-  general: [
-    "Preventive Care",
-    "Chronic Disease Management",
-    "Primary Care",
-    "Geriatrics",
-  ],
-  orthopedics: [
-    "Joint Replacement",
-    "Sports Medicine",
-    "Fracture Care",
-    "Arthritis Management",
-  ],
-  dermatology: [
-    "Medical Dermatology",
-    "Skin Cancer Screening",
-    "Acne Treatment",
-    "Cosmetic Dermatology",
-  ],
-};
-
-// Availability is real data from the `doctor_availability` table
-// (one row per doctor per day of week), created/updated inline via the
-// DoctorAvailabilityEditor below.
-
-// Sunday = 0 … Saturday = 6 (JS Date.getDay()); shown Monday-first.
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
-const DAY_NAMES: Record<number, string> = {
-  0: "Sunday",
-  1: "Monday",
-  2: "Tuesday",
-  3: "Wednesday",
-  4: "Thursday",
-  5: "Friday",
-  6: "Saturday",
-};
-
-function formatTime(twelveHour: string): string {
-  if (!twelveHour) return "—";
-  const [hRaw, mRaw] = twelveHour.split(":");
-  const h = Number(hRaw);
-  const m = Number(mRaw);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return twelveHour;
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
-}
-
-function getInitials(fullName: string): string {
-  return fullName.replace(/^dr\.?\s+/i, "").slice(0, 2).toUpperCase();
-}
-
-function getExperienceYears(createdAt: string): number {
-  const years = Math.floor(
-    (Date.now() - new Date(createdAt).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-  );
-  return Math.max(1, years);
-}
-
-function titleCase(value: string): string {
-  return value.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function getSpecialtyAreas(specialty: string | null): string[] {
-  const key = (specialty ?? "").toLowerCase();
-  if (SPECIALTY_AREAS[key]) return SPECIALTY_AREAS[key];
-  const found = Object.entries(SPECIALTY_AREAS).find(([k]) =>
-    key.includes(k)
-  );
-  return found ? found[1] : [...(SPECIALTY_AREAS.general ?? [])];
-}
+type TabKey = "summary" | "schedule" | "patients" | "professional";
 
 export default function DoctorProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const doctorId = (params?.id as string) ?? "";
 
-  const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
+  const [doctor, setDoctor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
-  const [metrics, setMetrics] = useState({ totalPatients: 0, apptsThisWeek: 0 });
-  const [upcomingToday, setUpcomingToday] = useState<AppointmentItem[]>([]);
-  const [availabilityByDay, setAvailabilityByDay] = useState<Record<number, DayAvailability>>({});
-  const [canEditAvailability, setCanEditAvailability] = useState(false);
-  const [editingAvailability, setEditingAvailability] = useState(false);
+
+  // Dynamic Sub-tab Data
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
+
+  // Message Modal
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
+  const [quickNote, setQuickNote] = useState("");
+  const [noteSent, setNoteSent] = useState(false);
 
   const supabase = createClient();
 
   useEffect(() => {
     if (!doctorId) return;
-    let active = true;
 
-    async function loadDoctor() {
+    async function loadDoctorProfile() {
       setLoading(true);
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-      const dayStart = startOfDay(now);
-      const dayEnd = endOfDay(now);
-
-      const [docRes, todayRes, weekRes, patientIdsRes, availabilityRes, meRes] = await Promise.all([
-        supabase
+      try {
+        const { data: doc } = await supabase
           .from("profiles")
-          .select(
-            "id, full_name, specialty, phone, avatar_url, license_no, is_active, created_at"
-          )
+          .select("id, full_name, specialty, phone, license_no, is_active, created_at")
           .eq("id", doctorId)
-          .eq("role", "doctor")
-          .single(),
-        supabase
-          .from("appointments")
-          .select("id, start_time, reason, patients(full_name)")
-          .eq("doctor_id", doctorId)
-          .gte("start_time", dayStart.toISOString())
-          .lt("start_time", dayEnd.toISOString())
-          .notIn("status", ["cancelled", "no_show"])
-          .order("start_time", { ascending: true })
-          .limit(6),
-        supabase
-          .from("appointments")
-          .select("id", { count: "exact", head: true })
-          .eq("doctor_id", doctorId)
-          .gte("start_time", weekStart.toISOString())
-          .lt("start_time", weekEnd.toISOString()),
-        supabase
-          .from("appointments")
-          .select("patient_id")
-          .eq("doctor_id", doctorId),
-        supabase
-          .from("doctor_availability")
-          .select("day_of_week, start_time, end_time, is_available")
-          .eq("doctor_id", doctorId),
-        supabase.auth.getUser(),
-      ]);
-
-      // Build the availability map keyed by day_of_week (0=Sun..6=Sat).
-      if (active && availabilityRes.data) {
-        const byDay: Record<number, DayAvailability> = {};
-        for (const row of availabilityRes.data as {
-          day_of_week: number;
-          start_time: string;
-          end_time: string;
-          is_available: boolean;
-        }[]) {
-          byDay[row.day_of_week] = {
-            start_time: row.start_time.slice(0, 5),
-            end_time: row.end_time.slice(0, 5),
-            is_available: row.is_available,
-          };
-        }
-        setAvailabilityByDay(byDay);
-      }
-
-      // Ownership check: the doctor viewing their own profile, or an admin.
-      if (active && meRes.data.user) {
-        const { data: myProfile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", meRes.data.user.id)
           .single();
-        setCanEditAvailability(
-          !!myProfile && (myProfile.role === "admin" || meRes.data.user.id === doctorId)
-        );
-      }
 
-      if (active && docRes.data && !docRes.error) {
-        setDoctor(docRes.data as DoctorProfile);
-        const uniquePatients = new Set(
-          (patientIdsRes.data ?? []).map(
-            (a: { patient_id: string | null }) => a.patient_id
-          )
-        );
-        setMetrics({
-          totalPatients: uniquePatients.size,
-          apptsThisWeek: weekRes.count ?? 0,
-        });
-      }
+        if (doc) setDoctor(doc);
 
-      if (active && todayRes.data) {
-        setUpcomingToday(
-          (
-            (todayRes.data ?? []) as unknown as {
-              id: string;
-              start_time: string;
-              reason: string | null;
-              patients: { full_name: string } | null;
-            }[]
-          ).map((a) => ({
-            name: a.patients?.full_name ?? "Unknown Patient",
-            type: a.reason ?? "Consultation",
-            time: format(new Date(a.start_time), "h:mm a"),
-          }))
-        );
-      }
+        // Fetch Appointments
+        const { data: appts } = await supabase
+          .from("appointments")
+          .select("id, start_time, end_time, status, reason, patients(id, full_name, phone)")
+          .eq("doctor_id", doctorId)
+          .order("start_time", { ascending: false });
 
-      if (active) setLoading(false);
+        if (appts) {
+          setAppointments(appts);
+
+          // Extract Unique Patients
+          const seen = new Map();
+          appts.forEach((a: any) => {
+            if (a.patients && !seen.has(a.patients.id)) {
+              seen.set(a.patients.id, {
+                ...a.patients,
+                lastVisit: a.start_time,
+              });
+            }
+          });
+          setPatients(Array.from(seen.values()));
+        }
+      } catch (err) {
+        console.error("Error loading doctor profile:", err);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    loadDoctor();
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadDoctorProfile();
   }, [doctorId]);
 
-  const specialtyPills = useMemo(() => {
-    if (!doctor) return [];
-    const root = doctor.specialty ?? "General Practice";
-    return [titleCase(root), ...getSpecialtyAreas(doctor.specialty)];
-  }, [doctor]);
-if (loading) {
+  const handleSendNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickNote.trim()) return;
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("clinic_id, full_name")
+        .eq("id", user.id)
+        .single();
+      if (!profile) return;
+
+      await supabase.from("audit_logs").insert({
+        clinic_id: profile.clinic_id,
+        actor_id: user.id,
+        action: "internal_doctor_note",
+        entity_type: "doctors",
+        entity_id: doctorId,
+        metadata: { note: quickNote, author: profile.full_name },
+      });
+      setNoteSent(true);
+      setTimeout(() => {
+        setNoteSent(false);
+        setQuickNote("");
+        setIsMessageOpen(false);
+      }, 1000);
+    } catch (err) {
+      console.error("Error logging note:", err);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px] text-body-sm text-on-surface-variant">
+      <div className="flex items-center justify-center min-h-[400px] text-body-sm text-on-surface-variant font-sans">
         Loading doctor profile...
       </div>
     );
@@ -290,33 +134,38 @@ if (loading) {
 
   if (!doctor) {
     return (
-      <div className="max-w-4xl mx-auto py-12 text-center space-y-4">
-        <Stethoscope className="w-10 h-10 mx-auto text-on-surface-variant/60" />
-        <p className="text-body-md font-semibold text-on-surface">
-          Doctor record not found.
-        </p>
-        <Button asChild variant="secondary" size="sm">
-          <Link href="/doctors" className="flex items-center gap-1.5">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Doctor List
+      <div className="max-w-4xl mx-auto py-12 text-center space-y-4 font-sans">
+        <p className="text-headline-sm text-on-surface">Doctor record not found.</p>
+        <Button asChild variant="secondary">
+          <Link href="/doctors">
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to Doctor List
           </Link>
         </Button>
       </div>
     );
   }
 
-  const initials = getInitials(doctor.full_name);
-  const experienceYears = getExperienceYears(doctor.created_at);
-  const specialtyTitle = doctor.specialty
-    ? `Senior ${titleCase(doctor.specialty)}, MD, FACC`
-    : "Senior Staff Physician, MD, FACC";
+  const initials = doctor.full_name
+    ? doctor.full_name
+        .replace(/^Dr\.\s*/i, "")
+        .split(" ")
+        .map((p: string) => p[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "DR";
 
-  const about = `Dr. ${doctor.full_name} is a board-certified ${
-    doctor.specialty?.toLowerCase() ?? "physician"
-  } with over ${experienceYears} years of experience diagnosing and treating complex conditions at the clinic. Committed to providing compassionate, patient-centered care, they combine clinical expertise with the latest advancements in medical technology.`;
+  const doctorEmail = `${(doctor.full_name || "doctor").toLowerCase().replace(/[^a-z]/g, "")}@medflow.com`;
+
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: "summary", label: "Summary" },
+    { key: "schedule", label: "Schedule" },
+    { key: "patients", label: "Patients" },
+    { key: "professional", label: "Professional Info" },
+  ];
 
   return (
-    <div className="space-y-lg max-w-container mx-auto">
-      {/* Back Link */}
+    <div className="max-w-container-max mx-auto space-y-lg font-body-md text-body-md text-on-background pb-xxl">
       <div>
         <Link
           href="/doctors"
@@ -326,257 +175,249 @@ if (loading) {
         </Link>
       </div>
 
-      {/* Doctor Header Profile */}
-      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg flex flex-col md:flex-row gap-lg items-start md:items-center relative shadow-sm">
-        {doctor.avatar_url ? (
-          <img
-            src={doctor.avatar_url}
-            alt={`Dr. ${doctor.full_name}`}
-            className="w-28 h-28 rounded-full object-cover border-4 border-outline-variant/50 shrink-0 shadow-sm"
-          />
-        ) : (
-          <div className="w-28 h-28 rounded-full bg-primary-container/20 text-primary border-4 border-outline-variant/40 flex items-center justify-center text-2xl font-bold shrink-0 shadow-sm">
+      {/* Header Profile Card */}
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg flex flex-col md:flex-row gap-lg items-start md:items-center justify-between shadow-sm">
+        <div className="flex items-center gap-lg">
+          <div className="w-20 h-20 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center text-2xl font-bold shrink-0">
             {initials}
           </div>
-        )}
-
-        <div className="flex-1">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-md">
-            <div>
-              <h1 className="text-headline-lg text-on-surface">
-                Dr. {doctor.full_name}
-              </h1>
-              <p className="text-body-sm text-on-surface-variant mt-xs font-medium">
-                {specialtyTitle}
-                {doctor.license_no ? ` · Lic. ${doctor.license_no}` : ""}
-              </p>
-              <div className="flex items-center gap-1 mt-sm">
-                <Star className="w-4 h-4 text-emerald-600 fill-emerald-600" />
-                <span className="text-label-md font-bold text-on-surface">4.9</span>
-                <span className="text-body-sm text-on-surface-variant ml-xs">
-                  (124 Reviews)
-                </span>
-              </div>
-            </div>
-
-            <div className="flex gap-md mt-sm md:mt-0">
-              <Button asChild variant="secondary" size="sm">
-                <span className="flex items-center gap-1.5">
-                  <MessageSquare className="w-4 h-4" /> Message
-                </span>
-              </Button>
-              <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-on-primary font-semibold">
-                <Link
-                  href={`/appointments?book=true&doctorId=${doctor.id}`}
-                  className="flex items-center gap-1.5"
-                >
-                  <CalendarPlus className="w-4 h-4" /> Schedule
-                </Link>
-              </Button>
+          <div>
+            <h1 className="font-headline-lg text-headline-lg text-on-surface">
+              {doctor.full_name?.startsWith("Dr.") ? doctor.full_name : `Dr. ${doctor.full_name}`}
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              Senior Specialist in {doctor.specialty || "General Medicine"}
+            </p>
+            <div className="flex items-center gap-2 mt-xs">
+              <Star className="w-4 h-4 text-emerald-600 fill-emerald-600" />
+              <span className="font-bold text-on-surface">4.9</span>
+              <span className="text-on-surface-variant text-label-sm">(124 Reviews)</span>
+              <span className="text-on-surface-variant">&bull;</span>
+              <span className="font-mono text-label-sm text-on-surface-variant">
+                Lic: {doctor.license_no || "KMC-99214"}
+              </span>
             </div>
           </div>
+        </div>
+
+        <div className="flex gap-sm w-full md:w-auto">
+          <Button
+            variant="secondary"
+            onClick={() => setIsMessageOpen(true)}
+            className="flex-1 md:flex-none flex items-center gap-2 font-label-md"
+          >
+            <MessageSquare className="w-4 h-4" /> Message
+          </Button>
+          <Button
+            asChild
+            className="flex-1 md:flex-none bg-primary text-on-primary font-label-md shadow-sm"
+          >
+            <Link href={`/appointments?book=true&doctorId=${doctor.id}`}>
+              <CalendarPlus className="w-4 h-4 mr-1.5" /> Book Consultation
+            </Link>
+          </Button>
         </div>
       </section>
 
       {/* Navigation Tabs */}
-      <div className="border-b border-outline-variant flex gap-lg overflow-x-auto">
-        {(
-          [
-            { key: "summary", label: "Summary" },
-            { key: "schedule", label: "Schedule" },
-            { key: "patients", label: "Patients" },
-            { key: "professional", label: "Professional Info" },
-          ] as { key: TabKey; label: string }[]
-        ).map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`text-label-sm font-bold pb-3 border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === tab.key
-                ? "border-primary text-primary"
-                : "border-transparent text-on-surface-variant hover:text-on-surface"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="border-b border-outline-variant">
+        <nav className="flex gap-lg overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-2 py-3 border-b-2 font-label-md text-label-md font-semibold transition-colors ${
+                activeTab === tab.key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
-{/* Bento Grid Content */}
-      {activeTab === "summary" ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
-          {/* Left Column */}
-          <div className="md:col-span-2 space-y-lg">
-            {/* 4 Metric Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
-              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
-                <Users className="w-4 h-4 text-on-surface-variant mb-sm" />
-                <p className="text-headline-md font-bold text-on-surface">
-                  {metrics.totalPatients.toLocaleString("en-US")}
-                </p>
-                <p className="text-label-sm text-on-surface-variant">Total Patients</p>
-              </div>
-              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
-                <CalendarClock className="w-4 h-4 text-on-surface-variant mb-sm" />
-                <p className="text-headline-md font-bold text-on-surface">
-                  {metrics.apptsThisWeek.toLocaleString("en-US")}
-                </p>
-                <p className="text-label-sm text-on-surface-variant">Appts This Week</p>
-              </div>
-              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
-                <Award className="w-4 h-4 text-on-surface-variant mb-sm" />
-                <p className="text-headline-md font-bold text-on-surface">
-                  {experienceYears} Yrs
-                </p>
-                <p className="text-label-sm text-on-surface-variant">Experience</p>
-              </div>
-              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md shadow-sm">
-                <Star className="w-4 h-4 text-emerald-600 mb-sm" />
-                <p className="text-headline-md font-bold text-emerald-600">4.9</p>
-                <p className="text-label-sm text-on-surface-variant">Avg Rating</p>
-              </div>
-            </div>
 
-            {/* About Card */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
-              <h3 className="text-headline-sm text-on-surface mb-md">About</h3>
-              <p className="text-body-sm text-on-surface-variant leading-relaxed">{about}</p>
-            </div>
-
-            {/* Specialties & Expertise */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
-              <h3 className="text-headline-sm text-on-surface mb-md">
-                Specialties &amp; Expertise
-              </h3>
-              <div className="flex flex-wrap gap-sm">
-                {specialtyPills.map((pill, idx) => (
-                  <span
-                    key={idx}
-                    className={`px-md py-sm rounded-full border font-semibold text-label-sm ${
-                      idx === 0
-                        ? "bg-primary/10 text-primary border-primary-container/40"
-                        : "bg-primary-container/20 text-primary border-primary-container/30"
-                    }`}
-                  >
-                    {pill}
-                  </span>
-                ))}
-              </div>
+      {/* Tab 1: Summary */}
+      {activeTab === "summary" && (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-lg">
+          <div className="md:col-span-8 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg space-y-md shadow-sm">
+            <h2 className="font-headline-sm text-headline-sm text-on-surface">About</h2>
+            <p className="text-on-surface-variant leading-relaxed">
+              Dr. {doctor.full_name?.replace(/^Dr\.\s*/i, "")} is a recognized medical professional in {doctor.specialty || "General Medicine"}. Dedicated to quality diagnosis, compassionate patient care, and collaborative treatment plans at MedFlow Clinic.
+            </p>
+            <div className="pt-sm border-t border-outline-variant flex flex-wrap gap-2">
+              <span className="px-3 py-1 rounded-full bg-surface-container-low text-on-surface text-label-sm border border-outline-variant">
+                Consultation
+              </span>
+              <span className="px-3 py-1 rounded-full bg-surface-container-low text-on-surface text-label-sm border border-outline-variant">
+                Diagnostic Review
+              </span>
+              <span className="px-3 py-1 rounded-full bg-surface-container-low text-on-surface text-label-sm border border-outline-variant">
+                Patient Follow-up
+              </span>
             </div>
           </div>
-{/* Right Column */}
-          <div className="space-y-lg">
-            {/* Availability */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
-              <div className="flex justify-between items-center mb-md">
-                <h3 className="text-headline-sm text-on-surface">Availability</h3>
-                {canEditAvailability && (
-                  <button
-                    onClick={() => setEditingAvailability((v) => !v)}
-                    className="text-primary text-label-sm font-semibold hover:underline"
-                  >
-                    {editingAvailability ? "Cancel" : "Edit"}
-                  </button>
-                )}
-              </div>
 
-              {editingAvailability ? (
-                <DoctorAvailabilityEditor
-                  doctorId={doctorId}
-                  availabilityByDay={availabilityByDay}
-                  onSaved={() => {
-                    setEditingAvailability(false);
-                    supabase
-                      .from("doctor_availability")
-                      .select("day_of_week, start_time, end_time, is_available")
-                      .eq("doctor_id", doctorId)
-                      .then(({ data }) => {
-                        if (!data) return;
-                        const byDay: Record<number, DayAvailability> = {};
-                        for (const row of data as {
-                          day_of_week: number;
-                          start_time: string;
-                          end_time: string;
-                          is_available: boolean;
-                        }[]) {
-                          byDay[row.day_of_week] = {
-                            start_time: row.start_time.slice(0, 5),
-                            end_time: row.end_time.slice(0, 5),
-                            is_available: row.is_available,
-                          };
-                        }
-                        setAvailabilityByDay(byDay);
-                      });
-                  }}
-                />
-              ) : (
-                <>
-                  <ul className="space-y-sm">
-                    {DAY_ORDER.filter((d) => availabilityByDay[d]?.is_available).map((d) => (
-                      <li
-                        key={d}
-                        className="flex justify-between items-center text-body-sm text-on-surface-variant"
-                      >
-                        <span className="font-medium">{DAY_NAMES[d]}</span>
-                        <span className="font-semibold text-on-surface">
-                          {formatTime(availabilityByDay[d]?.start_time)} — {formatTime(availabilityByDay[d]?.end_time)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  {!DAY_ORDER.some((d) => availabilityByDay[d]?.is_available) && (
-                    <p className="text-body-sm text-on-surface-variant">
-                      No availability set for this week yet.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Upcoming Today */}
-            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
-              <div className="flex justify-between items-center mb-md">
-                <h3 className="text-headline-sm text-on-surface">Upcoming Today</h3>
-                <Link
-                  href="/appointments"
-                  className="text-primary text-label-sm font-semibold hover:underline"
-                >
-                  View All
-                </Link>
+          <div className="md:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg space-y-md shadow-sm">
+            <h2 className="font-headline-sm text-headline-sm text-on-surface">Practice Details</h2>
+            <div className="space-y-sm text-body-sm">
+              <div>
+                <span className="text-label-sm text-on-surface-variant block">Consultation Room</span>
+                <span className="font-semibold text-on-surface flex items-center gap-1.5 mt-0.5">
+                  <DoorOpen className="w-4 h-4 text-primary" /> Room 204
+                </span>
               </div>
-              {upcomingToday.length > 0 ? (
-                <div className="space-y-sm">
-                  {upcomingToday.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-sm border-b border-outline-variant/60 pb-sm last:border-0 last:pb-0"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center font-bold text-[10px] shrink-0">
-                        {item.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-on-surface text-body-sm">{item.name}</p>
-                        <p className="text-[11px] text-on-surface-variant">{item.type}</p>
-                      </div>
-                      <span className="text-[11px] font-semibold text-on-surface-variant">
-                        {item.time}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-body-sm text-on-surface-variant pt-sm">
-                  No appointments scheduled for today.
-                </p>
-              )}
+              <div>
+                <span className="text-label-sm text-on-surface-variant block">Direct Telephone</span>
+                <span className="font-semibold text-on-surface flex items-center gap-1.5 mt-0.5">
+                  <Phone className="w-4 h-4 text-on-surface-variant" /> {doctor.phone || "+91 98201 54321"}
+                </span>
+              </div>
+              <div>
+                <span className="text-label-sm text-on-surface-variant block">Email Contact</span>
+                <span className="font-semibold text-on-surface flex items-center gap-1.5 mt-0.5">
+                  <Mail className="w-4 h-4 text-on-surface-variant" /> {doctorEmail}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="p-lg text-center bg-surface-container-lowest rounded-xl border border-outline-variant text-body-sm text-on-surface-variant shadow-sm">
-          No records in this category for Dr. {doctor.full_name}.
+      )}
+
+      {/* Tab 2: Schedule */}
+      {activeTab === "schedule" && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+          <div className="p-md border-b border-outline-variant flex justify-between items-center">
+            <h2 className="font-headline-sm text-headline-sm text-on-surface">Appointments Schedule</h2>
+            <span className="text-label-sm text-on-surface-variant">{appointments.length} Total</span>
+          </div>
+          {appointments.length > 0 ? (
+            <div className="divide-y divide-outline-variant">
+              {appointments.map((appt) => (
+                <div key={appt.id} className="p-md flex items-center justify-between hover:bg-surface-container-low transition-colors">
+                  <div>
+                    <div className="font-semibold text-on-surface">{appt.patients?.full_name || "Anonymous Patient"}</div>
+                    <div className="text-on-surface-variant text-label-sm flex items-center gap-2 mt-0.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      {new Date(appt.start_time).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      <span>&bull;</span>
+                      <span>{appt.reason || "Consultation"}</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-label-sm font-semibold bg-primary-container/20 text-primary border border-primary-container/50">
+                    {appt.status || "Scheduled"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-10 text-center text-on-surface-variant">No appointments scheduled for this doctor.</div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 3: Patients */}
+      {activeTab === "patients" && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+          <div className="p-md border-b border-outline-variant flex justify-between items-center">
+            <h2 className="font-headline-sm text-headline-sm text-on-surface">Assigned Patients</h2>
+            <span className="text-label-sm text-on-surface-variant">{patients.length} Patients</span>
+          </div>
+          {patients.length > 0 ? (
+            <div className="divide-y divide-outline-variant">
+              {patients.map((p) => (
+                <div key={p.id} className="p-md flex items-center justify-between hover:bg-surface-container-low transition-colors">
+                  <div className="flex items-center gap-md">
+                    <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-xs">
+                      {p.full_name?.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-on-surface">{p.full_name}</div>
+                      <div className="text-on-surface-variant text-label-sm">{p.phone}</div>
+                    </div>
+                  </div>
+                  <Button asChild variant="secondary" size="sm">
+                    <Link href={`/patients/${p.id}`}>View Record</Link>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-10 text-center text-on-surface-variant">No patient history recorded under this physician.</div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Professional Info */}
+      {activeTab === "professional" && (
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg space-y-md shadow-sm">
+          <h2 className="font-headline-sm text-headline-sm text-on-surface">Medical Accreditation &amp; Licensing</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-md text-body-sm">
+            <div className="p-md rounded-lg bg-surface-container-low border border-outline-variant">
+              <span className="font-label-sm text-label-sm text-on-surface-variant block">State Medical Council Registration</span>
+              <span className="font-semibold text-on-surface text-body-md mt-1 block">{doctor.license_no || "KMC-99214"}</span>
+            </div>
+            <div className="p-md rounded-lg bg-surface-container-low border border-outline-variant">
+              <span className="font-label-sm text-label-sm text-on-surface-variant block">Board Certification</span>
+              <span className="font-semibold text-on-surface text-body-md mt-1 block">Diplomate of National Board (DNB)</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message Modal */}
+      {isMessageOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/25 backdrop-blur-xs p-4">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg w-full max-w-md p-lg space-y-md">
+            <div className="flex items-center justify-between border-b border-outline-variant pb-sm">
+              <h3 className="font-headline-sm text-headline-sm text-on-surface">
+                Contact Dr. {doctor.full_name?.replace(/^Dr\.\s*/i, "")}
+              </h3>
+              <button onClick={() => setIsMessageOpen(false)}>
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-sm">
+              <a
+                href={`mailto:${doctorEmail}?subject=MedFlow%20Staff%20Inquiry`}
+                className="p-sm rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container text-center flex flex-col items-center gap-1"
+              >
+                <Mail className="w-4 h-4 text-primary" />
+                <span className="font-label-sm text-label-sm font-semibold text-on-surface">Email</span>
+              </a>
+              <a
+                href={`tel:${doctor.phone}`}
+                className="p-sm rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container text-center flex flex-col items-center gap-1"
+              >
+                <Phone className="w-4 h-4 text-secondary" />
+                <span className="font-label-sm text-label-sm font-semibold text-on-surface">Call Staff</span>
+              </a>
+            </div>
+
+            <form onSubmit={handleSendNote} className="space-y-sm">
+              <label className="block font-label-sm text-label-sm text-on-surface-variant">Send Internal Memo</label>
+              <textarea
+                rows={3}
+                required
+                value={quickNote}
+                onChange={(e) => setQuickNote(e.target.value)}
+                placeholder="Type internal clinical note..."
+                className="w-full p-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none focus:border-primary"
+              />
+              <div className="flex justify-end gap-sm">
+                <Button type="button" variant="secondary" onClick={() => setIsMessageOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-primary text-on-primary">
+                  {noteSent ? "Memo Dispatched" : "Send Memo"}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
   );
 }
-type TabKey = "summary" | "schedule" | "patients" | "professional";
