@@ -222,12 +222,9 @@ export function DashboardShell({
                 value={searchQuery}
                 onFocus={() => setIsSearchOpen(true)}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search patients, doctors, records... (Ctrl + K)"
-                className="w-full pl-8 pr-12 py-1.5 text-xs bg-surface-container-low border border-outline-variant rounded-lg focus:outline-none focus:border-primary"
+                placeholder="Search patients, doctors, records..."
+                className="w-full pl-8 pr-4 py-1.5 text-xs bg-surface-container-low border border-outline-variant rounded-lg focus:outline-none focus:border-primary"
               />
-              <kbd className="absolute right-2.5 top-2.5 text-[10px] bg-surface-container-high text-on-surface-variant px-1.5 py-0.5 rounded border border-outline font-mono">
-                ⌘K
-              </kbd>
 
 
               {isSearchOpen && searchQuery.length > 0 && (
