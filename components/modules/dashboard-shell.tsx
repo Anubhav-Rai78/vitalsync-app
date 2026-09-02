@@ -24,9 +24,12 @@ import {
   MessageSquare,
   FileQuestion,
   User as UserIcon,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { getSystemHealthAction } from "@/app/(dashboard)/settings/actions";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -62,6 +65,8 @@ export function DashboardShell({
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const [urgentAlert, setUrgentAlert] = useState<string | null>(null);
+  const [isAlertDismissed, setIsAlertDismissed] = useState(false);
 
   const [notifications, setNotifications] = useState([
     { id: "1", title: "New Patient Registered", desc: "Patient record created successfully", time: "10 mins ago", unread: true },
@@ -90,6 +95,18 @@ export function DashboardShell({
           email: user.email || "",
           role: profile?.role || "Admin",
         });
+
+        // Probe for urgent critical alerts (admins only).
+        if ((profile?.role || "").toLowerCase() === "admin") {
+          try {
+            const health = await getSystemHealthAction();
+            if (health.hasCriticalAlert && health.alertMessage) {
+              setUrgentAlert(health.alertMessage);
+            }
+          } catch (e) {
+            console.error("Health probe error:", e);
+          }
+        }
       }
     }
     loadUser();
@@ -143,6 +160,8 @@ export function DashboardShell({
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   };
 
+  const isAdmin = currentUser?.role?.toLowerCase() === "admin";
+
   const avatarInitials = (userName || "A")
     .split(" ")
     .filter(Boolean)
@@ -183,6 +202,21 @@ export function DashboardShell({
 
         {/* Bottom Sidebar Action Buttons */}
         <div className="space-y-3 pt-4 border-t border-outline-variant">
+          {isAdmin && urgentAlert && !isAlertDismissed && (
+            <div className="p-3 rounded-lg bg-error text-on-error relative shadow-sm text-xs space-y-1">
+              <button
+                onClick={() => setIsAlertDismissed(true)}
+                className="absolute top-1 right-1 p-0.5 hover:bg-black/20 rounded transition"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <div className="flex items-center gap-1 font-bold">
+                <AlertTriangle className="w-3.5 h-3.5" /> Urgent Notice
+              </div>
+              <p className="leading-tight pr-3 text-[11px] opacity-95">{urgentAlert}</p>
+            </div>
+          )}
           <Button asChild className="w-full bg-primary hover:bg-primary/90 text-on-primary text-xs font-semibold py-2 rounded-lg shadow-sm">
             <Link href="/appointments?book=true" className="flex items-center justify-center gap-1.5">
               <Plus className="w-3.5 h-3.5" /> New Record
@@ -376,6 +410,15 @@ export function DashboardShell({
                     >
                       <Settings className="w-3.5 h-3.5 text-outline" /> Clinic Settings
                     </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/settings/audit-log"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-low font-medium text-primary font-semibold"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-primary" /> System Audit Log
+                      </Link>
+                    )}
                   </div>
 
                   <div className="pt-2">
