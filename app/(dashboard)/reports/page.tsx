@@ -49,6 +49,7 @@ export default function AnalyticsReportsPage() {
   const [rangeOpen, setRangeOpen] = useState(false);
   const [revenueRange, setRevenueRange] = useState<"6M" | "1Y">("6M");
   const [notice, setNotice] = useState("");
+  // Date-range defaults for the Custom Report Builder inputs (month start → today).
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
     const y = now.getFullYear();

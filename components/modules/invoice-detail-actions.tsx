@@ -41,164 +41,118 @@ const STATUS_BADGE: Record<InvoiceStatus, { label: string; cls: string }> = {
   void: { label: "Void", cls: "bg-surface-variant text-on-surface-variant border border-outline-variant line-through" },
 };
 
-/** PDF-safe currency formatter — jsPDF built-in fonts lack the ₹ glyph. */
-function pdfCurrency(amount: number, _currency?: string): string {
+// jsPDF's built-in Helvetica font lacks the ₹ (U+20B9) glyph, so values are
+// rendered with an ASCII-safe "INR" prefix inside the PDF. HTML/email rendering
+// continues to use formatCurrency() (₹ is supported there).
+function pdfCurrency(amount: number): string {
   return `INR ${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Generates a professional invoice PDF with clinic branding, table grid, and
-// footer disclaimer — all using ASCII-safe currency formatting (INR, never ₹).
+// Generates a real PDF of the invoice document (no window.print() aliasing).
 function downloadInvoicePdf(invoice: any, items: InvoiceActionItem[]) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const pw = doc.internal.pageSize.getWidth(); // 210
-  const margin = 16;
-  const contentW = pw - margin * 2; // 178
-  let y = 0;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
 
-  // ── Header background ──────────────────────────────────────────────────
-  doc.setFillColor(248, 250, 252);
-  doc.rect(0, 0, pw, 48, "F");
+  const subtitle = (text: string, color: [number, number, number] = [100, 116, 139]) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(color[0], color[1], color[2]);
+    doc.text(text, 14, y);
+    y += 5;
+  };
 
-  // Clinic brand (left)
+  const bodyLine = (text: string, right?: string) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    if (right) {
+      const rightWidth = doc.getTextWidth(right);
+      doc.text(right, pageWidth - 14 - rightWidth, y);
+    }
+    doc.text(text, 14, y);
+    y += 6;
+  };
+
+  // Header
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(0, 74, 198);
-  doc.text("MedFlow Clinic", margin, 20);
-
+  doc.setFontSize(16);
+  doc.setTextColor(37, 99, 235);
+  doc.text("MedFlow Clinic", 14, y);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor(15, 23, 42);
+  doc.text("INVOICE", pageWidth - 14, y, { align: "right" });
+  y += 8;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
-  doc.text("100 Feet Road, HAL 2nd Stage, Indiranagar", margin, 26);
-  doc.text("Bengaluru, Karnataka 560038  |  +91 (80) 4123-4567", margin, 31);
-  doc.text("GSTIN: 29AAAAA0000A1Z5  |  contact@medflow.in", margin, 36);
-
-  // Invoice meta (right)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor(15, 23, 42);
-  doc.text("TAX INVOICE", pw - margin, 20, { align: "right" });
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  doc.text(`Invoice No: ${invoice.invoice_number}`, pw - margin, 26, { align: "right" });
-  doc.text(`Date: ${invoice.created_at ? formatDate(invoice.created_at) : "—"}`, pw - margin, 31, { align: "right" });
-
-  const statusLabel = (invoice.status ?? "draft").toUpperCase();
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(statusLabel === "PAID" ? 22 : 234, statusLabel === "PAID" ? 163 : 88, statusLabel === "PAID" ? 74 : 12);
-  doc.text(`Status: ${statusLabel}`, pw - margin, 36, { align: "right" });
-
-  // Divider
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.5);
-  doc.line(margin, 48, pw - margin, 48);
-  y = 56;
-
-  // ── Bill To ────────────────────────────────────────────────────────────
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text("BILLED TO:", margin, y);
-  y += 6;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(15, 23, 42);
-  doc.text(invoice.patients?.full_name ?? "Patient", margin, y);
-  y += 5;
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  if (invoice.patients?.address) {
-    doc.text(String(invoice.patients.address), margin, y);
-    y += 5;
-  }
-  doc.text(`Patient ID: ${invoice.patient_id ?? "—"}`, margin, y);
-  y += 10;
-
-  // ── Items table ────────────────────────────────────────────────────────
-  // Header row
-  doc.setFillColor(241, 245, 249);
-  doc.rect(margin, y - 5, contentW, 9, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text("ITEM DESCRIPTION", margin + 4, y);
-  doc.text("QTY", pw - 72, y, { align: "center" });
-  doc.text("UNIT PRICE", pw - 48, y, { align: "right" });
-  doc.text("AMOUNT", pw - margin - 2, y, { align: "right" });
-  y += 8;
-
-  // Rows
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-
-  if (items.length === 0) {
-    doc.text("No line items on this invoice.", margin + 4, y);
-    y += 8;
-  } else {
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i];
-      if (i % 2 === 0) {
-        doc.setFillColor(248, 250, 252);
-        doc.rect(margin, y - 5, contentW, 8, "F");
-      }
-      doc.text(it.description, margin + 4, y);
-      doc.text(String(it.quantity), pw - 72, y, { align: "center" });
-      doc.text(pdfCurrency(it.unit_price, invoice.currency), pw - 48, y, { align: "right" });
-      doc.text(pdfCurrency(it.amount, invoice.currency), pw - margin - 2, y, { align: "right" });
-      y += 8;
-    }
-  }
-
-  // ── Totals ─────────────────────────────────────────────────────────────
-  y += 2;
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, pw - margin, y);
+  doc.text(`Invoice #${invoice.invoice_number}`, pageWidth - 14, y, { align: "right" });
   y += 7;
 
+  // Meta block
+  doc.setDrawColor(226, 232, 240);
+  doc.line(14, y, pageWidth - 14, y);
+  y += 8;
+  subtitle("BILL TO", [100, 116, 139]);
+  bodyLine(invoice.patients?.full_name ?? "Patient", `Issue date: ${invoice.created_at ? formatDate(invoice.created_at) : "—"}`);
+  if (invoice.patients?.address) bodyLine(String(invoice.patients.address));
+  doc.setTextColor(100, 116, 139);
+  bodyLine(`Due date: ${invoice.due_date ? formatDate(invoice.due_date) : "—"}`);
+  doc.setTextColor(30, 41, 59);
+  y += 3;
+
+  // Items header
+  doc.setFillColor(248, 250, 252);
+  doc.rect(14, y - 5, pageWidth - 28, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+  doc.text("DESCRIPTION", 16, y);
+  doc.text("QTY", pageWidth - 72, y);
+  doc.text("UNIT PRICE", pageWidth - 58, y);
+  doc.text("TOTAL", pageWidth - 18, y, { align: "right" });
+  y += 9;
+
+  // Items rows
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.setTextColor(71, 85, 105);
-  doc.text("Subtotal:", pw - 70, y, { align: "right" });
-  doc.text(pdfCurrency(invoice.subtotal ?? 0, invoice.currency), pw - margin - 2, y, { align: "right" });
-  y += 6;
-  doc.text("GST / Taxes (0%):", pw - 70, y, { align: "right" });
-  doc.text(pdfCurrency(invoice.tax ?? 0, invoice.currency), pw - margin - 2, y, { align: "right" });
-  y += 8;
-
-  // Total row with blue highlight
-  doc.setFillColor(0, 74, 198);
-  doc.rect(margin, y - 5, contentW, 10, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(255, 255, 255);
-  doc.text("TOTAL AMOUNT", margin + 4, y + 1);
-  doc.text(pdfCurrency(invoice.total ?? 0, invoice.currency), pw - margin - 2, y + 1, { align: "right" });
-  y += 16;
-
-  if ((invoice.status ?? "").toUpperCase() === "PAID") {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(22, 163, 74);
-    doc.text("PAID IN FULL", margin, y);
+  doc.setTextColor(30, 41, 59);
+  for (const it of items) {
+    bodyLine(
+      it.description,
+      pdfCurrency(Number(it.amount))
+    );
+    doc.text(String(it.quantity), pageWidth - 70, y - 6);
+    doc.text(pdfCurrency(Number(it.unit_price)), pageWidth - 58, y - 6);
   }
 
-  // ── Footer ─────────────────────────────────────────────────────────────
-  const footerY = 272;
-  doc.setDrawColor(226, 232, 240);
-  doc.setLineWidth(0.3);
-  doc.line(margin, footerY, pw - margin, footerY);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(148, 163, 184);
-  doc.text("Thank you for choosing MedFlow Clinic. This is a computer-generated invoice.", margin, footerY + 5);
-  doc.text("For queries, contact accounts@medflow.in or call +91 (80) 4123-4567.", margin, footerY + 10);
+  if (items.length === 0) {
+    bodyLine("No line items on this invoice.");
+    y -= 6;
+  }
 
-  doc.save(`${(invoice.invoice_number ?? "invoice").replace("#", "")}.pdf`);
+  y += 4;
+  doc.setDrawColor(226, 232, 240);
+  doc.line(14, y, pageWidth - 14, y);
+  y += 8;
+
+  // Totals
+  bodyLine("Subtotal", pdfCurrency(Number(invoice.subtotal ?? 0)));
+  bodyLine("Tax", pdfCurrency(Number(invoice.tax ?? 0)));
+  y += 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Total", 14, y);
+  doc.setTextColor(37, 99, 235);
+  doc.text(
+    pdfCurrency(Number(invoice.total ?? 0)),
+    pageWidth - 14,
+    y,
+    { align: "right" }
+  );
+
+  doc.save(`${invoice.invoice_number}.pdf`);
 }
 
 
