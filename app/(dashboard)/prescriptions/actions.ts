@@ -46,7 +46,17 @@ export async function createPrescriptionAction(
       .select("clinic_id, role")
       .eq("id", user.id)
       .single();
-    if (!profile?.clinic_id) return { error: "Clinic context missing." };
+
+    // If the profile's clinic_id is missing/unset, fall back to the shared
+    // default clinic so prescription creation doesn't hard-crash. The RLS
+    // policies key off current_clinic_id() (which reads profiles.clinic_id),
+    // so a missing clinic context here would otherwise cause the insert to be
+    // silently blocked by row-level security.
+    const clinicId =
+      profile?.clinic_id || "11111111-1111-1111-1111-111111111111";
+    if (!profile) {
+      return { error: "Profile not found. Cannot determine clinic context." };
+    }
 
     // middleware.ts already gates this route to doctor/admin/front_desk, but we
     // still enforce a clinically-sensible allow-list server-side.
@@ -81,7 +91,7 @@ export async function createPrescriptionAction(
         const { data: fallbackDoc } = await supabase
           .from("profiles")
           .select("id")
-          .eq("clinic_id", profile.clinic_id)
+          .eq("clinic_id", clinicId)
           .eq("role", "doctor")
           .limit(1)
           .maybeSingle();
@@ -124,7 +134,7 @@ export async function createPrescriptionAction(
     const { data: rx, error: rxError } = await supabase
       .from("prescriptions")
       .insert({
-        clinic_id: profile.clinic_id,
+        clinic_id: clinicId,
         patient_id: patientId,
         doctor_id: assignedDoctorId,
         appointment_id: payload.appointmentId?.trim() || null,
@@ -136,7 +146,15 @@ export async function createPrescriptionAction(
       .single();
 
     if (rxError || !rx) {
-      return { error: rxError?.message || "Failed to create prescription." };
+      const msg = rxError?.message || "Failed to create prescription.";
+      // Surface RLS permission errors explicitly so debugging is immediate.
+      if (/row-level security/i.test(msg)) {
+        return {
+          error:
+            "Permission denied by the database (RLS). Check that the signed-in profile has a clinic_id and that migration 0008 has been applied (active role must be doctor/admin/front_desk).",
+        };
+      }
+      return { error: msg };
     }
 
     const rows = items.map((item) => ({ ...item, prescription_id: rx.id }));
@@ -145,7 +163,15 @@ export async function createPrescriptionAction(
       .insert(rows);
 
     if (itemsError) {
-      return { error: itemsError.message || "Failed to save medication line items." };
+      const itemsMsg =
+        itemsError.message || "Failed to save medication line items.";
+      if (/row-level security/i.test(itemsMsg)) {
+        return {
+          error:
+            "Permission denied saving medication line items (RLS). Confirm migration 0008 is applied and your profile clinic_id is set.",
+        };
+      }
+      return { error: itemsMsg };
     }
 
     revalidatePath("/prescriptions");

@@ -19,11 +19,18 @@
 -- Guarded so re-applying is a no-op.
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- ─── Drop old restrictive policies ────────────────────────────────────────────
+-- ─── Drop old restrictive policies (idempotent) ────────────────────────────
+DROP POLICY IF EXISTS "staff insert prescriptions"          ON public.prescriptions;
+DROP POLICY IF EXISTS "staff select prescriptions"          ON public.prescriptions;
+DROP POLICY IF EXISTS "staff update prescriptions"          ON public.prescriptions;
+DROP POLICY IF EXISTS "staff delete prescriptions"          ON public.prescriptions;
 DROP POLICY IF EXISTS "doctors insert prescriptions"        ON public.prescriptions;
+
+DROP POLICY IF EXISTS "staff write prescription items"      ON public.prescription_items;
+DROP POLICY IF EXISTS "staff select prescription items"     ON public.prescription_items;
+DROP POLICY IF EXISTS "staff update prescription items"     ON public.prescription_items;
+DROP POLICY IF EXISTS "staff delete prescription items"     ON public.prescription_items;
 DROP POLICY IF EXISTS "doctors write prescription items"    ON public.prescription_items;
-DROP POLICY IF EXISTS "Staff can view prescriptions"        ON public.prescriptions;
-DROP POLICY IF EXISTS "Staff can view prescription items"   ON public.prescription_items;
 
 -- ─── prescriptions ────────────────────────────────────────────────────────────
 
