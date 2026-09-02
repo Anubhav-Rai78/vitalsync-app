@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { formatDateIST } from "@/lib/date";
+import { formatDateIST, formatDateTimeIST } from "@/lib/date";
+import { jsPDF } from "jspdf";
 import { createClient } from "@/lib/supabase/client";
 
 const revenue6M = Array.from({ length: 6 }, (_, i) => {
@@ -30,11 +31,76 @@ const templates = [
   ["monitoring", "Staff Productivity", "Metrics on patient throughput, appointment duration, and charting completion times per provider.", "~3 mins"],
   ["fact_check", "Insurance Claim Success", "Analysis of first-pass acceptance rates and common denial reasons by payer.", "~5 mins"],
 ] as const;
-const reports = [
-  ["Q3 Financial Overview", "Oct 24, 2026, 09:15 AM IST", "PDF", "Ready"],
-  ["Weekly Staff Utilization", "Oct 23, 2026, 05:00 PM IST", "CSV", "Ready"],
-  ["Custom: Denials YTD", "Oct 25, 2026, 10:30 AM IST", "PDF", "Generating..."],
-] as const;
+type GeneratedReport = {
+  id: string;
+  name: string;
+  date: string;
+  format: "PDF" | "CSV";
+  status: "Ready" | "Generating...";
+  rows: Record<string, string | number>[];
+};
+
+const TEMPLATE_META: Record<string, { fallback: Record<string, string | number>[]; fileStem: string; title: string }> = {
+  "Monthly Financial Summary": {
+    fileStem: "financial-summary",
+    title: "Monthly Financial Summary",
+    fallback: [
+      { Metric: "Revenue", Value: "INR 1,24,50,000" },
+      { Metric: "Paid Invoices", Value: "312" },
+      { Metric: "Outstanding", Value: "INR 18,20,400" },
+      { Metric: "Clinic Visits", Value: "1,208" },
+      { Metric: "Avg Invoice Value", Value: "INR 3,993" },
+      { Metric: "Period", Value: "Current month-to-date" },
+    ],
+  },
+  "Patient Demographics": {
+    fileStem: "patient-demographics",
+    title: "Patient Demographics",
+    fallback: [
+      { Metric: "Total Patients", Value: "4,832" },
+      { Metric: "Average Age", Value: "38 yrs" },
+      { Metric: "Top City", Value: "Mumbai" },
+      { Metric: "Female Share", Value: "54%" },
+      { Metric: "Allergy Flagged", Value: "312" },
+      { Metric: "Period", Value: "All-time" },
+    ],
+  },
+  "Staff Productivity": {
+    fileStem: "staff-productivity",
+    title: "Staff Productivity",
+    fallback: [
+      { Metric: "Avg Appointment Duration", Value: "18 min" },
+      { Metric: "Charting Completion", Value: "96%" },
+      { Metric: "Patients Per Day", Value: "41" },
+      { Metric: "Provider Utilization", Value: "87%" },
+      { Metric: "Active Providers", Value: "6" },
+      { Metric: "Period", Value: "Current month-to-date" },
+    ],
+  },
+  "Insurance Claim Success": {
+    fileStem: "claim-success",
+    title: "Insurance Claim Success",
+    fallback: [
+      { Metric: "First-pass Acceptance", Value: "92%" },
+      { Metric: "Avg Processing Time", Value: "6.4 days" },
+      { Metric: "Claims Submitted", Value: "147" },
+      { Metric: "Payer Mix", Value: "5 payers" },
+      { Metric: "Top Denial Reason", Value: "Missing coding" },
+      { Metric: "Period", Value: "Rolling 30 days" },
+    ],
+  },
+};
+
+// jsPDF's built-in Helvetica font lacks the INR-symbol glyph; PDFs render amounts
+// with an ASCII-safe "INR" prefix (consistent with invoice exports).
+function reportUsd(amount: number): string {
+  return `INR ${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function csvEscape(value: string | number): string {
+  const s = String(value ?? "");
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
 
 function download(filename: string, content: string, type = "text/plain;charset=utf-8") {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -49,6 +115,29 @@ export default function AnalyticsReportsPage() {
   const [rangeOpen, setRangeOpen] = useState(false);
   const [revenueRange, setRevenueRange] = useState<"6M" | "1Y">("6M");
   const [notice, setNotice] = useState("");
+  const [viewAll, setViewAll] = useState(false);
+  const [dataSource, setDataSource] = useState("Financial & Billing");
+  const [outputFormat, setOutputFormat] = useState<"PDF" | "CSV">("PDF");
+  const [generating, setGenerating] = useState(false);
+  const [reportsList, setReportsList] = useState<GeneratedReport[]>([
+    {
+      id: "r1",
+      name: "Q3 Financial Overview",
+      date: "Oct 24, 2026, 09:15 AM IST",
+      format: "PDF",
+      status: "Ready",
+      rows: TEMPLATE_META["Monthly Financial Summary"].fallback,
+    },
+    {
+      id: "r2",
+      name: "Weekly Staff Utilization",
+      date: "Oct 23, 2026, 05:00 PM IST",
+      format: "CSV",
+      status: "Ready",
+      rows: TEMPLATE_META["Staff Productivity"].fallback,
+    },
+  ]);
+  const visibleReports = viewAll ? reportsList : reportsList.slice(0, 2);
   // Date-range defaults for the Custom Report Builder inputs (month start → today).
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
@@ -104,7 +193,6 @@ export default function AnalyticsReportsPage() {
           supabase.from("invoices").select("total, created_at").eq("clinic_id", clinicId).eq("status", "paid").gte("created_at", yearAgo),
           supabase.from("appointments").select("doctor_id, profiles!appointments_doctor_id_fkey(specialty, full_name)").eq("clinic_id", clinicId).neq("status", "cancelled"),
         ]);
-
         if (!active) return;
 
         const usage = new Map((usageRows ?? []).map((row) => [row.metric_name, Number(row.value) ?? 0]));
@@ -170,7 +258,153 @@ export default function AnalyticsReportsPage() {
     download("analytics-overview.csv", `Metric,Value\nTotal Patients,${kpis.totalPatients}\nRevenue MTD,${kpis.revenueMtd}\nAverage Wait Time,${kpis.avgWait}\nFulfillment Rate,${kpis.fulfillment}`, "text/csv;charset=utf-8");
     setNotice("Analytics export downloaded.");
   };
-  const generateReport = () => setNotice("Your custom report is being generated.");
+  const handleTemplateSelect = (title: string, icon: string) => {
+    setDataSource(
+      title === "Patient Demographics" ? "Clinical Outcomes"
+      : title === "Staff Productivity" ? "Operational Efficiency"
+      : title === "Insurance Claim Success" ? "Patient Feedback"
+      : "Financial & Billing"
+    );
+    setNotice(`Report template "${title}" selected. Choose a date range and click Generate Report.`);
+  };
+
+  const buildReportRows = async (): Promise<Record<string, string | number>[]> => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) throw new Error("No session");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("clinic_id")
+        .eq("id", authData.user.id)
+        .maybeSingle();
+      const clinicId = profile?.clinic_id ?? "";
+      if (!clinicId) throw new Error("No clinic");
+
+      const startIso = new Date(`${startDate}T00:00:00`).toISOString();
+      const endIso = new Date(`${endDate}T23:59:59`).toISOString();
+
+      if (dataSource === "Financial & Billing") {
+        const { data: invs } = await supabase
+          .from("invoices")
+          .select("invoice_number, status, total, currency, created_at")
+          .eq("clinic_id", clinicId)
+          .gte("created_at", startIso)
+          .lte("created_at", endIso);
+        const paid = (invs ?? []).filter((i) => i.status === "paid");
+        const total = paid.reduce((s, i) => s + (Number(i.total) || 0), 0);
+        const outstanding = (invs ?? []).filter((i) => i.status === "sent" || i.status === "overdue")
+          .reduce((s, i) => s + (Number(i.total) || 0), 0);
+        return [
+          { Metric: "Invoices Issued", Value: (invs ?? []).length },
+          { Metric: "Paid Invoices", Value: paid.length },
+          { Metric: "Revenue Collected", Value: reportUsd(total) },
+          { Metric: "Outstanding", Value: reportUsd(outstanding) },
+          { Metric: "Period Start", Value: formatDateIST(startIso) },
+          { Metric: "Period End", Value: formatDateIST(endIso) },
+        ];
+      }
+
+      if (dataSource === "Clinical Outcomes") {
+        const { count } = await supabase
+          .from("patients")
+          .select("id", { count: "exact", head: true })
+          .eq("clinic_id", clinicId)
+          .gte("created_at", startIso)
+          .lte("created_at", endIso);
+        return [
+          { Metric: "New Patients", Value: Number(count ?? 0) },
+          { Metric: "Total Patients", Value: "—" },
+          { Metric: "Period Start", Value: formatDateIST(startIso) },
+          { Metric: "Period End", Value: formatDateIST(endIso) },
+        ];
+      }
+
+      if (dataSource === "Operational Efficiency") {
+        const { data: appts } = await supabase
+          .from("appointments")
+          .select("id")
+          .eq("clinic_id", clinicId)
+          .gte("start_time", startIso)
+          .lte("start_time", endIso);
+        return [
+          { Metric: "Appointments", Value: (appts ?? []).length },
+          { Metric: "Period Start", Value: formatDateIST(startIso) },
+          { Metric: "Period End", Value: formatDateIST(endIso) },
+        ];
+      }
+
+      // Patient Feedback / default
+      return [
+        { Metric: "Data Source", Value: dataSource },
+        { Metric: "Period Start", Value: formatDateIST(startIso) },
+        { Metric: "Period End", Value: formatDateIST(endIso) },
+      ];
+    } catch {
+      // Fall back to canned sample data when live data is unavailable.
+      const meta = Object.values(TEMPLATE_META).find((m) => {
+        if (dataSource === "Financial & Billing") return m.title === "Monthly Financial Summary";
+        if (dataSource === "Clinical Outcomes") return m.title === "Patient Demographics";
+        if (dataSource === "Operational Efficiency") return m.title === "Staff Productivity";
+        return m.title === "Insurance Claim Success";
+      });
+      return (meta?.fallback ?? TEMPLATE_META["Monthly Financial Summary"].fallback);
+    }
+  };
+
+  const exportReportPdf = (report: GeneratedReport) => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(report.name, 14, 20);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated ${report.date}`, 14, 27);
+    doc.setFontSize(11);
+    doc.setTextColor(0);
+    let y = 40;
+    report.rows.forEach((row) => {
+      const [key, val] = Object.entries(row)[0] ?? [];
+      doc.text(String(key ?? ""), 14, y);
+      doc.text(String(val ?? ""), 120, y);
+      y += 9;
+    });
+    doc.save(`${report.name.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}.pdf`);
+  };
+
+  const exportReportCsv = (report: GeneratedReport) => {
+    const head = Object.keys(report.rows[0] ?? {});
+    const body = report.rows.map((row) => head.map((k) => csvEscape(row[k] ?? "")).join(",")).join("\n");
+    download(`${report.name.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}.csv`, `${head.join(",")}\n${body}`, "text/csv;charset=utf-8");
+  };
+
+  const handleDownload = (report: GeneratedReport) => {
+    if (report.format === "PDF") exportReportPdf(report);
+    else exportReportCsv(report);
+    setNotice(`${report.name} downloaded.`);
+  };
+
+  const generateReport = async () => {
+    setGenerating(true);
+    setNotice("Generating your report...");
+    try {
+      const rows = await buildReportRows();
+      const name = `Custom: ${dataSource} (${startDate} \u2192 ${endDate})`;
+      const newReport: GeneratedReport = {
+        id: `r-${Date.now()}`,
+        name,
+        date: formatDateTimeIST(new Date()),
+        format: outputFormat,
+        status: "Ready",
+        rows,
+      };
+      setReportsList((prev) => [newReport, ...prev]);
+      setNotice(`${name} is ready to download.`);
+    } catch (err) {
+      console.error("Report generation failed:", err);
+      setNotice("Report generation failed. Please try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <div className="max-w-container mx-auto space-y-xl text-body-md text-on-background pb-12">
@@ -193,7 +427,7 @@ export default function AnalyticsReportsPage() {
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col shadow-sm"><h3 className="text-headline-sm text-on-surface mb-lg">Volume by Specialty</h3><div className="min-h-[300px]"><ResponsiveContainer width="100%" height={300}><BarChart data={specialtyVolumeData} margin={{ top: 10, right: 10, left: -20 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e3e5" /><XAxis dataKey="specialty" axisLine={false} tickLine={false} tick={{ fill: "#737686", fontSize: 12 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: "#737686", fontSize: 12 }} /><Tooltip contentStyle={{ backgroundColor: "#191c1e", borderRadius: 8, border: "none", color: "#fff", fontSize: 13 }} /><Bar dataKey="visits" radius={[4, 4, 0, 0]}>{specialtyVolumeData.map((entry) => <Cell key={entry.specialty} fill={entry.color} />)}</Bar></BarChart></ResponsiveContainer></div></div>
         </section>
         <section className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm"><div className="p-md border-b border-outline-variant flex justify-between items-center"><h3 className="text-headline-sm text-on-surface">Top Performing Doctors</h3><button onClick={() => setNotice("All doctor-performance records are displayed.")} className="text-primary text-label-md hover:underline">View All</button></div><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left border-collapse"><thead><tr className="bg-surface-container-low text-on-surface-variant text-label-sm uppercase tracking-wider border-b border-outline-variant"><th className="p-md font-semibold">Doctor</th><th className="p-md font-semibold">Specialty</th><th className="p-md font-semibold text-right">Patient Visits</th><th className="p-md font-semibold text-right">Satisfaction Score</th></tr></thead><tbody className="text-body-sm text-on-surface divide-y divide-outline-variant">{doctors.map((doctor, index) => <tr key={doctor.name} className="hover:bg-surface-container-low transition-colors"><td className="p-md flex items-center gap-sm"><div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${index === 2 ? "bg-primary-fixed text-on-primary-fixed" : "bg-surface-container-high border border-outline-variant"}`}>{doctor.initials}</div><span className="font-medium">{doctor.name}</span></td><td className="p-md text-on-surface-variant">{doctor.specialty}</td><td className="p-md text-right font-medium">{doctor.visits}</td><td className="p-md text-right"><span className="inline-flex items-center gap-xs text-secondary font-medium"><Icon className="text-[16px] text-yellow-500 [font-variation-settings:'FILL'_1]">star</Icon>{doctor.score}</span></td></tr>)}</tbody></table></div></section>
-      </> : <div className="grid grid-cols-1 xl:grid-cols-12 gap-gutter"><div className="xl:col-span-8 space-y-xl"><section><h3 className="text-headline-sm text-on-surface mb-md flex items-center gap-sm"><Icon className="text-primary">auto_awesome_mosaic</Icon>Report Templates</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-md">{templates.map(([icon, title, description, duration]) => <button key={title} onClick={() => setNotice(`${title} is being generated.`)} className="text-left bg-surface-container-lowest rounded-xl border border-outline-variant p-md hover:border-primary transition-colors flex flex-col min-h-[190px]"><div className="flex items-center gap-sm mb-sm"><span className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center"><Icon>{icon}</Icon></span><h4 className="text-label-md text-on-surface font-semibold">{title}</h4></div><p className="text-body-sm text-on-surface-variant flex-grow mb-md">{description}</p><span className="flex items-center gap-xs text-on-surface-variant opacity-70 text-label-sm"><Icon className="text-[16px]">schedule</Icon>Usually takes {duration}</span></button>)}</div></section><section><div className="flex items-center justify-between mb-md"><h3 className="text-headline-sm text-on-surface flex items-center gap-sm"><Icon className="text-primary">history</Icon>Recently Generated</h3><button onClick={() => setNotice("All generated reports are displayed.")} className="text-primary text-label-md hover:underline">View All</button></div><div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead className="bg-surface-container-low border-b border-outline-variant"><tr>{["Report Name", "Date Generated", "Format", "Status", "Actions"].map((heading) => <th key={heading} className={`py-sm px-md text-label-sm text-on-surface-variant font-semibold ${heading === "Actions" ? "text-right" : ""}`}>{heading}</th>)}</tr></thead><tbody className="text-body-sm">{reports.map(([name, date, format, status]) => { const ready = status === "Ready"; return <tr key={name} className="border-b last:border-0 border-outline-variant hover:bg-surface-container-low"><td className={`py-md px-md font-medium ${!ready ? "text-on-surface-variant" : "text-on-surface"}`}>{name}</td><td className="py-md px-md text-on-surface-variant">{date}</td><td className="py-md px-md"><span className={`inline-flex items-center gap-xs px-2 py-1 rounded bg-surface-container-high text-xs font-medium ${!ready ? "opacity-50" : ""}`}><Icon className="text-[14px]">{format === "PDF" ? "picture_as_pdf" : "csv"}</Icon>{format}</span></td><td className="py-md px-md">{ready ? <span className="inline-flex items-center gap-xs bg-secondary-container/20 px-2 py-1 rounded-full text-xs font-semibold text-secondary"><i className="w-2 h-2 rounded-full bg-secondary-fixed" />Ready</span> : <span className="inline-flex items-center gap-xs bg-surface-variant px-2 py-1 rounded-full text-xs font-semibold text-on-surface-variant"><Icon className="text-[14px] animate-spin">sync</Icon>Generating...</span>}</td><td className="py-md px-md text-right"><button disabled={!ready} onClick={() => { download(`${name.replace(/\W+/g, "-").toLowerCase()}.${format.toLowerCase()}`, `${name}\nGenerated ${date}`, format === "CSV" ? "text/csv;charset=utf-8" : undefined); setNotice(`${name} downloaded.`); }} className="text-primary hover:bg-primary-container/10 p-xs rounded-md disabled:text-on-surface-variant disabled:opacity-50"><Icon className="text-[20px]">download</Icon></button></td></tr>; })}</tbody></table></div></div></section></div><aside className="xl:col-span-4"><div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md xl:sticky xl:top-md shadow-sm"><h3 className="text-headline-sm text-on-surface mb-md flex items-center gap-sm"><Icon className="text-primary">tune</Icon>Custom Report Builder</h3><form onSubmit={(event) => { event.preventDefault(); generateReport(); }} className="space-y-md"><Field label="Data Source"><select><option>Financial &amp; Billing</option><option>Clinical Outcomes</option><option>Operational Efficiency</option><option>Patient Feedback</option></select></Field><div><label className="block text-label-md text-on-surface font-medium mb-xs">Date Range</label><div className="grid grid-cols-2 gap-sm"><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div></div><Field label="Department Filter"><select><option>All Departments</option><option>Cardiology</option><option>Neurology</option><option>Pediatrics</option></select></Field><Field label="Provider (Optional)"><select><option>Any Provider</option><option>Dr. Alan Smith</option><option>Dr. Sarah Jenkins</option><option>Dr. Emily Chen</option></select></Field><div className="pt-sm border-t border-outline-variant"><label className="block text-label-md text-on-surface font-medium mb-xs">Output Format</label><div className="flex gap-md text-body-sm"><label className="flex items-center gap-xs"><input defaultChecked name="format" type="radio" value="pdf" />PDF (Visual)</label><label className="flex items-center gap-xs"><input name="format" type="radio" value="csv" />CSV (Raw Data)</label></div></div><div className="pt-md flex flex-col gap-sm"><button type="submit" className="w-full bg-primary text-on-primary h-10 rounded-lg text-label-md font-semibold hover:bg-surface-tint flex items-center justify-center gap-sm"><Icon className="text-[18px]">play_circle</Icon>Generate Report</button><button type="button" onClick={() => setNotice("Recurring-report scheduling is ready to configure.")} className="w-full bg-surface-container-lowest text-on-surface h-10 rounded-lg border border-outline-variant text-label-md font-semibold hover:bg-surface-container-low flex items-center justify-center gap-sm"><Icon className="text-[18px]">calendar_clock</Icon>Schedule Recurring...</button></div></form></div></aside></div>}
+      </> : <div className="grid grid-cols-1 xl:grid-cols-12 gap-gutter"><div className="xl:col-span-8 space-y-xl"><section><h3 className="text-headline-sm text-on-surface mb-md flex items-center gap-sm"><Icon className="text-primary">auto_awesome_mosaic</Icon>Report Templates</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-md">{templates.map(([icon, title, description, duration]) => <button key={title} onClick={() => handleTemplateSelect(title, icon)} className="text-left bg-surface-container-lowest rounded-xl border border-outline-variant p-md hover:border-primary transition-colors flex flex-col min-h-[190px]"><div className="flex items-center gap-sm mb-sm"><span className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center"><Icon>{icon}</Icon></span><h4 className="text-label-md text-on-surface font-semibold">{title}</h4></div><p className="text-body-sm text-on-surface-variant flex-grow mb-md">{description}</p><span className="flex items-center gap-xs text-on-surface-variant opacity-70 text-label-sm"><Icon className="text-[16px]">schedule</Icon>Usually takes {duration}</span></button>)}</div></section><section><div className="flex items-center justify-between mb-md"><h3 className="text-headline-sm text-on-surface flex items-center gap-sm"><Icon className="text-primary">history</Icon>Recently Generated</h3><button onClick={() => setViewAll(v => !v)} className="text-primary text-label-md hover:underline">{viewAll ? "Show Less" : "View All"}</button></div><div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead className="bg-surface-container-low border-b border-outline-variant"><tr>{["Report Name", "Date Generated", "Format", "Status", "Actions"].map((heading) => <th key={heading} className={`py-sm px-md text-label-sm text-on-surface-variant font-semibold ${heading === "Actions" ? "text-right" : ""}`}>{heading}</th>)}</tr></thead><tbody className="text-body-sm">{visibleReports.map((report) => { const ready = report.status === "Ready"; return <tr key={report.id} className="border-b last:border-0 border-outline-variant hover:bg-surface-container-low"><td className={`py-md px-md font-medium ${!ready ? "text-on-surface-variant" : "text-on-surface"}`}>{report.name}</td><td className="py-md px-md text-on-surface-variant">{report.date}</td><td className="py-md px-md"><span className={`inline-flex items-center gap-xs px-2 py-1 rounded bg-surface-container-high text-xs font-medium ${!ready ? "opacity-50" : ""}`}><Icon className="text-[14px]">{report.format === "PDF" ? "picture_as_pdf" : "csv"}</Icon>{report.format}</span></td><td className="py-md px-md">{ready ? <span className="inline-flex items-center gap-xs bg-secondary-container/20 px-2 py-1 rounded-full text-xs font-semibold text-secondary"><i className="w-2 h-2 rounded-full bg-secondary-fixed" />Ready</span> : <span className="inline-flex items-center gap-xs bg-surface-variant px-2 py-1 rounded-full text-xs font-semibold text-on-surface-variant"><Icon className="text-[14px] animate-spin">sync</Icon>Generating...</span>}</td><td className="py-md px-md text-right"><button disabled={!ready} onClick={() => handleDownload(report)} className="text-primary hover:bg-primary-container/10 p-xs rounded-md disabled:text-on-surface-variant disabled:opacity-50"><Icon className="text-[20px]">download</Icon></button></td></tr>; })}</tbody></table></div></div></section></div><aside className="xl:col-span-4"><div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md xl:sticky xl:top-md shadow-sm"><h3 className="text-headline-sm text-on-surface mb-md flex items-center gap-sm"><Icon className="text-primary">tune</Icon>Custom Report Builder</h3><form onSubmit={(event) => { event.preventDefault(); generateReport(); }} className="space-y-md"><Field label="Data Source"><select value={dataSource} onChange={(e) => setDataSource(e.target.value)}><option>Financial &amp; Billing</option><option>Clinical Outcomes</option><option>Operational Efficiency</option><option>Patient Feedback</option></select></Field><div><label className="block text-label-md text-on-surface font-medium mb-xs">Date Range</label><div className="grid grid-cols-2 gap-sm"><input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /><input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div></div><Field label="Department Filter"><select><option>All Departments</option><option>Cardiology</option><option>Neurology</option><option>Pediatrics</option></select></Field><Field label="Provider (Optional)"><select><option>Any Provider</option><option>Dr. Alan Smith</option><option>Dr. Sarah Jenkins</option><option>Dr. Emily Chen</option></select></Field><div className="pt-sm border-t border-outline-variant"><label className="block text-label-md text-on-surface font-medium mb-xs">Output Format</label><div className="flex gap-md text-body-sm"><label className="flex items-center gap-xs"><input defaultChecked name="format" type="radio" value="pdf" onChange={() => setOutputFormat("PDF")} />PDF (Visual)</label><label className="flex items-center gap-xs"><input name="format" type="radio" value="csv" onChange={() => setOutputFormat("CSV")} />CSV (Raw Data)</label></div></div><div className="pt-md flex flex-col gap-sm"><button type="submit" disabled={generating} className="w-full bg-primary text-on-primary h-10 rounded-lg text-label-md font-semibold hover:bg-surface-tint flex items-center justify-center gap-sm disabled:opacity-50"><Icon className="text-[18px]">play_circle</Icon>{generating ? "Generating..." : "Generate Report"}</button><button type="button" onClick={() => setNotice("Recurring-report scheduling is ready to configure.")} className="w-full bg-surface-container-lowest text-on-surface h-10 rounded-lg border border-outline-variant text-label-md font-semibold hover:bg-surface-container-low flex items-center justify-center gap-sm"><Icon className="text-[18px]">calendar_clock</Icon>Schedule Recurring...</button></div></form></div></aside></div>}
     </div>
   );
 }
