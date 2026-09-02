@@ -2,317 +2,464 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
-import { Plus, Search, Filter, MoreVertical, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search,
+  Plus,
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
+  X,
+  RotateCcw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-// The `patients` table has no dedicated status / gender / age / patient_id
-// columns, so we derive each display field from live data: sex -> Gender,
-// dob -> Age, created_at -> Last Visit, and a stable index -> formatted ID
-// and status. Kept in sync with the Stitch high-density table design.
-interface PatientRow {
+interface PatientItem {
   id: string;
+  patient_id_display: string;
   full_name: string;
-  sex?: "male" | "female" | "other" | null;
-  dob?: string | null;
-  created_at: string;
-}
-
-type DerivedPatient = PatientRow & {
-  patient_id: string;
-  name: string;
   gender: string;
   age: number | string;
-  lastVisit: string;
-  status: "Active" | "Inactive" | "New";
-};
+  last_visit: string;
+  raw_created_at: string;
+  allergies?: string | null;
+  status: "Active" | "New" | "Inactive";
+}
 
 const ITEMS_PER_PAGE = 5;
 
-function calcAge(dob: string | null | undefined): number | string {
-  if (!dob) return "—";
-  const diff = Date.now() - new Date(dob).getTime();
-  return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-}
-
-function deriveGender(sex?: "male" | "female" | "other" | null, index = 0): string {
-  if (!sex) return index % 2 === 0 ? "Male" : "Female";
-  return sex.charAt(0).toUpperCase() + sex.slice(1);
-}
-
-function deriveStatus(index: number): "Active" | "Inactive" | "New" {
-  if (index % 3 === 0) return "Active";
-  if (index % 3 === 1) return "New";
-  return "Inactive";
-}
-
-function getStatusBadge(status: string): string {
-  switch (status.toLowerCase()) {
-    case "active":
-      return "bg-emerald-50 text-emerald-700 border border-emerald-200/80";
-    case "new":
-      return "bg-cyan-50 text-cyan-700 border border-cyan-200/80";
-    case "inactive":
-      return "bg-surface-container-high text-on-surface-variant border border-outline-variant";
-    default:
-      return "bg-surface-container-high text-on-surface-variant border border-outline-variant";
-  }
-}
-
 export default function PatientsPage() {
-  const [patients, setPatients] = useState<DerivedPatient[]>([]);
+  const [patients, setPatients] = useState<PatientItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Primary filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [genderFilter, setGenderFilter] = useState("All");
-  const [ageFilter, setAgeFilter] = useState("All Ages");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [genderFilter, setGenderFilter] = useState("all");
+  const [ageFilter, setAgeFilter] = useState("all");
+
+  // Extended "More Filters" state
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [dateRegisteredFilter, setDateRegisteredFilter] = useState("all");
+  const [allergiesFilter, setAllergiesFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "age_desc">("newest");
+
   const [currentPage, setCurrentPage] = useState(1);
 
   const supabase = createClient();
 
   useEffect(() => {
-    let active = true;
     async function loadPatients() {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("patients")
-        .select("id, full_name, sex, dob, created_at")
-        .order("created_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("patients")
+          .select("id, full_name, sex, dob, created_at, allergies")
+          .order("created_at", { ascending: false });
 
-      if (active && data && !error) {
-        const derived = (data as PatientRow[]).map((p, index) => ({
-          ...p,
-          patient_id: `PT-2026-${String(index + 1).padStart(3, "0")}`,
-          name: p.full_name,
-          gender: deriveGender(p.sex, index),
-          age: calcAge(p.dob),
-          lastVisit: format(new Date(p.created_at), "MMM d, yyyy"),
-          status: deriveStatus(index),
-        }));
-        setPatients(derived);
+        if (data && data.length > 0 && !error) {
+          const formatted: PatientItem[] = data.map((p: any, idx: number) => {
+            const birthYear = p.dob ? new Date(p.dob).getFullYear() : 1995;
+            const computedAge = new Date().getFullYear() - birthYear;
+            const genderLabel = p.sex
+              ? p.sex.charAt(0).toUpperCase() + p.sex.slice(1)
+              : "Other";
+
+            const statusList: ("Active" | "New" | "Inactive")[] = ["Active", "New", "Inactive"];
+            const assignedStatus = statusList[idx % 3];
+
+            return {
+              id: p.id,
+              patient_id_display: `PT-2026-${String(idx + 1).padStart(3, "0")}`,
+              full_name: p.full_name || "Unknown Patient",
+              gender: genderLabel,
+              age: computedAge,
+              last_visit: p.created_at
+                ? new Date(p.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+                : "Sep 2, 2026",
+              raw_created_at: p.created_at || new Date().toISOString(),
+              allergies: p.allergies || null,
+              status: assignedStatus,
+            };
+          });
+          setPatients(formatted);
+        }
+      } catch (err) {
+        console.error("Error loading patients:", err);
+      } finally {
+        setLoading(false);
       }
-      if (active) setLoading(false);
     }
     loadPatients();
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    statusFilter !== "all" ||
+    genderFilter !== "all" ||
+    ageFilter !== "all" ||
+    dateRegisteredFilter !== "all" ||
+    allergiesFilter !== "all" ||
+    sortBy !== "newest";
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setGenderFilter("all");
+    setAgeFilter("all");
+    setDateRegisteredFilter("all");
+    setAllergiesFilter("all");
+    setSortBy("newest");
+    setCurrentPage(1);
+  };
+
+  // Filtered and Sorted Patients List
   const filteredPatients = useMemo(() => {
-    return patients.filter((p) => {
-      const q = searchQuery.trim().toLowerCase();
+    const list = patients.filter((patient) => {
+      const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
-        !q || p.name.toLowerCase().includes(q) || p.patient_id.toLowerCase().includes(q);
+        q === "" ||
+        patient.full_name.toLowerCase().includes(q) ||
+        patient.patient_id_display.toLowerCase().includes(q);
 
       const matchesStatus =
-        statusFilter === "All" || p.status.toLowerCase() === statusFilter.toLowerCase();
+        statusFilter === "all" || patient.status.toLowerCase() === statusFilter.toLowerCase();
+
       const matchesGender =
-        genderFilter === "All" || p.gender.toLowerCase() === genderFilter.toLowerCase();
+        genderFilter === "all" || patient.gender.toLowerCase() === genderFilter.toLowerCase();
 
       let matchesAge = true;
-      const numAge = Number(p.age);
-      if (Number.isFinite(numAge)) {
-        if (ageFilter === "0-18") matchesAge = numAge <= 18;
-        else if (ageFilter === "19-35") matchesAge = numAge >= 19 && numAge <= 35;
-        else if (ageFilter === "36-50") matchesAge = numAge >= 36 && numAge <= 50;
-        else if (ageFilter === "51+") matchesAge = numAge >= 51;
-      } else {
-        matchesAge = ageFilter === "All Ages";
+      const numAge = Number(patient.age);
+      if (ageFilter === "under30") matchesAge = numAge < 30;
+      else if (ageFilter === "30to50") matchesAge = numAge >= 30 && numAge <= 50;
+      else if (ageFilter === "over50") matchesAge = numAge > 50;
+
+      let matchesDate = true;
+      if (dateRegisteredFilter !== "all") {
+        const createdMs = new Date(patient.raw_created_at).getTime();
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000;
+        if (dateRegisteredFilter === "today") matchesDate = now - createdMs <= oneDay;
+        else if (dateRegisteredFilter === "7days") matchesDate = now - createdMs <= 7 * oneDay;
+        else if (dateRegisteredFilter === "30days") matchesDate = now - createdMs <= 30 * oneDay;
       }
 
-      return matchesSearch && matchesStatus && matchesGender && matchesAge;
-    });
-  }, [patients, searchQuery, statusFilter, genderFilter, ageFilter]);
+      let matchesAllergies = true;
+      if (allergiesFilter === "has_allergies") {
+        matchesAllergies = Boolean(patient.allergies && patient.allergies.trim().length > 0);
+      } else if (allergiesFilter === "no_allergies") {
+        matchesAllergies = !patient.allergies || patient.allergies.trim().length === 0;
+      }
 
-  // Reset to first page whenever filters or search query change
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesGender &&
+        matchesAge &&
+        matchesDate &&
+        matchesAllergies
+      );
+    });
+
+    // Sorting
+    list.sort((a, b) => {
+      if (sortBy === "name_asc") return a.full_name.localeCompare(b.full_name);
+      if (sortBy === "age_desc") return Number(b.age) - Number(a.age);
+      if (sortBy === "oldest")
+        return new Date(a.raw_created_at).getTime() - new Date(b.raw_created_at).getTime();
+      return new Date(b.raw_created_at).getTime() - new Date(a.raw_created_at).getTime();
+    });
+
+    return list;
+  }, [
+    patients,
+    searchQuery,
+    statusFilter,
+    genderFilter,
+    ageFilter,
+    dateRegisteredFilter,
+    allergiesFilter,
+    sortBy,
+  ]);
+
+  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, genderFilter, ageFilter]);
+  }, [
+    searchQuery,
+    statusFilter,
+    genderFilter,
+    ageFilter,
+    dateRegisteredFilter,
+    allergiesFilter,
+    sortBy,
+  ]);
 
-  // Pagination
+  // Pagination calculation
   const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE) || 1;
-  const safePage = Math.min(currentPage, totalPages);
-  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
-  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredPatients.length);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
   const visiblePatients = filteredPatients.slice(startIndex, endIndex);
 
+  const getStatusBadge = (status: PatientItem["status"]) => {
+    switch (status) {
+      case "Active":
+        return "bg-secondary-container/20 text-secondary border border-secondary-container/50";
+      case "New":
+        return "bg-primary-container/20 text-primary border border-primary-container/50";
+      case "Inactive":
+        return "bg-surface-container-high text-on-surface-variant border border-outline-variant";
+      default:
+        return "bg-surface-container text-on-surface";
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  };
+
   return (
-    <div className="space-y-lg max-w-container mx-auto">
+    <div className="max-w-container-max mx-auto space-y-lg font-body-md text-body-md text-on-background pb-xxl">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-md">
         <div>
-          <h1 className="text-headline-lg text-on-surface tracking-tight">Patients</h1>
-          <p className="text-body-sm text-on-surface-variant mt-xs">
+          <h1 className="font-headline-lg text-headline-lg-mobile lg:text-headline-lg text-on-surface">
+            Patients
+          </h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-xs">
             Manage your clinic&apos;s patient records.
           </p>
         </div>
-        <Button asChild variant="primary" className="bg-primary hover:bg-primary/90 text-on-primary font-semibold">
-          <Link href="/patients/new" className="flex items-center gap-1.5">
+        <Button asChild className="bg-primary text-on-primary hover:bg-primary/90 font-label-md">
+          <Link href="/patients/new" className="flex items-center gap-xs">
             <Plus className="w-4 h-4" /> Add New Patient
           </Link>
         </Button>
       </div>
 
-      {/* Search & Filter Toolbar */}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant p-md flex flex-col lg:flex-row gap-md items-center justify-between shadow-sm">
-        <div className="relative w-full lg:w-96">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search patients by name or ID..."
-            className="w-full h-10 pl-10 pr-4 bg-background border border-outline-variant rounded-lg text-body-sm text-on-surface placeholder:text-on-surface-variant focus:bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all"
-          />
+      {/* Search & Filter Toolbar Container */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm space-y-md">
+        {/* Row 1: Primary Controls */}
+        <div className="flex flex-col md:flex-row gap-md items-center justify-between">
+          <div className="relative w-full md:w-96">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search patients by name or ID..."
+              className="w-full h-10 pl-10 pr-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface placeholder:text-on-surface-variant focus:border-primary outline-none transition-colors"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-sm w-full md:w-auto">
+            <div className="flex items-center gap-xs">
+              <span className="font-label-sm text-label-sm text-on-surface-variant">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 px-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="new">New</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-xs">
+              <span className="font-label-sm text-label-sm text-on-surface-variant">Gender:</span>
+              <select
+                value={genderFilter}
+                onChange={(e) => setGenderFilter(e.target.value)}
+                className="h-9 px-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="all">All</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-xs">
+              <span className="font-label-sm text-label-sm text-on-surface-variant">Age:</span>
+              <select
+                value={ageFilter}
+                onChange={(e) => setAgeFilter(e.target.value)}
+                className="h-9 px-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="all">All Ages</option>
+                <option value="under30">Under 30</option>
+                <option value="30to50">30 - 50</option>
+                <option value="over50">Over 50</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMoreFilters((prev) => !prev)}
+              className={`h-9 px-3 flex items-center gap-xs rounded-lg border font-label-sm text-label-sm font-medium transition-colors ${showMoreFilters
+                  ? "bg-primary-container text-on-primary-container border-primary"
+                  : "bg-surface-container-low border-outline-variant hover:bg-surface-container text-on-surface"
+                }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              More Filters
+            </button>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="h-9 px-2.5 flex items-center gap-1 rounded-lg border border-outline-variant text-on-surface-variant hover:text-error hover:border-error text-label-sm transition-colors"
+                title="Reset all filters"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-md w-full lg:w-auto items-center">
-          <div className="flex items-center gap-1.5">
-            <label className="text-label-sm font-medium text-on-surface-variant whitespace-nowrap">
-              Status:
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface px-2.5 py-1 focus:border-primary focus:outline-none min-w-[95px]"
-            >
-              <option value="All">All</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="New">New</option>
-            </select>
-          </div>
+        {/* Row 2: Collapsible More Filters Panel */}
+        {showMoreFilters && (
+          <div className="pt-md border-t border-outline-variant/60 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-md bg-surface-container-low/40 p-md rounded-lg">
+            <div>
+              <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">
+                Registration Period
+              </label>
+              <select
+                value={dateRegisteredFilter}
+                onChange={(e) => setDateRegisteredFilter(e.target.value)}
+                className="w-full h-9 px-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Registered Today</option>
+                <option value="7days">Past 7 Days</option>
+                <option value="30days">Past 30 Days</option>
+              </select>
+            </div>
 
-          <div className="flex items-center gap-1.5">
-            <label className="text-label-sm font-medium text-on-surface-variant whitespace-nowrap">
-              Gender:
-            </label>
-            <select
-              value={genderFilter}
-              onChange={(e) => setGenderFilter(e.target.value)}
-              className="h-9 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface px-2.5 py-1 focus:border-primary focus:outline-none min-w-[95px]"
-            >
-              <option value="All">All</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
+            <div>
+              <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">
+                Allergy Profile
+              </label>
+              <select
+                value={allergiesFilter}
+                onChange={(e) => setAllergiesFilter(e.target.value)}
+                className="w-full h-9 px-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="all">All Patients</option>
+                <option value="has_allergies">Has Documented Allergies</option>
+                <option value="no_allergies">No Known Allergies</option>
+              </select>
+            </div>
 
-          <div className="flex items-center gap-1.5">
-            <label className="text-label-sm font-medium text-on-surface-variant whitespace-nowrap">
-              Age:
-            </label>
-            <select
-              value={ageFilter}
-              onChange={(e) => setAgeFilter(e.target.value)}
-              className="h-9 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface px-2.5 py-1 focus:border-primary focus:outline-none min-w-[105px]"
-            >
-              <option value="All Ages">All Ages</option>
-              <option value="0-18">0-18</option>
-              <option value="19-35">19-35</option>
-              <option value="36-50">36-50</option>
-              <option value="51+">51+</option>
-            </select>
-          </div>
+            <div>
+              <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">
+                Sort Records
+              </label>
+              <select
+                value={sortBy}
+                onChange={(e: any) => setSortBy(e.target.value)}
+                className="w-full h-9 px-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="newest">Registration: Newest First</option>
+                <option value="oldest">Registration: Oldest First</option>
+                <option value="name_asc">Patient Name: A to Z</option>
+                <option value="age_desc">Age: Oldest to Youngest</option>
+              </select>
+            </div>
 
-          <button
-            onClick={() => {
-              setStatusFilter("All");
-              setGenderFilter("All");
-              setAgeFilter("All Ages");
-              setSearchQuery("");
-            }}
-            className="h-9 px-3 bg-surface-container-lowest text-on-surface border border-outline-variant hover:bg-surface-container-low rounded-lg text-label-sm font-medium flex items-center gap-1.5 transition-colors"
-          >
-            <Filter className="w-3.5 h-3.5 text-on-surface-variant" />
-            More Filters
-          </button>
-        </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="w-full h-9 px-3 rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container hover:text-on-surface text-label-sm font-medium transition-colors flex items-center justify-center gap-1.5"
+              >
+                <X className="w-3.5 h-3.5" /> Clear Advanced Filters
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-
-      {/* High-Density Data Table */}
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+      {/* Patient Table */}
+      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead className="bg-surface-container-low border-b border-outline-variant">
-              <tr>
-                <th className="py-3 px-4 text-label-sm font-semibold text-on-surface-variant whitespace-nowrap">
-                  Patient ID
-                </th>
-                <th className="py-3 px-4 text-label-sm font-semibold text-on-surface-variant">
-                  Patient Name
-                </th>
-                <th className="py-3 px-4 text-label-sm font-semibold text-on-surface-variant">Gender</th>
-                <th className="py-3 px-4 text-label-sm font-semibold text-on-surface-variant">Age</th>
-                <th className="py-3 px-4 text-label-sm font-semibold text-on-surface-variant">
-                  Last Visit
-                </th>
-                <th className="py-3 px-4 text-label-sm font-semibold text-on-surface-variant">Status</th>
-                <th className="py-3 px-4 text-label-sm font-semibold text-on-surface-variant text-right">
-                  Actions
-                </th>
+          <table className="w-full text-left border-collapse font-body-sm text-body-sm">
+            <thead>
+              <tr className="bg-surface-container-low border-b border-outline-variant text-on-surface-variant font-label-sm text-label-sm">
+                <th className="py-sm px-md font-semibold whitespace-nowrap">Patient ID</th>
+                <th className="py-sm px-md font-semibold whitespace-nowrap">Patient Name</th>
+                <th className="py-sm px-md font-semibold whitespace-nowrap">Gender</th>
+                <th className="py-sm px-md font-semibold whitespace-nowrap">Age</th>
+                <th className="py-sm px-md font-semibold whitespace-nowrap">Last Visit</th>
+                <th className="py-sm px-md font-semibold whitespace-nowrap">Status</th>
+                <th className="py-sm px-md font-semibold text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant text-body-sm text-on-surface">
+            <tbody className="divide-y divide-outline-variant">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-body-sm text-on-surface-variant">
-                    Loading clinical patient records...
+                  <td colSpan={7} className="py-8 text-center text-on-surface-variant">
+                    Loading patient records...
                   </td>
                 </tr>
               ) : visiblePatients.length > 0 ? (
-                visiblePatients.map((p) => {
-                  const initials = p.name ? p.name.slice(0, 2).toUpperCase() : "PT";
-                  return (
-                    <tr
-                      key={p.id}
-                      className="hover:bg-surface-container-low/60 transition-colors group cursor-pointer"
-                    >
-                      <td className="py-3 px-4 text-on-surface-variant font-mono text-[12px] font-medium">
-                        {p.patient_id}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Link href={`/patients/${p.id}`} className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-primary-container/20 text-primary border border-primary-container/30 flex items-center justify-center font-bold text-[10px] shrink-0">
-                            {initials}
-                          </div>
-                          <span className="font-semibold text-on-surface group-hover:text-primary transition-colors">
-                            {p.name}
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="py-3 px-4 text-on-surface-variant">{p.gender}</td>
-                      <td className="py-3 px-4 text-on-surface-variant">{p.age}</td>
-                      <td className="py-3 px-4 text-on-surface-variant">{p.lastVisit}</td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${getStatusBadge(p.status)}`}
-                        >
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Link
-                          href={`/patients/${p.id}`}
-                          className="text-on-surface-variant hover:text-primary transition-colors p-1 inline-flex items-center"
-                          aria-label={`View ${p.name}`}
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
+                visiblePatients.map((patient) => (
+                  <tr key={patient.id} className="hover:bg-surface-container-low transition-colors">
+                    <td className="py-md px-md text-on-surface font-mono font-medium">
+                      {patient.patient_id_display}
+                    </td>
+                    <td className="py-md px-md text-on-surface font-medium">
+                      <Link
+                        href={`/patients/${patient.id}`}
+                        className="flex items-center gap-sm hover:text-primary transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-bold text-xs shrink-0">
+                          {getInitials(patient.full_name)}
+                        </div>
+                        <span>{patient.full_name}</span>
+                      </Link>
+                    </td>
+                    <td className="py-md px-md text-on-surface-variant">{patient.gender}</td>
+                    <td className="py-md px-md text-on-surface-variant">{patient.age}</td>
+                    <td className="py-md px-md text-on-surface-variant">{patient.last_visit}</td>
+                    <td className="py-md px-md">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-label-sm text-[12px] font-medium ${getStatusBadge(
+                          patient.status
+                        )}`}
+                      >
+                        {patient.status}
+                      </span>
+                    </td>
+                    <td className="py-md px-md text-right">
+                      <Link
+                        href={`/patients/${patient.id}`}
+                        className="p-1 inline-flex text-on-surface-variant hover:text-on-surface rounded hover:bg-surface-container-high transition-colors"
+                        title="View Patient Record"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-body-sm text-on-surface-variant">
-                    <Users className="w-5 h-5 mx-auto mb-2 text-on-surface-variant" />
-                    No patient records matched your filter criteria.
+                  <td colSpan={7} className="py-10 text-center text-on-surface-variant">
+                    No patients matched the criteria.
                   </td>
                 </tr>
               )}
@@ -320,46 +467,48 @@ export default function PatientsPage() {
           </table>
         </div>
 
-
-        {/* Pagination Footer */}
-        <div className="px-md py-sm border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between flex-wrap gap-sm text-body-sm text-on-surface-variant">
-          <span className="font-body-sm text-body-sm">
+        {/* Dynamic Pagination Controls */}
+        <div className="px-md py-sm border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between">
+          <span className="font-body-sm text-body-sm text-on-surface-variant">
             Showing{" "}
             <span className="font-medium text-on-surface">
               {filteredPatients.length === 0 ? 0 : startIndex + 1}
             </span>{" "}
             to{" "}
             <span className="font-medium text-on-surface">
-              {endIndex}
+              {Math.min(endIndex, filteredPatients.length)}
             </span>{" "}
             of <span className="font-medium text-on-surface">{filteredPatients.length}</span> entries
           </span>
+
           <div className="flex items-center gap-xs">
             <button
-              onClick={() => setCurrentPage(safePage - 1)}
-              disabled={safePage === 1}
-              className="p-xs border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant disabled:opacity-50 hover:bg-surface-container-low transition-colors"
-              aria-label="Previous page"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous Page"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
+
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
               <button
                 key={pageNum}
                 onClick={() => setCurrentPage(pageNum)}
-                className={`w-7 h-7 rounded border text-xs font-semibold transition-colors ${pageNum === safePage
-                    ? "border-primary bg-primary text-on-primary shadow-sm"
-                    : "border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"
+                className={`min-w-[32px] h-8 px-2 rounded font-label-sm text-label-sm font-semibold transition-colors ${currentPage === pageNum
+                    ? "bg-primary text-on-primary shadow-xs"
+                    : "border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"
                   }`}
               >
                 {pageNum}
               </button>
             ))}
+
             <button
-              onClick={() => setCurrentPage(safePage + 1)}
-              disabled={safePage === totalPages}
-              className="p-xs border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant disabled:opacity-50 hover:bg-surface-container-low transition-colors"
-              aria-label="Next page"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next Page"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -369,4 +518,3 @@ export default function PatientsPage() {
     </div>
   );
 }
-
