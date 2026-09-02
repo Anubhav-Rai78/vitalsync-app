@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export type PatientFormState = { error: string | null };
 
@@ -50,6 +50,107 @@ export async function createPatientAction(
 
   revalidatePath("/patients");
   redirect(`/patients/${inserted.id}`);
+}
+
+// ──────────────────────────────────────────────────────────────
+// Quick Add Medication (admin bypass for RLS)
+// ──────────────────────────────────────────────────────────────
+export type QuickMedState = { error: string | null; prescriptionId?: string };
+
+export async function addQuickMedicationAction(
+  patientId: string,
+  data: {
+    drugName: string;
+    dosage?: string | null;
+    frequency?: string | null;
+    duration?: string | null;
+    instructions?: string | null;
+  }
+): Promise<QuickMedState> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("clinic_id, full_name")
+    .eq("id", user.id)
+    .single();
+  if (!profile) return { error: "Could not resolve your clinic." };
+
+  // Use admin client to bypass RLS — admins create prescriptions on behalf of doctors.
+  const admin = createAdminClient();
+
+  // Create a draft prescription for this patient
+  const { data: rx, error: rxErr } = await admin
+    .from("prescriptions")
+    .insert({
+      clinic_id: profile.clinic_id,
+      patient_id: patientId,
+      doctor_id: user.id,
+      diagnosis: data.drugName,
+      notes: data.instructions || null,
+    })
+    .select("id")
+    .single();
+
+  if (rxErr || !rx) return { error: rxErr?.message ?? "Failed to create prescription." };
+
+  // Insert the prescription item
+  const { error: itemErr } = await admin.from("prescription_items").insert({
+    prescription_id: rx.id,
+    drug_name: data.drugName,
+    dosage: data.dosage || null,
+    frequency: data.frequency || null,
+    duration: data.duration || null,
+    instructions: data.instructions || null,
+  });
+
+  if (itemErr) return { error: itemErr.message };
+
+  revalidatePath(`/patients/${patientId}`);
+  return { error: null, prescriptionId: rx.id };
+}
+
+// ──────────────────────────────────────────────────────────────
+// Save Patient Internal Note (via audit_logs)
+// ──────────────────────────────────────────────────────────────
+export type PatientNoteState = { error: string | null };
+
+export async function savePatientNoteAction(
+  patientId: string,
+  note: string
+): Promise<PatientNoteState> {
+  if (!note.trim()) return { error: "Note cannot be empty." };
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("clinic_id, full_name")
+    .eq("id", user.id)
+    .single();
+  if (!profile) return { error: "Could not resolve your clinic." };
+
+  const { error } = await supabase.from("audit_logs").insert({
+    clinic_id: profile.clinic_id,
+    actor_id: user.id,
+    action: "patient_note_added",
+    entity_type: "patients",
+    entity_id: patientId,
+    metadata: { note: note.trim(), author: profile.full_name },
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/patients/${patientId}`);
+  return { error: null };
 }
 
 export type VitalsFormState = { error: string | null };

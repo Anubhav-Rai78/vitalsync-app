@@ -37,6 +37,7 @@ import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { RecordVitalsForm } from "@/components/modules/record-vitals-form";
+import { addQuickMedicationAction, savePatientNoteAction } from "../actions";
 
 interface Medication {
   id: string;
@@ -68,7 +69,10 @@ interface VitalsCard {
 type RxStatus = "Active" | "Completed" | "Discontinued";
 
 interface PrescriptionRecord {
+  /** Display ID like "RX-1001" */
   id: string;
+  /** Actual Supabase UUID for navigation */
+  real_id: string;
   date: string;
   medication: string;
   instruction: string;
@@ -107,6 +111,13 @@ interface DocumentRecord {
   date: string;
   category: "Billing" | "Prescription";
   status?: string;
+}
+
+interface InternalNote {
+  id: string;
+  note: string;
+  author: string;
+  created_at: string;
 }
 
 function calcAge(dob: string | null | undefined): number | string {
@@ -234,6 +245,12 @@ export default function PatientProfilePage() {
   const [moreMenuOpenId, setMoreMenuOpenId] = useState<string | null>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
+  // Internal notes state
+  const [internalNotes, setInternalNotes] = useState<InternalNote[]>([]);
+  const [internalNotesLoading, setInternalNotesLoading] = useState(false);
+  const [saveNoteLoading, setSaveNoteLoading] = useState(false);
+  const [addMedError, setAddMedError] = useState<string | null>(null);
+
   const supabase = createClient();
 
   useEffect(() => {
@@ -335,6 +352,7 @@ export default function PatientProfilePage() {
             idx % 3 === 0 ? "Active" : idx % 3 === 1 ? "Completed" : "Discontinued";
           return {
             id: `RX-${1000 + idx + 1}`,
+            real_id: (r as any).id as string,
             date: format(new Date((r as any).created_at || new Date()), "MMM d, yyyy"),
             medication: (r as any).diagnosis || "Prescription",
             instruction: (r as any).notes || "See prescription details",
@@ -463,51 +481,68 @@ export default function PatientProfilePage() {
   }, []);
 
   // ──────────────────────────────────────────────
-  // Handler: Quick Add Medication
+  // Load internal notes (patient_note_added from audit_logs)
+  // ──────────────────────────────────────────────
+  const loadInternalNotes = useCallback(async () => {
+    if (!patientId) return;
+    setInternalNotesLoading(true);
+    try {
+      const { data } = await supabase
+        .from("audit_logs")
+        .select("id, created_at, metadata")
+        .eq("entity_type", "patients")
+        .eq("entity_id", patientId)
+        .eq("action", "patient_note_added")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (data) {
+        setInternalNotes(
+          data.map((row: any) => ({
+            id: row.id,
+            note: row.metadata?.note ?? "",
+            author: row.metadata?.author ?? "Unknown",
+            created_at: row.created_at,
+          }))
+        );
+      }
+    } catch {
+      // silent
+    } finally {
+      setInternalNotesLoading(false);
+    }
+  }, [patientId, supabase]);
+
+  useEffect(() => {
+    if (activeTab === "summary" && patientId) loadInternalNotes();
+  }, [activeTab, patientId, loadInternalNotes]);
+
+  // ──────────────────────────────────────────────
+  // Handler: Quick Add Medication (server action)
   // ──────────────────────────────────────────────
   async function handleAddMedication() {
     if (!addMedDrugName.trim() || !patientId) return;
     setAddMedLoading(true);
+    setAddMedError(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("clinic_id")
-        .eq("id", user.id)
-        .single();
-      if (!profile) return;
-
-      const { data: rx, error: rxErr } = await supabase
-        .from("prescriptions")
-        .insert({
-          clinic_id: profile.clinic_id,
-          patient_id: patientId,
-          doctor_id: user.id,
-          diagnosis: addMedDrugName.trim(),
-          notes: addMedInstructions || null,
-        })
-        .select("id")
-        .single();
-
-      if (rxErr || !rx) return;
-
-      const { error: itemErr } = await supabase.from("prescription_items").insert({
-        prescription_id: rx.id,
-        drug_name: addMedDrugName.trim(),
+      const result = await addQuickMedicationAction(patientId, {
+        drugName: addMedDrugName.trim(),
         dosage: addMedDosage || null,
         frequency: addMedFrequency || null,
         duration: addMedDuration || null,
         instructions: addMedInstructions || null,
       });
 
-      if (itemErr) return;
+      if (result.error) {
+        setAddMedError(result.error);
+        return;
+      }
 
+      // Optimistically add to local state
       setMedications((prev) => [
         ...prev,
         {
-          id: rx.id,
+          id: result.prescriptionId || crypto.randomUUID(),
           drug_name: addMedDrugName.trim(),
           dosage: addMedDosage || null,
           frequency: addMedFrequency || null,
@@ -524,6 +559,32 @@ export default function PatientProfilePage() {
       setAddMedModalOpen(false);
     } finally {
       setAddMedLoading(false);
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Handler: Save Internal Note (server action)
+  // ──────────────────────────────────────────────
+  async function handleSaveNote() {
+    if (!messageNote.trim() || !patientId) return;
+    setSaveNoteLoading(true);
+    try {
+      const result = await savePatientNoteAction(patientId, messageNote);
+      if (result.error) return;
+      // Prepend the new note to local state
+      setInternalNotes((prev) => [
+        {
+          id: crypto.randomUUID(),
+          note: messageNote.trim(),
+          author: "You",
+          created_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+      setMessageNote("");
+      setMessageModalOpen(false);
+    } finally {
+      setSaveNoteLoading(false);
     }
   }
 
@@ -978,6 +1039,48 @@ export default function PatientProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Internal Notes & Timeline (Full width bottom) */}
+          <div className="md:col-span-12 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
+            <div className="flex items-center justify-between mb-md">
+              <h2 className="text-headline-sm text-on-surface flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-primary" /> Internal Notes &amp; Timeline
+              </h2>
+              <button
+                className="text-primary hover:bg-primary-container/20 p-1 rounded-md transition"
+                onClick={() => setMessageModalOpen(true)}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+
+            {internalNotesLoading ? (
+              <p className="text-body-sm text-on-surface-variant py-4 text-center">Loading notes…</p>
+            ) : internalNotes.length > 0 ? (
+              <div className="space-y-3">
+                {internalNotes.map((note) => (
+                  <div key={note.id} className="flex gap-3 p-3 rounded-lg border border-outline-variant/50 bg-surface-container-low">
+                    <div className="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center shrink-0">
+                      <ClipboardList className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-label-sm font-semibold text-on-surface">{note.author}</span>
+                        <span className="text-label-sm text-on-surface-variant whitespace-nowrap">
+                          {new Date(note.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          {" "}
+                          {new Date(note.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-body-sm text-on-surface mt-1 whitespace-pre-wrap">{note.note}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-body-sm text-on-surface-variant py-4 text-center">No internal notes yet. Click the Message button above to add one.</p>
+            )}
+          </div>
         </div>
       ) : activeTab === "history" ? (
         <div className="space-y-lg">
@@ -1072,14 +1175,14 @@ export default function PatientProfilePage() {
                           <button
                             className="p-1 hover:text-primary"
                             title="View Details"
-                            onClick={() => router.push(`/prescriptions/${rx.id}`)}
+                            onClick={() => router.push(`/prescriptions/${rx.real_id}`)}
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             className="p-1 hover:text-primary"
                             title="Renew"
-                            onClick={() => router.push(`/prescriptions/new?patientId=${patientId}&renew=${rx.id}`)}
+                            onClick={() => router.push(`/prescriptions/new?patientId=${patientId}&renew=${rx.real_id}`)}
                           >
                             <RotateCw className="w-4 h-4" />
                           </button>
@@ -1104,7 +1207,7 @@ export default function PatientProfilePage() {
                                   className="w-full text-left px-3 py-2 text-label-sm text-on-surface hover:bg-surface-container-low flex items-center gap-2"
                                   onClick={() => {
                                     setMoreMenuOpenId(null);
-                                    router.push(`/prescriptions/${rx.id}`);
+                                    router.push(`/prescriptions/${rx.real_id}`);
                                   }}
                                 >
                                   <Eye className="w-3.5 h-3.5" /> View Details
@@ -1287,6 +1390,7 @@ export default function PatientProfilePage() {
                                 if (doc.category === "Prescription") {
                                   downloadPrescriptionPdf({
                                     id: doc.id,
+                                    real_id: doc.id,
                                     date: format(new Date(doc.date), "MMM d, yyyy"),
                                     medication: doc.name,
                                     instruction: "",
@@ -1353,7 +1457,9 @@ export default function PatientProfilePage() {
             </div>
             <div className="px-6 py-3 border-t border-outline-variant bg-surface-container-low flex justify-end gap-2">
               <Button variant="secondary" size="sm" onClick={() => { setMessageNote(""); setMessageModalOpen(false); }}>Close</Button>
-              <Button variant="primary" size="sm" className="bg-primary-container text-on-primary hover:bg-primary" onClick={() => { setMessageNote(""); setMessageModalOpen(false); }}><ClipboardList className="w-3.5 h-3.5" /> Save Note</Button>
+              <Button variant="primary" size="sm" className="bg-primary-container text-on-primary hover:bg-primary" onClick={handleSaveNote} disabled={saveNoteLoading}>
+                {saveNoteLoading ? "Saving…" : <><ClipboardList className="w-3.5 h-3.5" /> Save Note</>}
+              </Button>
             </div>
           </div>
         </div>
@@ -1392,6 +1498,11 @@ export default function PatientProfilePage() {
                   <input type="text" value={addMedInstructions} onChange={(e) => setAddMedInstructions(e.target.value)} placeholder="e.g. Take with food" className="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface-container-low text-label-sm text-on-surface focus:bg-surface-container-lowest focus:border-primary focus:ring-1 focus:ring-primary" />
                 </div>
               </div>
+              {addMedError && (
+                <div className="p-2.5 rounded-lg bg-error-container/30 text-on-error-container text-label-sm flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {addMedError}
+                </div>
+              )}
             </div>
             <div className="px-6 py-3 border-t border-outline-variant bg-surface-container-low flex justify-between items-center">
               <Link href={`/prescriptions/new?patientId=${patientId}`} className="text-label-sm text-primary hover:underline font-semibold" onClick={() => setAddMedModalOpen(false)}>Full Prescription Builder →</Link>
