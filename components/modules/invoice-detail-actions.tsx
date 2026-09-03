@@ -10,7 +10,7 @@ import {
   CreditCard,
   X,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
+import { PDFDocument, formatINRAmount } from "@/lib/document-engine";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { markInvoicePaidAction } from "@/app/(dashboard)/invoices/actions";
@@ -41,119 +41,56 @@ const STATUS_BADGE: Record<InvoiceStatus, { label: string; cls: string }> = {
   void: { label: "Void", cls: "bg-surface-variant text-on-surface-variant border border-outline-variant line-through" },
 };
 
-// jsPDF's built-in Helvetica font lacks the ₹ (U+20B9) glyph, so values are
-// rendered with an ASCII-safe "INR" prefix inside the PDF. HTML/email rendering
-// continues to use formatCurrency() (₹ is supported there).
-function pdfCurrency(amount: number): string {
-  return `INR ${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 // Generates a real PDF of the invoice document (no window.print() aliasing).
+// Amounts are rendered with an ASCII-safe "INR" prefix because jsPDF's Helvetica
+// font lacks the ₹ (U+20B9) glyph — identical to the document engine's
+// formatINRAmount. HTML/email rendering continues to use formatCurrency().
 function downloadInvoicePdf(invoice: any, items: InvoiceActionItem[]) {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 20;
+  const doc = new PDFDocument();
 
-  const subtitle = (text: string, color: [number, number, number] = [100, 116, 139]) => {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(color[0], color[1], color[2]);
-    doc.text(text, 14, y);
-    y += 5;
-  };
+  // ── Header ───────────────────────────────────────────────────────
+  doc.addTwoColumn("MedFlow Clinic", "INVOICE", { fontSize: 18, bold: true, color: [37, 99, 235] });
+  doc.addText(`Invoice #${invoice.invoice_number}`, { fontSize: 9, color: [100, 116, 139], align: "right" });
+  doc.addDivider();
+  doc.addSpacer(2);
 
-  const bodyLine = (text: string, right?: string) => {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    if (right) {
-      const rightWidth = doc.getTextWidth(right);
-      doc.text(right, pageWidth - 14 - rightWidth, y);
-    }
-    doc.text(text, 14, y);
-    y += 6;
-  };
-
-  // Header
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(37, 99, 235);
-  doc.text("MedFlow Clinic", 14, y);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(15, 23, 42);
-  doc.text("INVOICE", pageWidth - 14, y, { align: "right" });
-  y += 8;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Invoice #${invoice.invoice_number}`, pageWidth - 14, y, { align: "right" });
-  y += 7;
-
-  // Meta block
-  doc.setDrawColor(226, 232, 240);
-  doc.line(14, y, pageWidth - 14, y);
-  y += 8;
-  subtitle("BILL TO", [100, 116, 139]);
-  bodyLine(invoice.patients?.full_name ?? "Patient", `Issue date: ${invoice.created_at ? formatDate(invoice.created_at) : "—"}`);
-  if (invoice.patients?.address) bodyLine(String(invoice.patients.address));
-  doc.setTextColor(100, 116, 139);
-  bodyLine(`Due date: ${invoice.due_date ? formatDate(invoice.due_date) : "—"}`);
-  doc.setTextColor(30, 41, 59);
-  y += 3;
-
-  // Items header
-  doc.setFillColor(248, 250, 252);
-  doc.rect(14, y - 5, pageWidth - 28, 8, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
-  doc.text("DESCRIPTION", 16, y);
-  doc.text("QTY", pageWidth - 72, y);
-  doc.text("UNIT PRICE", pageWidth - 58, y);
-  doc.text("TOTAL", pageWidth - 18, y, { align: "right" });
-  y += 9;
-
-  // Items rows
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(30, 41, 59);
-  for (const it of items) {
-    bodyLine(
-      it.description,
-      pdfCurrency(Number(it.amount))
-    );
-    doc.text(String(it.quantity), pageWidth - 70, y - 6);
-    doc.text(pdfCurrency(Number(it.unit_price)), pageWidth - 58, y - 6);
-  }
-
-  if (items.length === 0) {
-    bodyLine("No line items on this invoice.");
-    y -= 6;
-  }
-
-  y += 4;
-  doc.setDrawColor(226, 232, 240);
-  doc.line(14, y, pageWidth - 14, y);
-  y += 8;
-
-  // Totals
-  bodyLine("Subtotal", pdfCurrency(Number(invoice.subtotal ?? 0)));
-  bodyLine("Tax", pdfCurrency(Number(invoice.tax ?? 0)));
-  y += 2;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Total", 14, y);
-  doc.setTextColor(37, 99, 235);
-  doc.text(
-    pdfCurrency(Number(invoice.total ?? 0)),
-    pageWidth - 14,
-    y,
-    { align: "right" }
+  // ── Bill To block ───────────────────────────────────────────────
+  doc.addText("BILL TO", { fontSize: 9, color: [100, 116, 139] });
+  doc.addTwoColumn(
+    invoice.patients?.full_name ?? "Patient",
+    `Issue date: ${invoice.created_at ? formatDate(invoice.created_at) : "—"}`,
+    { fontSize: 10, color: [30, 41, 59] }
   );
+  if (invoice.patients?.address) doc.addText(String(invoice.patients.address), { fontSize: 10, color: [30, 41, 59] });
+  doc.addText(`Due date: ${invoice.due_date ? formatDate(invoice.due_date) : "—"}`, { fontSize: 10, color: [100, 116, 139] });
+  doc.addSpacer(3);
+
+  // ── Items table ───────────────────────────────────────────────────
+  const rows = items.map((it) => [
+    it.description,
+    String(it.quantity),
+    formatINRAmount(Number(it.unit_price)),
+    formatINRAmount(Number(it.amount)),
+  ]);
+  if (items.length === 0) rows.push(["No line items on this invoice.", "", "", ""]);
+  doc.addTable(["DESCRIPTION", "QTY", "UNIT PRICE", "TOTAL"], rows, {
+    fontSize: 10,
+    rowHeight: 8,
+    headerBg: "F8FAFC",
+    headerColor: "64748B",
+    columnWidths: [90, 25, 32, 33],
+  });
+  doc.addSpacer(2);
+
+  // ── Totals ─────────────────────────────────────────────────────
+  doc.addTwoColumn("Subtotal", formatINRAmount(Number(invoice.subtotal ?? 0)), { fontSize: 10, color: [30, 41, 59] });
+  doc.addTwoColumn("Tax", formatINRAmount(Number(invoice.tax ?? 0)), { fontSize: 10, color: [30, 41, 59] });
+  doc.addTwoColumn("Total", formatINRAmount(Number(invoice.total ?? 0)), { fontSize: 12, bold: true, color: [37, 99, 235] });
 
   doc.save(`${invoice.invoice_number}.pdf`);
 }
+
+
 
 
 export function InvoiceDetailActions({

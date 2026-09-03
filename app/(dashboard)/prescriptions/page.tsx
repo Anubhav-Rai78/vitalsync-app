@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
-import { jsPDF } from "jspdf";
-import { formatDateIST, formatDateTimeIST } from "@/lib/date";
+import { PDFDocument } from "@/lib/document-engine";
+import { formatDateIST } from "@/lib/date";
 
 type RxStatus = "Active" | "Completed" | "Discontinued" | "Draft";
 
@@ -154,55 +154,32 @@ export default function PrescriptionHistoryPage() {
   };
 
   const handlePrintPDF = useCallback((rx: PrescriptionRow) => {
-    const doc = new jsPDF();
-    let y = 20;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(0, 74, 198);
-    doc.text("MedFlow Clinic - Official Prescription", 14, y);
-    y += 8;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(67, 70, 85);
-    doc.text(`Prescription ID: ${rx.id}`, 14, y);
-    doc.text(`Date Issued: ${rx.date}`, 14, y + 6);
-    doc.setDrawColor(195, 198, 215);
-    doc.line(14, y + 10, 196, y + 10);
-    y += 18;
+    const doc = new PDFDocument();
 
-    doc.setFont("helvetica", "bold");
-    doc.text("Patient Information", 14, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Name: ${rx.patient}`, 14, y + 6);
-    doc.text(`DOB: ${rx.patient_dob}`, 14, y + 12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Prescriber:", 120, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(rx.prescriber, 120, y + 6);
-    doc.text(`Diagnosis: ${rx.diagnosis}`, 120, y + 12);
-    y += 22;
-    doc.setDrawColor(195, 198, 215);
-    doc.line(14, y, 196, y);
-    y += 8;
+    // ── Header ─────────────────────────────────────────────────────
+    doc.addHeader("MedFlow Clinic - Official Prescription");
+    doc.addText(`Prescription ID: ${rx.id}`, { fontSize: 10, color: [67, 70, 85] });
+    doc.addText(`Date Issued: ${rx.date}`, { fontSize: 10, color: [67, 70, 85] });
+    doc.addDivider();
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("Rx Medication & Instructions", 14, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
+    // ── Patient Information / Prescriber ───────────────────────────
+    doc.addText("Patient Information", { fontSize: 10, bold: true });
+    doc.addText(`Name: ${rx.patient}`, { fontSize: 10 });
+    doc.addText(`DOB: ${rx.patient_dob}`, { fontSize: 10 });
+    doc.addText("Prescriber:", { fontSize: 10, bold: true });
+    doc.addText(rx.prescriber, { fontSize: 10 });
+    doc.addText(`Diagnosis: ${rx.diagnosis}`, { fontSize: 10 });
+    doc.addDivider();
+
+    // ── Rx Medication & Instructions ──────────────────────────────
+    doc.addText("Rx Medication & Instructions", { fontSize: 12, bold: true });
+    doc.addSpacer(2);
     if (rx.items.length > 0) {
       rx.items.forEach((it) => {
-        doc.text(
-          `• ${it.drug_name}${it.dosage ? ` ${it.dosage}` : ""}${it.frequency ? ` — ${it.frequency}` : ""
-          }`,
-          18,
-          y
-        );
-        y += 7;
+        doc.addBullet(`${it.drug_name}${it.dosage ? ` ${it.dosage}` : ""}${it.frequency ? ` — ${it.frequency}` : ""}`);
       });
     } else {
-      doc.text(`• ${rx.medication} — ${rx.dosage}`, 18, y);
+      doc.addBullet(`${rx.medication} — ${rx.dosage}`);
     }
 
     doc.save(`Prescription_${rx.id}.pdf`);

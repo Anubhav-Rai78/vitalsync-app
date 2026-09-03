@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { getInvoices } from "@/lib/services";
+import { serializeCSV, downloadCSV } from "@/lib/document-engine";
 import { createInvoiceAction, type InvoiceFormState } from "./actions";
 import { useFormState } from "react-dom";
 
@@ -58,19 +60,9 @@ function Icon({ children, className = "" }: { children: string; className?: stri
 }
 
 function downloadCsv(rows: InvoiceItem[]) {
-  const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
-  const content = [
-    ["Invoice #", "Date Issued", "Patient Name", "Services", "Total Amount", "Status"],
-    ...rows.map((row) => [row.invoice_number, row.date, row.patient_name, row.services, row.amount, row.status]),
-  ]
-    .map((row) => row.map(String).map(escape).join(","))
-    .join("\n");
-  const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "medflow_invoices.csv";
-  link.click();
-  URL.revokeObjectURL(url);
+  const headers = ["Invoice #", "Date Issued", "Patient Name", "Services", "Total Amount", "Status"];
+  const data = rows.map((row) => [row.invoice_number, row.date, row.patient_name, row.services, row.amount, row.status]);
+  downloadCSV(serializeCSV(headers, data), "medflow_invoices.csv");
 }
 
 const initialFormState: InvoiceFormState = { error: null };
@@ -101,24 +93,17 @@ export default function InvoicesPage() {
 
   async function loadInvoices() {
     try {
-      const [{ data: patientRows }, { data, error }] = await Promise.all([
-        supabase.from("patients").select("id, full_name").order("full_name"),
-        supabase
-          .from("invoices")
-          .select("id, invoice_number, status, total, created_at, patient_id")
-          .order("created_at", { ascending: false })
-          .limit(500),
-      ]);
+      const { data: patientRows } = await supabase.from("patients").select("id, full_name").order("full_name");
       if (patientRows) setPatients(patientRows);
-      if (error || !data?.length) return;
-      const patientNames = new Map((patientRows ?? []).map((p) => [p.id, p.full_name]));
+
+      const invoices = await getInvoices(supabase, { limit: 500 });
       setInvoices(
-        data.map((invoice) => ({
+        invoices.map((invoice) => ({
           id: invoice.id,
           invoice_number: invoice.invoice_number,
           date: formatDate(invoice.created_at),
           created_at: invoice.created_at,
-          patient_name: patientNames.get(invoice.patient_id) ?? "Patient Record",
+          patient_name: invoice.patient_name ?? "Patient Record",
           services: "Consultation & Clinical Services",
           amount: formatInr(Number(invoice.total)),
           total: Number(invoice.total),

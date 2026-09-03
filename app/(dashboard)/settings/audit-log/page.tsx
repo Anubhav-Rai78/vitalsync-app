@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTimeIST } from "@/lib/date";
-import { jsPDF } from "jspdf";
+import { PDFDocument, serializeCSV, downloadCSV } from "@/lib/document-engine";
 
 interface AuditLogRow {
   id: string;
@@ -152,29 +152,27 @@ export default function SystemAuditLogPage() {
 
   const handleExportCSV = () => {
     const headers = ["Timestamp", "User", "Role", "Action", "Resource ID", "IP Address", "Severity"];
-    const rows = filteredLogs.map((l) => [l.timestamp, l.user, l.role, `"${l.action}"`, l.resource, l.ip, l.severity]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `system_audit_log_${Date.now()}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    const rows = filteredLogs.map((l) => [l.timestamp, l.user, l.role, l.action, l.resource, l.ip, l.severity]);
+    downloadCSV(serializeCSV(headers, rows), `system_audit_log_${Date.now()}.csv`);
   };
 
   const handleExportPDF = () => {
-    const doc = new jsPDF();
-    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(0, 74, 198);
-    doc.text("MedFlow Clinic - System Audit Log", 14, 20);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(115, 118, 134);
-    doc.text(`Generated: ${new Date().toLocaleString()} | Filtered records: ${filteredLogs.length}`, 14, 27);
-    let y = 38;
-    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(25, 28, 30);
-    doc.text("Timestamp", 14, y); doc.text("User", 55, y); doc.text("Action", 100, y); doc.text("Resource", 150, y); doc.text("Severity", 185, y);
-    y += 4; doc.setDrawColor(195, 198, 215); doc.line(14, y, 196, y); y += 6;
-    doc.setFont("helvetica", "normal");
-    filteredLogs.slice(0, 30).forEach((item) => {
-      doc.text(item.timestamp, 14, y); doc.text(item.user.substring(0, 20), 55, y);
-      doc.text(item.action.substring(0, 24), 100, y); doc.text(item.resource, 150, y); doc.text(item.severity, 185, y);
-      y += 6; if (y > 280) { doc.addPage(); y = 20; }
+    const doc = new PDFDocument();
+    doc.addHeader("MedFlow Clinic - System Audit Log",
+      `Generated: ${new Date().toLocaleString()} | Filtered records: ${filteredLogs.length}`);
+    doc.addSpacer(4);
+
+    const rows = filteredLogs.slice(0, 30).map((l) => [
+      l.timestamp,
+      l.user.substring(0, 20),
+      l.action.substring(0, 24),
+      l.resource,
+      l.severity,
+    ]);
+    doc.addTable(["Timestamp", "User", "Action", "Resource", "Severity"], rows, {
+      fontSize: 9,
+      rowHeight: 7,
+      headerBg: "004ac6",
     });
     doc.save(`audit_log_${Date.now()}.pdf`);
   };
