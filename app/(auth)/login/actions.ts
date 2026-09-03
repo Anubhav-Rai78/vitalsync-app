@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type LoginState = { error: string | null };
 
@@ -20,7 +21,7 @@ export async function loginAction(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: error.message };
+    return { error: getUserFacingMessage(error, "Sign in failed. Please try again.") };
   }
 
   redirect("/dashboard");

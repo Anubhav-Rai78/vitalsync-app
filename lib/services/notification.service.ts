@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { formatDistanceToNow } from "date-fns";
+import { toDatabaseError } from "@/lib/errors";
 
 /**
  * Shape of a notification row from the live `public.notifications` table.
@@ -35,7 +36,9 @@ export async function fetchLiveNotifications(
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error) throw error;
+  if (error) {
+    throw toDatabaseError(error, "Failed to load notifications.")!;
+  }
   if (!data) return [];
 
   return data.map((n) => ({
@@ -54,7 +57,9 @@ export async function markSingleNotificationRead(
     .update({ is_read: true })
     .eq("id", id);
 
-  if (error) throw error;
+  if (error) {
+    throw toDatabaseError(error, "Failed to mark notification as read.")!;
+  }
 }
 
 /** Mark every unread notification of the current user as read. */
@@ -66,5 +71,7 @@ export async function markAllClinicNotificationsRead(
     .update({ is_read: true })
     .eq("is_read", false);
 
-  if (error) throw error;
+  if (error) {
+    throw toDatabaseError(error, "Failed to update notifications.")!;
+  }
 }

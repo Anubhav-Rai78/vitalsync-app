@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type AvailabilityFormState = { error: string | null };
 
@@ -75,7 +76,7 @@ export async function createDoctorAction(
     },
   });
   if (authError || !authData.user) {
-    return { error: authError?.message || "Failed to create the doctor's login account." };
+    return { error: getUserFacingMessage(authError, "Failed to create the doctor's login account.") };
   }
 
   const doctorId = authData.user.id;
@@ -99,7 +100,7 @@ export async function createDoctorAction(
   if (profileError) {
     // Roll back the auth user so a retry doesn't error on duplicate email/id.
     await admin.auth.admin.deleteUser(doctorId);
-    return { error: profileError.message };
+    return { error: getUserFacingMessage(profileError, "Failed to save the doctor profile.") };
   }
 
   // 3. Seed default Mon–Fri availability so the doctor's schedule isn't empty.
@@ -115,7 +116,7 @@ export async function createDoctorAction(
     .from("doctor_availability")
     .insert(availabilityRows);
   if (availError) {
-    return { error: availError.message };
+    return { error: getUserFacingMessage(availError, "Failed to set the doctor's availability.") };
   }
 
   revalidatePath("/doctors");
@@ -185,7 +186,7 @@ export async function updateAvailabilityAction(
     .from("doctor_availability")
     .upsert(allRows, { onConflict: "doctor_id,day_of_week" });
 
-  if (error) return { error: error.message };
+  if (error) return { error: getUserFacingMessage(error, "Failed to save availability.") };
 
   revalidatePath(`/doctors/${doctorId}`);
   return { error: null };

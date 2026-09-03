@@ -5,7 +5,7 @@
 // rather than throwing, so pages render friendly empty states with no errors.
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { DatabaseError } from "@/lib/errors";
+import { DatabaseError, getUserFacingMessage } from "@/lib/errors";
 import type { DashboardStats, RevenueRow, SupabaseClient } from "./types";
 import { EMPTY_DASHBOARD_STATS } from "./types";
 
@@ -130,7 +130,7 @@ export async function getAppointmentStatusBreakdown(
     .eq("clinic_id", clinicId);
 
   if (error) {
-    throw new DatabaseError("Failed to load appointment breakdown.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load appointment breakdown."), { cause: error });
   }
 
   const counts: Record<string, number> = { scheduled: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 };

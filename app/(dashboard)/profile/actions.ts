@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type ProfileFormState = { error: string | null; success?: boolean };
 
@@ -26,7 +27,7 @@ export async function updateProfileAction(
     })
     .eq("id", user.id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: getUserFacingMessage(error, "Failed to update profile.") };
 
   revalidatePath("/profile");
   return { error: null, success: true };

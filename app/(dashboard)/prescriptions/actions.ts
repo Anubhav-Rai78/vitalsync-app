@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type RxStatus = "active" | "draft" | "completed" | "discontinued";
 
@@ -146,7 +147,7 @@ export async function createPrescriptionAction(
       .single();
 
     if (rxError || !rx) {
-      const msg = rxError?.message || "Failed to create prescription.";
+      const msg = getUserFacingMessage(rxError, "Failed to create prescription.");
       // Surface RLS permission errors explicitly so debugging is immediate.
       if (/row-level security/i.test(msg)) {
         return {
@@ -163,8 +164,7 @@ export async function createPrescriptionAction(
       .insert(rows);
 
     if (itemsError) {
-      const itemsMsg =
-        itemsError.message || "Failed to save medication line items.";
+      const itemsMsg = getUserFacingMessage(itemsError, "Failed to save medication line items.");
       if (/row-level security/i.test(itemsMsg)) {
         return {
           error:

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ScalingMode, UserRole } from "@/lib/supabase/types";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type SettingsFormState = { error: string | null; success?: boolean };
 
@@ -35,7 +36,7 @@ export async function updateClinicDetailsAction(
     })
     .eq("id", ctx.profile.clinic_id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: getUserFacingMessage(error, "Failed to update clinic details.") };
   revalidatePath("/settings");
   return { error: null, success: true };
 }

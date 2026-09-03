@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { formatCurrency } from "@/lib/utils";
+import { apiClient } from "@/lib/api/client";
 
 declare global {
   interface Window {
@@ -32,13 +33,15 @@ export function PayInvoiceButton({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/razorpay/create-order", {
+      const order = await apiClient<{
+        orderId: string;
+        amount: number;
+        currency: string;
+        keyId: string;
+      }>("/api/razorpay/create-order", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invoiceId }),
       });
-      const order = await res.json();
-      if (!res.ok) throw new Error(order.error || "Could not start payment");
 
       const rzp = new window.Razorpay({
         key: order.keyId,
@@ -50,20 +53,21 @@ export function PayInvoiceButton({
         prefill: { name: patientName ?? "", email: patientEmail ?? "" },
         theme: { color: "#004ac6" },
         handler: async (response: any) => {
-          const verifyRes = await fetch("/api/razorpay/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              invoiceId,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            }),
-          });
-          if (verifyRes.ok) {
+          try {
+            await apiClient("/api/razorpay/verify", {
+              method: "POST",
+              body: JSON.stringify({
+                invoiceId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
             router.refresh();
-          } else {
-            setError("Payment succeeded but verification failed — contact support.");
+          } catch {
+            setError(
+              "Payment succeeded but verification failed — contact support."
+            );
           }
         },
         modal: { ondismiss: () => setLoading(false) },
@@ -71,7 +75,7 @@ export function PayInvoiceButton({
 
       rzp.open();
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message ?? "Could not start payment");
       setLoading(false);
     }
   }

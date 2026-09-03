@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ErrorHandler } from "@/components/providers/error-handler";
 
 export const metadata: Metadata = {
   title: "MedFlow Clinic",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="light">
-      <body className="bg-background text-on-surface">{children}</body>
+      <body className="bg-background text-on-surface">
+        <ErrorHandler>{children}</ErrorHandler>
+      </body>
     </html>
   );
 }
+

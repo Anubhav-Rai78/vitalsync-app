@@ -4,7 +4,7 @@
 // before writing, mapping failures to DomainErrors.
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { ConflictError, DatabaseError, InvariantViolationError } from "@/lib/errors";
+import { ConflictError, DatabaseError, InvariantViolationError, getUserFacingMessage } from "@/lib/errors";
 import { bookAppointmentSchema, type BookAppointmentPayload } from "@/lib/validators";
 import type { AppointmentStatus } from "@/lib/supabase/types";
 import type { AppointmentSummary, AppointmentWithRelations, SupabaseClient } from "./types";
@@ -54,7 +54,7 @@ export async function getAppointments(
   const { data, error } = await query;
 
   if (error) {
-    throw new DatabaseError("Failed to load appointments.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load appointments."), { cause: error });
   }
 
   return (data ?? []).map((row: any) => ({
@@ -86,7 +86,7 @@ export async function getAppointmentById(
 
   if (error) {
     if (error.code === "PGRST116") return null;
-    throw new DatabaseError("Failed to load appointment.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load appointment."), { cause: error });
   }
 
   return {
@@ -131,7 +131,7 @@ export async function hasConflictingAppointment(
   const { data, error } = await query;
 
   if (error) {
-    throw new DatabaseError("Failed to check slot availability.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to check slot availability."), { cause: error });
   }
 
   return (data?.length ?? 0) > 0;
@@ -189,7 +189,7 @@ export async function bookAppointment(
     .single();
 
   if (error || !inserted) {
-    throw new DatabaseError("Failed to create appointment.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to create appointment."), { cause: error });
   }
 
   return inserted.id;
@@ -209,7 +209,7 @@ export async function updateAppointmentStatus(
     .eq("id", appointmentId);
 
   if (error) {
-    throw new DatabaseError("Failed to update appointment status.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to update appointment status."), { cause: error });
   }
 }
 
@@ -231,9 +231,9 @@ export async function rescheduleAppointment(
 
   if (fetchError) {
     if (fetchError.code === "PGRST116") {
-      throw new DatabaseError("Appointment not found.", { cause: fetchError });
+      throw new DatabaseError(getUserFacingMessage(fetchError, "Appointment not found."), { cause: fetchError });
     }
-    throw new DatabaseError("Failed to load appointment.", { cause: fetchError });
+    throw new DatabaseError(getUserFacingMessage(fetchError, "Failed to load appointment."), { cause: fetchError });
   }
 
   const start = new Date(newStartTime);
@@ -279,7 +279,7 @@ export async function rescheduleAppointment(
     .eq("id", appointmentId);
 
   if (error) {
-    throw new DatabaseError("Failed to reschedule appointment.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to reschedule appointment."), { cause: error });
   }
 }
 

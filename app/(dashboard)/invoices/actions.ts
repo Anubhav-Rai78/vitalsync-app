@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type InvoiceFormState = { error: string | null };
 
@@ -55,7 +56,7 @@ export async function createInvoiceAction(
     .select("id")
     .single();
 
-  if (invError || !inserted) return { error: invError?.message || "Failed to create invoice." };
+  if (invError || !inserted) return { error: getUserFacingMessage(invError, "Failed to create invoice.") };
 
   // Insert a single line item for the services description.
   await supabase.from("invoice_items").insert({
@@ -87,7 +88,7 @@ export async function markInvoicePaidAction(
     .update({ status: "paid" })
     .eq("id", invoiceId);
 
-  if (invError) return { error: invError.message };
+  if (invError) return { error: getUserFacingMessage(invError, "Failed to mark invoice as paid.") };
 
   await supabase.from("payments").insert({
     invoice_id: invoiceId,

@@ -4,7 +4,7 @@
 // services — the caller passes an authenticated Supabase client.
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { DatabaseError } from "@/lib/errors";
+import { DatabaseError, getUserFacingMessage } from "@/lib/errors";
 import {
   createPatientSchema,
   createPrescriptionSchema,
@@ -40,7 +40,7 @@ export async function getPatients(
   const { data, error } = await query;
 
   if (error) {
-    throw new DatabaseError("Failed to load patients.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load patients."), { cause: error });
   }
 
   return (data ?? []) as PatientSummary[];
@@ -62,7 +62,7 @@ export async function getPatientById(
 
   if (error) {
     if (error.code === "PGRST116") return null;
-    throw new DatabaseError("Failed to load patient.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load patient."), { cause: error });
   }
 
   return data as PatientDetail;
@@ -98,7 +98,7 @@ export async function createPatient(
     .single();
 
   if (error || !inserted) {
-    throw new DatabaseError("Failed to create patient.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to create patient."), { cause: error });
   }
 
   return inserted.id;
@@ -142,7 +142,7 @@ export async function getPrescriptions(
   const { data, error } = await query;
 
   if (error) {
-    throw new DatabaseError("Failed to load prescriptions.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load prescriptions."), { cause: error });
   }
 
   return (data ?? []).map((row: any) => ({
@@ -185,7 +185,7 @@ export async function getPrescriptionById(
 
   if (error) {
     if (error.code === "PGRST116") return null;
-    throw new DatabaseError("Failed to load prescription.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load prescription."), { cause: error });
   }
 
   const row: any = data;
@@ -196,7 +196,7 @@ export async function getPrescriptionById(
     .eq("prescription_id", prescriptionId);
 
   if (itemsError) {
-    throw new DatabaseError("Failed to load prescription items.", { cause: itemsError });
+    throw new DatabaseError(getUserFacingMessage(itemsError, "Failed to load prescription items."), { cause: itemsError });
   }
 
   return {
@@ -240,7 +240,7 @@ export async function createPrescription(
     .single();
 
   if (error || !inserted) {
-    throw new DatabaseError("Failed to create prescription.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to create prescription."), { cause: error });
   }
 
   for (const item of parsed.items) {
@@ -253,7 +253,7 @@ export async function createPrescription(
       instructions: item.instructions || null,
     });
     if (itemError) {
-      throw new DatabaseError("Prescription created but items failed.", { cause: itemError });
+      throw new DatabaseError(getUserFacingMessage(itemError, "Prescription created but items failed."), { cause: itemError });
     }
   }
 

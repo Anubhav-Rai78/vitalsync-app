@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AppointmentStatus } from "@/lib/supabase/types";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type AppointmentFormState = { error: string | null };
 
@@ -48,7 +49,7 @@ export async function bookAppointmentAction(
     .select("id")
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: getUserFacingMessage(error, "Failed to book appointment.") };
 
   revalidatePath("/appointments");
   redirect(`/appointments/${inserted.id}`);
@@ -76,7 +77,7 @@ export async function updateAppointmentStatusAction(
 
     if (error) {
       console.error("Status update error:", error);
-      return { error: error.message };
+      return { error: getUserFacingMessage(error, "Failed to update appointment status.") };
     }
 
     // Clear server cache so the calendar, detail view, and dashboard update immediately
@@ -135,7 +136,7 @@ export async function rescheduleAppointmentAction(
     })
     .eq("id", appointmentId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: getUserFacingMessage(error, "Failed to reschedule appointment.") };
 
   revalidatePath(`/appointments/${appointmentId}`);
   revalidatePath("/appointments");

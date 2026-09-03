@@ -5,7 +5,7 @@
 // are testable and usable in any React context.
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { DatabaseError } from "@/lib/errors";
+import { DatabaseError, getUserFacingMessage } from "@/lib/errors";
 import { createInvoiceSchema, type CreateInvoicePayload } from "@/lib/validators";
 import type { InvoiceWithPatient, SupabaseClient } from "./types";
 
@@ -39,7 +39,7 @@ export async function getInvoices(
     .limit(limit);
 
   if (error) {
-    throw new DatabaseError("Failed to load invoices.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load invoices."), { cause: error });
   }
 
   return (data ?? []).map((row: any) => ({
@@ -72,7 +72,7 @@ export async function getInvoiceById(
 
   if (error) {
     if (error.code === "PGRST116") return null; // not found
-    throw new DatabaseError("Failed to load invoice.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to load invoice."), { cause: error });
   }
 
   const row: any = data;
@@ -121,7 +121,7 @@ export async function createInvoice(
     .single();
 
   if (error || !inserted) {
-    throw new DatabaseError("Failed to create invoice.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to create invoice."), { cause: error });
   }
 
   const lineItems = parsed.line_items.length > 0
@@ -137,7 +137,7 @@ export async function createInvoice(
       amount: item.quantity * item.unit_price,
     });
     if (itemError) {
-      throw new DatabaseError("Invoice created but line items failed.", { cause: itemError });
+      throw new DatabaseError(getUserFacingMessage(itemError, "Invoice created but line items failed."), { cause: itemError });
     }
   }
 
@@ -160,7 +160,7 @@ export async function markInvoicePaid(
     .eq("id", invoiceId);
 
   if (invError) {
-    throw new DatabaseError("Failed to mark invoice as paid.", { cause: invError });
+    throw new DatabaseError(getUserFacingMessage(invError, "Failed to mark invoice as paid."), { cause: invError });
   }
 
   const { error: payError } = await client.from("payments").insert({
@@ -172,7 +172,7 @@ export async function markInvoicePaid(
   });
 
   if (payError) {
-    throw new DatabaseError("Invoice marked paid but payment record failed.", { cause: payError });
+    throw new DatabaseError(getUserFacingMessage(payError, "Invoice marked paid but payment record failed."), { cause: payError });
   }
 }
 
@@ -194,7 +194,7 @@ export async function getInvoiceTotals(
     .lte("created_at", to);
 
   if (error) {
-    throw new DatabaseError("Failed to aggregate invoice totals.", { cause: error });
+    throw new DatabaseError(getUserFacingMessage(error, "Failed to aggregate invoice totals."), { cause: error });
   }
 
   const invoices = data ?? [];

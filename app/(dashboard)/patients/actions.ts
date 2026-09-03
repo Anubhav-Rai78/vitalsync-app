@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type PatientFormState = { error: string | null };
 
@@ -46,7 +47,7 @@ export async function createPatientAction(
     .select("id")
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: getUserFacingMessage(error, "Failed to create patient.") };
 
   revalidatePath("/patients");
   redirect(`/patients/${inserted.id}`);
@@ -96,7 +97,7 @@ export async function addQuickMedicationAction(
     .select("id")
     .single();
 
-  if (rxErr || !rx) return { error: rxErr?.message ?? "Failed to create prescription." };
+  if (rxErr || !rx) return { error: getUserFacingMessage(rxErr, "Failed to create prescription.") };
 
   // Insert the prescription item
   const { error: itemErr } = await admin.from("prescription_items").insert({
@@ -108,7 +109,7 @@ export async function addQuickMedicationAction(
     instructions: data.instructions || null,
   });
 
-  if (itemErr) return { error: itemErr.message };
+  if (itemErr) return { error: getUserFacingMessage(itemErr, "Failed to save medication.") };
 
   revalidatePath(`/patients/${patientId}`);
   return { error: null, prescriptionId: rx.id };
@@ -147,7 +148,7 @@ export async function savePatientNoteAction(
     metadata: { note: note.trim(), author: profile.full_name },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: getUserFacingMessage(error, "Failed to save note.") };
 
   revalidatePath(`/patients/${patientId}`);
   return { error: null };
@@ -199,7 +200,7 @@ export async function recordVitalsAction(patientId: string, formData: FormData):
     spo2: spo2,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: getUserFacingMessage(error, "Failed to record vitals.") };
 
   revalidatePath(`/patients/${patientId}`);
   return { error: null };

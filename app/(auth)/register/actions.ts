@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getUserFacingMessage } from "@/lib/errors";
 
 export type RegisterState = { error: string | null };
 
@@ -58,7 +59,7 @@ export async function registerAction(
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: getUserFacingMessage(error, "Registration failed. Please try again.") };
   }
 
   redirect("/dashboard");
