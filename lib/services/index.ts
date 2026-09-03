@@ -7,3 +7,4 @@ export * from "./billing.service";
 export * from "./clinical.service";
 export * from "./scheduling.service";
 export * from "./reporting.service";
+export * from "./notification.service";

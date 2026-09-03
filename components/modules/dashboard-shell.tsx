@@ -28,6 +28,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { getSystemHealthAction } from "@/app/(dashboard)/settings/actions";
+import {
+  fetchLiveNotifications,
+  markAllClinicNotificationsRead,
+  markSingleNotificationRead,
+  type RealNotification,
+} from "@/lib/services";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -65,13 +71,10 @@ export function DashboardShell({
   const [urgentAlert, setUrgentAlert] = useState<string | null>(null);
   const [isAlertDismissed, setIsAlertDismissed] = useState(false);
 
-  const [notifications, setNotifications] = useState([
-    { id: "1", title: "New Patient Registered", desc: "Patient record created successfully", time: "10 mins ago", unread: true },
-    { id: "2", title: "Upcoming Appointment", desc: "Consultation scheduled for today", time: "25 mins ago", unread: true },
-    { id: "3", title: "Clinical Notice", desc: "System audit log updated", time: "1 hour ago", unread: false },
-  ]);
+  const [notifications, setNotifications] = useState<RealNotification[]>([]);
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const supabase = createClient();
 
@@ -139,6 +142,64 @@ export function DashboardShell({
     };
   }, []);
 
+  // Load initial notifications for the current user.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const items = await fetchLiveNotifications(supabase, 15);
+        if (active) {
+          setNotifications(items);
+          setNotificationsLoaded(true);
+        }
+      } catch (e) {
+        console.error("Failed to load notifications:", e);
+        if (active) setNotificationsLoaded(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Subscribe to realtime inserts/updates on the notifications table so new
+  // events (patient registered, appointment booked, etc.) appear instantly
+  // without a page refresh. RLS guarantees we only receive rows for our own
+  // profile_id.
+  useEffect(() => {
+    const channel = supabase
+      .channel("realtime-notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          const newItem = payload.new as RealNotification;
+          setNotifications((prev) => [
+            { ...newItem, timeAgo: "just now" },
+            ...prev,
+          ]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications" },
+        (payload) => {
+          const updated = payload.new as RealNotification;
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n.id === updated.id ? { ...n, is_read: updated.is_read } : n
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
   const handleSignOut = async () => {
     try {
       setIsSigningOut(true);
@@ -152,8 +213,31 @@ export function DashboardShell({
     }
   };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  const markAllNotificationsAsRead = async () => {
+    // Optimistically clear the badge for instant feedback.
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await markAllClinicNotificationsRead(supabase);
+    } catch (err) {
+      console.error("Failed to mark all notifications read:", err);
+    }
+  };
+
+  const handleNotificationClick = async (n: RealNotification) => {
+    if (!n.is_read) {
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item.id === n.id ? { ...item, is_read: true } : item
+        )
+      );
+      try {
+        await markSingleNotificationRead(supabase, n.id);
+      } catch (err) {
+        console.error("Failed to mark notification read:", err);
+      }
+    }
+    setIsNotificationsOpen(false);
+    if (n.link_url) router.push(n.link_url);
   };
 
   const isAdmin = currentUser?.role?.toLowerCase() === "admin";
@@ -300,7 +384,9 @@ export function DashboardShell({
               >
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
                 )}
               </button>
 
@@ -318,16 +404,28 @@ export function DashboardShell({
                     )}
                   </div>
                   <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-                    {notifications.map((n) => (
-                      <div key={n.id} className="py-2.5 text-xs space-y-0.5">
-                        <div className="flex items-center justify-between font-semibold text-on-surface">
-                          <span>{n.title}</span>
-                          {n.unread && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-                        </div>
-                        <p className="text-on-surface-variant text-[11px]">{n.desc}</p>
-                        <span className="text-[10px] text-outline block">{n.time}</span>
-                      </div>
-                    ))}
+                    {notifications.length === 0 ? (
+                      <p className="py-6 text-center text-xs text-on-surface-variant">
+                        {notificationsLoaded ? "No notifications yet." : "Loading..."}
+                      </p>
+                    ) : (
+                      notifications.map((n) => (
+                        <button
+                          key={n.id}
+                          onClick={() => handleNotificationClick(n)}
+                          className={`w-full text-left py-2.5 text-xs space-y-0.5 hover:bg-surface-container-low transition ${
+                            n.is_read ? "opacity-70" : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between font-semibold text-on-surface">
+                            <span>{n.title}</span>
+                            {!n.is_read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                          </div>
+                          <p className="text-on-surface-variant text-[11px]">{n.body}</p>
+                          <span className="text-[10px] text-outline block">{n.timeAgo}</span>
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

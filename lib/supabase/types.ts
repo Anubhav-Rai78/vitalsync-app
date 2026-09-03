@@ -413,25 +413,31 @@ export interface Database {
         Row: {
           id: string
           profile_id: string
+          type: string
           title: string
           body: string | null
           is_read: boolean
+          link_url: string | null
           created_at: string
         }
         Insert: {
           id?: string
           profile_id: string
+          type?: string
           title: string
           body?: string | null
           is_read?: boolean
+          link_url?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           profile_id?: string
+          type?: string
           title?: string
           body?: string | null
           is_read?: boolean
+          link_url?: string | null
           created_at?: string
         }
         Relationships: []
