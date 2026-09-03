@@ -8,6 +8,7 @@ import {
   MoreVertical,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   SlidersHorizontal,
   X,
   RotateCcw,
@@ -265,44 +266,53 @@ export default function PatientsPage() {
           <div className="flex flex-wrap items-center gap-sm w-full md:w-auto">
             <div className="flex items-center gap-xs">
               <span className="font-label-sm text-label-sm text-on-surface-variant">Status:</span>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-9 px-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-              >
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="new">New</option>
-                <option value="inactive">Inactive</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="h-9 appearance-none pr-8 pl-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+                >
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="new">New</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+              </div>
             </div>
 
             <div className="flex items-center gap-xs">
               <span className="font-label-sm text-label-sm text-on-surface-variant">Gender:</span>
-              <select
-                value={genderFilter}
-                onChange={(e) => setGenderFilter(e.target.value)}
-                className="h-9 px-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-              >
-                <option value="all">All</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={genderFilter}
+                  onChange={(e) => setGenderFilter(e.target.value)}
+                  className="h-9 appearance-none pr-8 pl-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+                >
+                  <option value="all">All</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+              </div>
             </div>
 
             <div className="flex items-center gap-xs">
               <span className="font-label-sm text-label-sm text-on-surface-variant">Age:</span>
-              <select
-                value={ageFilter}
-                onChange={(e) => setAgeFilter(e.target.value)}
-                className="h-9 px-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-              >
-                <option value="all">All Ages</option>
-                <option value="under30">Under 30</option>
-                <option value="30to50">30 - 50</option>
-                <option value="over50">Over 50</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={ageFilter}
+                  onChange={(e) => setAgeFilter(e.target.value)}
+                  className="h-9 appearance-none pr-8 pl-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+                >
+                  <option value="all">All Ages</option>
+                  <option value="under30">Under 30</option>
+                  <option value="30to50">30 - 50</option>
+                  <option value="over50">Over 50</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+              </div>
             </div>
 
             <button
@@ -338,47 +348,56 @@ export default function PatientsPage() {
               <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">
                 Registration Period
               </label>
-              <select
-                value={dateRegisteredFilter}
-                onChange={(e) => setDateRegisteredFilter(e.target.value)}
-                className="w-full h-9 px-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Registered Today</option>
-                <option value="7days">Past 7 Days</option>
-                <option value="30days">Past 30 Days</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={dateRegisteredFilter}
+                  onChange={(e) => setDateRegisteredFilter(e.target.value)}
+                  className="w-full h-9 appearance-none pr-8 pl-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Registered Today</option>
+                  <option value="7days">Past 7 Days</option>
+                  <option value="30days">Past 30 Days</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+              </div>
             </div>
 
             <div>
               <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">
                 Allergy Profile
               </label>
-              <select
-                value={allergiesFilter}
-                onChange={(e) => setAllergiesFilter(e.target.value)}
-                className="w-full h-9 px-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-              >
-                <option value="all">All Patients</option>
-                <option value="has_allergies">Has Documented Allergies</option>
-                <option value="no_allergies">No Known Allergies</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={allergiesFilter}
+                  onChange={(e) => setAllergiesFilter(e.target.value)}
+                  className="w-full h-9 appearance-none pr-8 pl-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+                >
+                  <option value="all">All Patients</option>
+                  <option value="has_allergies">Has Documented Allergies</option>
+                  <option value="no_allergies">No Known Allergies</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+              </div>
             </div>
 
             <div>
               <label className="block font-label-sm text-label-sm text-on-surface-variant mb-xs">
                 Sort Records
               </label>
-              <select
-                value={sortBy}
-                onChange={(e: any) => setSortBy(e.target.value)}
-                className="w-full h-9 px-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-              >
-                <option value="newest">Registration: Newest First</option>
-                <option value="oldest">Registration: Oldest First</option>
-                <option value="name_asc">Patient Name: A to Z</option>
-                <option value="age_desc">Age: Oldest to Youngest</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e: any) => setSortBy(e.target.value)}
+                  className="w-full h-9 appearance-none pr-8 pl-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+                >
+                  <option value="newest">Registration: Newest First</option>
+                  <option value="oldest">Registration: Oldest First</option>
+                  <option value="name_asc">Patient Name: A to Z</option>
+                  <option value="age_desc">Age: Oldest to Youngest</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+              </div>
             </div>
 
             <div className="flex items-end">

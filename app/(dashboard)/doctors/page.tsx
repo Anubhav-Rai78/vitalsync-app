@@ -7,6 +7,7 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   SlidersHorizontal,
   Eye,
   Edit2,
@@ -220,44 +221,53 @@ export default function DoctorsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-sm w-full md:w-auto">
-            <select
-              value={specialtyFilter}
-              onChange={(e) => setSpecialtyFilter(e.target.value)}
-              className="h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-            >
-              <option value="all">All Specialties</option>
-              <option value="General Medicine">General Medicine</option>
-              <option value="General Practice">General Practice</option>
-              <option value="Cardiology">Cardiology</option>
-              <option value="Pediatrics">Pediatrics</option>
-              <option value="Neurology">Neurology</option>
-            </select>
+            <div className="relative">
+              <select
+                value={specialtyFilter}
+                onChange={(e) => setSpecialtyFilter(e.target.value)}
+                className="h-10 appearance-none pr-8 pl-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="all">All Specialties</option>
+                <option value="General Medicine">General Medicine</option>
+                <option value="General Practice">General Practice</option>
+                <option value="Cardiology">Cardiology</option>
+                <option value="Pediatrics">Pediatrics</option>
+                <option value="Neurology">Neurology</option>
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+            </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="on leave">On Leave</option>
-            </select>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-10 appearance-none pr-8 pl-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="on leave">On Leave</option>
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+            </div>
 
-            <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
-              className="h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
-            >
-              <option value="any">Any time</option>
-              <option value="today">Available Today</option>
-            </select>
+            <div className="relative">
+              <select
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value)}
+                className="h-10 appearance-none pr-8 pl-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+              >
+                <option value="any">Any time</option>
+                <option value="today">Available Today</option>
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+            </div>
 
             <button
               type="button"
               onClick={() => setShowMoreFilters(!showMoreFilters)}
               className={`h-10 px-3 flex items-center gap-xs rounded-lg border font-label-sm text-label-sm font-medium transition-colors ${showMoreFilters
-                  ? "bg-primary-container text-on-primary-container border-primary"
-                  : "bg-surface-container-low border-outline-variant text-on-surface hover:bg-surface-container"
+                ? "bg-primary-container text-on-primary-container border-primary"
+                : "bg-surface-container-low border-outline-variant text-on-surface hover:bg-surface-container"
                 }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" /> More
@@ -270,14 +280,17 @@ export default function DoctorsPage() {
           <div className="pt-md border-t border-outline-variant/60 flex flex-wrap gap-md items-center bg-surface-container-low/50 p-md rounded-lg">
             <div className="flex items-center gap-xs">
               <span className="font-label-sm text-label-sm text-on-surface-variant">Sort By:</span>
-              <select
-                value={sortBy}
-                onChange={(e: any) => setSortBy(e.target.value)}
-                className="h-9 px-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none"
-              >
-                <option value="name_asc">Name: A to Z</option>
-                <option value="status">Status (Active first)</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e: any) => setSortBy(e.target.value)}
+                  className="h-9 appearance-none pr-8 pl-3 bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
+                >
+                  <option value="name_asc">Name: A to Z</option>
+                  <option value="status">Status (Active first)</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+              </div>
             </div>
 
             <button
@@ -353,8 +366,8 @@ export default function DoctorsPage() {
                     <td className="py-md px-md">
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[12px] font-medium ${doc.status === "Active"
-                            ? "bg-secondary-container/20 text-secondary border border-secondary-container/50"
-                            : "bg-surface-container-high text-on-surface-variant border border-outline-variant"
+                          ? "bg-secondary-container/20 text-secondary border border-secondary-container/50"
+                          : "bg-surface-container-high text-on-surface-variant border border-outline-variant"
                           }`}
                       >
                         <span
@@ -430,8 +443,8 @@ export default function DoctorsPage() {
                 key={n}
                 onClick={() => setCurrentPage(n)}
                 className={`min-w-[32px] h-8 px-2 rounded font-label-sm text-label-sm font-semibold transition-colors ${currentPage === n
-                    ? "bg-primary text-on-primary shadow-xs"
-                    : "border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"
+                  ? "bg-primary text-on-primary shadow-xs"
+                  : "border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"
                   }`}
               >
                 {n}
@@ -478,29 +491,35 @@ export default function DoctorsPage() {
               <div className="grid grid-cols-2 gap-md">
                 <div>
                   <label className="block font-label-sm text-label-sm text-on-surface mb-xs">Specialty</label>
-                  <select
-                    value={editForm.specialty}
-                    onChange={(e) => setEditForm({ ...editForm, specialty: e.target.value })}
-                    className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg outline-none cursor-pointer"
-                  >
-                    <option value="General Medicine">General Medicine</option>
-                    <option value="General Practice">General Practice</option>
-                    <option value="Cardiology">Cardiology</option>
-                    <option value="Pediatrics">Pediatrics</option>
-                    <option value="Neurology">Neurology</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={editForm.specialty}
+                      onChange={(e) => setEditForm({ ...editForm, specialty: e.target.value })}
+                      className="w-full h-10 appearance-none pr-8 pl-3 bg-surface-container-low border border-outline-variant rounded-lg outline-none cursor-pointer"
+                    >
+                      <option value="General Medicine">General Medicine</option>
+                      <option value="General Practice">General Practice</option>
+                      <option value="Cardiology">Cardiology</option>
+                      <option value="Pediatrics">Pediatrics</option>
+                      <option value="Neurology">Neurology</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block font-label-sm text-label-sm text-on-surface mb-xs">Status</label>
-                  <select
-                    value={editForm.isActive ? "active" : "inactive"}
-                    onChange={(e) => setEditForm({ ...editForm, isActive: e.target.value === "active" })}
-                    className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg outline-none cursor-pointer"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">On Leave</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={editForm.isActive ? "active" : "inactive"}
+                      onChange={(e) => setEditForm({ ...editForm, isActive: e.target.value === "active" })}
+                      className="w-full h-10 appearance-none pr-8 pl-3 bg-surface-container-low border border-outline-variant rounded-lg outline-none cursor-pointer"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">On Leave</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
