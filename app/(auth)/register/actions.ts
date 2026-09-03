@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getUserFacingMessage } from "@/lib/errors";
+import { registerSchema } from "@/lib/validators";
 
 export type RegisterState = { error: string | null };
 
@@ -10,23 +11,21 @@ export async function registerAction(
   _prevState: RegisterState,
   formData: FormData
 ): Promise<RegisterState> {
-  const fullName = String(formData.get("fullName") || "");
-  const clinicName = String(formData.get("clinicName") || "");
-  const email = String(formData.get("workEmail") || "");
-  const phone = String(formData.get("phoneNumber") || "");
-  const password = String(formData.get("password") || "");
-  const confirmPassword = String(formData.get("confirmPassword") || "");
-  const agreedToTerms = formData.get("terms") === "on";
+  const parsed = registerSchema.safeParse({
+    fullName: String(formData.get("fullName") || ""),
+    clinicName: String(formData.get("clinicName") || "") || undefined,
+    workEmail: String(formData.get("workEmail") || ""),
+    phoneNumber: String(formData.get("phoneNumber") || "") || undefined,
+    password: String(formData.get("password") || ""),
+    confirmPassword: String(formData.get("confirmPassword") || ""),
+    terms: formData.get("terms") === "on",
+  });
 
-  if (!fullName || !email || !password) {
-    return { error: "Full name, work email, and password are required." };
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  if (password !== confirmPassword) {
-    return { error: "Passwords don't match." };
-  }
-  if (!agreedToTerms) {
-    return { error: "You need to agree to the Terms of Service to continue." };
-  }
+
+  const { fullName, clinicName, workEmail, phoneNumber, password } = parsed.data;
 
   // The very first person to register becomes this clinic's admin and
   // names the clinic. Every registration after that is a staff member
@@ -47,12 +46,12 @@ export async function registerAction(
 
   const supabase = createClient();
   const { error } = await supabase.auth.signUp({
-    email,
+    email: workEmail,
     password,
     options: {
       data: {
         full_name: fullName,
-        phone,
+        phone: phoneNumber,
         role: isFirstUser ? "admin" : "front_desk",
       },
     },

@@ -1,27 +1,58 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useFormState, useFormStatus } from "react-dom";
-import { createPatientAction, type PatientFormState } from "@/app/(dashboard)/patients/actions";
-
-const initialState: PatientFormState = { error: null };
-
-function SaveButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      className="px-md py-sm rounded-lg text-label-md font-medium text-on-primary bg-primary hover:bg-surface-tint transition-colors shadow-sm disabled:opacity-60"
-      type="submit"
-      disabled={pending}
-    >
-      {pending ? "Saving…" : "Save Patient"}
-    </button>
-  );
-}
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useTransition } from "react";
+import { toast } from "sonner";
+import { createPatientAction } from "@/app/(dashboard)/patients/actions";
+import { createPatientSchema, type CreatePatientPayload } from "@/lib/validators";
 
 export function AddPatientForm() {
   const router = useRouter();
-  const [state, formAction] = useFormState(createPatientAction, initialState);
+  const [isPending, startTransition] = useTransition();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CreatePatientPayload>({
+    resolver: zodResolver(createPatientSchema),
+    defaultValues: {
+      full_name: "",
+      dob: "",
+      phone: "",
+      email: "",
+      allergies: "",
+      blood_group: "",
+      gender: "",
+      address: "",
+    },
+  });
+
+  const onSubmit = (data: CreatePatientPayload) => {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("fullName", data.full_name);
+      formData.set("dob", data.dob ?? "");
+      formData.set("phone", data.phone ?? "");
+      formData.set("email", data.email ?? "");
+      formData.set("allergies", data.allergies ?? "");
+      formData.set("bloodGroup", data.blood_group ?? "");
+      formData.set("sex", data.gender ?? "");
+      formData.set("address", data.address ?? "");
+      formData.set("city", "");
+      formData.set("zip", "");
+
+      const res = await createPatientAction({ error: null }, formData);
+      if (res.error) {
+        toast.error(res.error);
+      }
+    });
+  };
+
+  const inputClass =
+    "w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all";
+  const labelClass = "block text-label-sm text-on-surface mb-xs";
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -36,12 +67,7 @@ export function AddPatientForm() {
         </button>
       </div>
 
-      <form action={formAction} className="space-y-xl bg-surface border border-outline-variant rounded-xl p-lg">
-        {state.error && (
-          <div className="rounded-lg bg-error-container text-on-error-container text-body-sm px-sm py-2">
-            {state.error}
-          </div>
-        )}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-xl bg-surface border border-outline-variant rounded-xl p-lg">
 
         <section>
           <h3 className="text-label-md font-semibold text-on-surface-variant mb-md uppercase tracking-wider">
@@ -49,30 +75,32 @@ export function AddPatientForm() {
           </h3>
           <div className="space-y-md">
             <div>
-              <label className="block text-label-sm text-on-surface mb-xs">Full Name</label>
+              <label className={labelClass}>Full Name</label>
               <input
-                name="fullName"
-                required
-                className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                className={inputClass}
                 placeholder="e.g. Jane Doe"
                 type="text"
+                {...register("full_name")}
               />
+              {errors.full_name && (
+                <p className="text-body-sm text-error mt-xs">{errors.full_name.message}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-md">
               <div>
-                <label className="block text-label-sm text-on-surface mb-xs">Date of Birth</label>
+                <label className={labelClass}>Date of Birth</label>
                 <input
-                  name="dob"
-                  className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  className={inputClass}
                   type="date"
+                  {...register("dob")}
                 />
               </div>
               <div>
-                <label className="block text-label-sm text-on-surface mb-xs">Gender</label>
+                <label className={labelClass}>Gender</label>
                 <select
-                  name="sex"
+                  className={inputClass}
                   defaultValue=""
-                  className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  {...register("gender")}
                 >
                   <option disabled value="">Select</option>
                   <option value="female">Female</option>
@@ -83,58 +111,86 @@ export function AddPatientForm() {
             </div>
             <div className="grid grid-cols-2 gap-md">
               <div>
-                <label className="block text-label-sm text-on-surface mb-xs">Phone</label>
+                <label className={labelClass}>Phone</label>
                 <input
-                  name="phone"
-                  className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  className={inputClass}
                   placeholder="+91 98765 43210"
                   type="tel"
+                  {...register("phone")}
                 />
               </div>
               <div>
-                <label className="block text-label-sm text-on-surface mb-xs">Email</label>
+                <label className={labelClass}>Email</label>
                 <input
-                  name="email"
-                  className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  className={inputClass}
                   placeholder="patient@example.com"
                   type="email"
+                  {...register("email")}
                 />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-md">
+              <div>
+                <label className={labelClass}>Allergies</label>
+                <input
+                  className={inputClass}
+                  placeholder="e.g. Penicillin, Latex"
+                  type="text"
+                  {...register("allergies")}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Blood Group</label>
+                <select
+                  className={inputClass}
+                  defaultValue=""
+                  {...register("blood_group")}
+                >
+                  <option disabled value="">Select</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
               </div>
             </div>
           </div>
         </section>
-
         <section>
           <h3 className="text-label-md font-semibold text-on-surface-variant mb-md uppercase tracking-wider">
             Address
           </h3>
           <div className="space-y-md">
             <div>
-              <label className="block text-label-sm text-on-surface mb-xs">Street Address</label>
+              <label className={labelClass}>Street Address</label>
               <input
-                name="address"
-                className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                className={inputClass}
                 placeholder="123 Medical Way, Suite 100"
                 type="text"
+                {...register("address")}
               />
             </div>
             <div className="grid grid-cols-2 gap-md">
               <div>
-                <label className="block text-label-sm text-on-surface mb-xs">City</label>
+                <label className={labelClass}>City</label>
                 <input
-                  name="city"
-                  className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  className={inputClass}
                   placeholder="City"
                   type="text"
+                  name="city"
                 />
               </div>
               <div>
-                <label className="block text-label-sm text-on-surface mb-xs">PIN Code</label>
+                <label className={labelClass}>PIN Code</label>
                 <input
-                  name="zip"
-                  className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  className={inputClass}
                   placeholder="600001"
                   type="text"
+                  name="zip"
                 />
               </div>
             </div>
@@ -147,21 +203,21 @@ export function AddPatientForm() {
           </h3>
           <div className="space-y-md">
             <div>
-              <label className="block text-label-sm text-on-surface mb-xs">Contact Name</label>
+              <label className={labelClass}>Contact Name</label>
               <input
-                name="emergencyName"
-                className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                className={inputClass}
                 placeholder="Name"
                 type="text"
+                name="emergencyName"
               />
             </div>
             <div>
-              <label className="block text-label-sm text-on-surface mb-xs">Contact Phone</label>
+              <label className={labelClass}>Contact Phone</label>
               <input
-                name="emergencyPhone"
-                className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                className={inputClass}
                 placeholder="+91 98765 43210"
                 type="tel"
+                name="emergencyPhone"
               />
             </div>
           </div>
@@ -175,7 +231,13 @@ export function AddPatientForm() {
           >
             Cancel
           </button>
-          <SaveButton />
+          <button
+            className="px-md py-sm rounded-lg text-label-md font-medium text-on-primary bg-primary hover:bg-surface-tint transition-colors shadow-sm disabled:opacity-60"
+            type="submit"
+            disabled={isPending}
+          >
+            {isPending ? "Saving…" : "Save Patient"}
+          </button>
         </div>
       </form>
     </div>

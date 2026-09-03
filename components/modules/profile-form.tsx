@@ -1,32 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
-import { updateProfileAction, type ProfileFormState } from "@/app/(dashboard)/profile/actions";
+import { useState, useTransition } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { updateProfileAction } from "@/app/(dashboard)/profile/actions";
 import type { Database } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/client";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-const initialState: ProfileFormState = { error: null };
-
-function SaveButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      className="px-lg py-sm rounded-lg bg-primary text-on-primary text-label-md hover:bg-primary/90 transition-colors disabled:opacity-60"
-      type="submit"
-      disabled={pending}
-    >
-      {pending ? "Saving…" : "Save Changes"}
-    </button>
-  );
+interface ProfileFormValues {
+  fullName: string;
+  phone: string;
+  specialty: string;
+  avatarUrl: string;
 }
 
 export function ProfileForm({ profile, email }: { profile: Profile; email: string }) {
-  const [state, formAction] = useFormState(updateProfileAction, initialState);
+  const [isPending, startTransition] = useTransition();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [uploading, setUploading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ProfileFormValues>({
+    defaultValues: {
+      fullName: profile.full_name || "",
+      phone: profile.phone ?? "",
+      specialty: profile.specialty ?? "",
+      avatarUrl: profile.avatar_url ?? "",
+    },
+  });
+
+  const onSubmit = (data: ProfileFormValues) => {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("fullName", data.fullName);
+      formData.set("phone", data.phone);
+      formData.set("specialty", data.specialty);
+      formData.set("avatarUrl", avatarUrl ?? "");
+      const res = await updateProfileAction({ error: null }, formData);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Profile saved.");
+      }
+    });
+  };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,7 +64,7 @@ export function ProfileForm({ profile, email }: { profile: Profile; email: strin
         .upload(filePath, file, { cacheControl: "3600", upsert: true });
 
       if (uploadError) {
-        alert("Error uploading avatar: " + uploadError.message);
+        toast.error("Error uploading avatar: " + uploadError.message);
         return;
       }
 
@@ -53,7 +74,7 @@ export function ProfileForm({ profile, email }: { profile: Profile; email: strin
 
       setAvatarUrl(publicUrl);
     } catch (err: any) {
-      alert("Error: " + err.message);
+      toast.error("Error: " + err.message);
     } finally {
       setUploading(false);
     }
@@ -75,14 +96,7 @@ export function ProfileForm({ profile, email }: { profile: Profile; email: strin
         </div>
       </div>
 
-      <form action={formAction} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg space-y-md">
-        {state.error && (
-          <div className="rounded-lg bg-error-container text-on-error-container text-body-sm px-sm py-2">{state.error}</div>
-        )}
-        {state.success && (
-          <div className="rounded-lg bg-secondary-container/30 text-secondary text-body-sm px-sm py-2">Saved.</div>
-        )}
-
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg space-y-md">
         <div className="space-y-xs">
           <label className="block text-label-md text-on-surface">Avatar Image</label>
           <div className="flex items-center gap-md">
@@ -109,11 +123,12 @@ export function ProfileForm({ profile, email }: { profile: Profile; email: strin
         <div className="space-y-xs">
           <label className="block text-label-md text-on-surface">Full Name</label>
           <input
-            name="fullName"
-            defaultValue={profile.full_name}
-            required
+            {...register("fullName")}
             className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm"
           />
+          {errors.fullName && (
+            <p className="text-body-sm text-error">{errors.fullName.message}</p>
+          )}
         </div>
 
         <div className="space-y-xs">
@@ -131,8 +146,7 @@ export function ProfileForm({ profile, email }: { profile: Profile; email: strin
         <div className="space-y-xs">
           <label className="block text-label-md text-on-surface">Phone</label>
           <input
-            name="phone"
-            defaultValue={profile.phone ?? ""}
+            {...register("phone")}
             className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm"
           />
         </div>
@@ -141,8 +155,7 @@ export function ProfileForm({ profile, email }: { profile: Profile; email: strin
           <div className="space-y-xs">
             <label className="block text-label-md text-on-surface">Specialty</label>
             <input
-              name="specialty"
-              defaultValue={profile.specialty ?? ""}
+              {...register("specialty")}
               className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm"
               placeholder="e.g. Cardiology"
             />
@@ -150,7 +163,13 @@ export function ProfileForm({ profile, email }: { profile: Profile; email: strin
         )}
 
         <div className="pt-md border-t border-outline-variant flex justify-end">
-          <SaveButton />
+          <button
+            className="px-lg py-sm rounded-lg bg-primary text-on-primary text-label-md hover:bg-primary/90 transition-colors disabled:opacity-60"
+            type="submit"
+            disabled={isPending}
+          >
+            {isPending ? "Saving…" : "Save Changes"}
+          </button>
         </div>
       </form>
     </div>

@@ -2,32 +2,18 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useFormState, useFormStatus } from "react-dom";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import {
   updateClinicDetailsAction,
   updateScalingModeAction,
   updateStaffRoleAction,
-  type SettingsFormState,
 } from "@/app/(dashboard)/settings/actions";
+import { updateClinicSettingsSchema, type UpdateClinicSettingsPayload } from "@/lib/validators";
 import type { ScalingMode, UserRole } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/client";
 
-const initialState: SettingsFormState = { error: null };
-
 const TABS = ["Clinic Profile", "Operational Hours", "Billing & Payments", "Notifications", "Security"] as const;
-
-function SaveButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      className="px-lg py-sm rounded-lg bg-primary text-on-primary text-label-md hover:bg-primary/90 transition-colors disabled:opacity-60"
-      type="submit"
-      disabled={pending}
-    >
-      {pending ? "Saving…" : "Save Changes"}
-    </button>
-  );
-}
 
 export function ClinicSettingsForm({
   clinic,
@@ -45,7 +31,42 @@ export function ClinicSettingsForm({
   staff: { id: string; full_name: string; role: string; is_active: boolean }[];
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Clinic Profile");
-  const [state, formAction] = useFormState(updateClinicDetailsAction, initialState);
+  const [isSavingClinic, startClinicTransition] = useTransition();
+  const {
+    register: registerClinic,
+    handleSubmit: handleClinicSubmit,
+    formState: { errors: clinicErrors },
+  } = useForm<UpdateClinicSettingsPayload>({
+    resolver: undefined,
+    defaultValues: {
+      name: clinic.name,
+      address: clinic.address ?? "",
+      phone: clinic.phone ?? "",
+      scaling_mode: clinic.scaling_mode,
+    },
+  });
+
+  const onClinicSubmit = (data: UpdateClinicSettingsPayload) => {
+    startClinicTransition(async () => {
+      const parsed = updateClinicSettingsSchema.safeParse(data);
+      if (!parsed.success) {
+        toast.error(parsed.error.issues[0]?.message ?? "Invalid input.");
+        return;
+      }
+      const formData = new FormData();
+      formData.set("name", data.name);
+      formData.set("address", data.address ?? "");
+      formData.set("phone", data.phone ?? "");
+      formData.set("logoUrl", logoUrl ?? "");
+      const res = await updateClinicDetailsAction({ error: null }, formData);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Clinic settings saved.");
+      }
+    });
+  };
+
   const [logoUrl, setLogoUrl] = useState<string | null>(clinic.logo_url ?? null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [isUpdatingStaff, startUpdateStaffTransition] = useTransition();
@@ -153,14 +174,7 @@ export function ClinicSettingsForm({
       </div>
 
       {tab === "Clinic Profile" && (
-        <form action={formAction} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg space-y-md">
-          {state.error && (
-            <div className="rounded-lg bg-error-container text-on-error-container text-body-sm px-sm py-2">{state.error}</div>
-          )}
-          {state.success && (
-            <div className="rounded-lg bg-secondary-container/30 text-secondary text-body-sm px-sm py-2">Saved.</div>
-          )}
-          
+        <form onSubmit={handleClinicSubmit(onClinicSubmit)} className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg space-y-md">
           <div className="space-y-xs">
             <label className="block text-label-md text-on-surface">Clinic Logo</label>
             <div className="rounded-xl border-2 border-dashed border-outline-variant p-md flex items-center gap-md bg-surface-container-low/40">
@@ -197,24 +211,24 @@ export function ClinicSettingsForm({
           <div className="space-y-xs">
             <label className="block text-label-md text-on-surface">Clinic Name</label>
             <input
-              name="name"
-              defaultValue={clinic.name}
+              {...registerClinic("name")}
               className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm"
             />
+            {clinicErrors.name && (
+              <p className="text-body-sm text-error">{clinicErrors.name.message}</p>
+            )}
           </div>
           <div className="space-y-xs">
             <label className="block text-label-md text-on-surface">Address</label>
             <input
-              name="address"
-              defaultValue={clinic.address ?? ""}
+              {...registerClinic("address")}
               className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm"
             />
           </div>
           <div className="space-y-xs">
             <label className="block text-label-md text-on-surface">Phone</label>
             <input
-              name="phone"
-              defaultValue={clinic.phone ?? ""}
+              {...registerClinic("phone")}
               className="w-full h-10 px-md bg-surface-container-lowest border border-outline-variant rounded-lg text-body-sm"
             />
           </div>
@@ -243,7 +257,13 @@ export function ClinicSettingsForm({
             ))}
           </div>
           <div className="pt-md border-t border-outline-variant flex justify-end">
-            <SaveButton />
+            <button
+              className="px-lg py-sm rounded-lg bg-primary text-on-primary text-label-md hover:bg-primary/90 transition-colors disabled:opacity-60"
+              type="submit"
+              disabled={isSavingClinic}
+            >
+              {isSavingClinic ? "Saving…" : "Save Changes"}
+            </button>
           </div>
         </form>
       )}

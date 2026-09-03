@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ScalingMode, UserRole } from "@/lib/supabase/types";
 import { getUserFacingMessage } from "@/lib/errors";
+import { updateClinicSettingsSchema, scalingModeSchema, staffRoleSchema } from "@/lib/validators";
 
 export type SettingsFormState = { error: string | null; success?: boolean };
 
@@ -26,12 +27,23 @@ export async function updateClinicDetailsAction(
   const ctx = await requireAdmin();
   if (!ctx) return { error: "Only admins can update clinic settings." };
 
+  const parsed = updateClinicSettingsSchema.safeParse({
+    name: String(formData.get("name") || ""),
+    address: String(formData.get("address") || ""),
+    phone: String(formData.get("phone") || ""),
+    scaling_mode: undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { name, address, phone } = parsed.data;
+
   const { error } = await ctx.supabase
     .from("clinics")
     .update({
-      name: String(formData.get("name") || ""),
-      address: String(formData.get("address") || ""),
-      phone: String(formData.get("phone") || ""),
+      name,
+      address,
+      phone,
       logo_url: String(formData.get("logoUrl") || "") || null,
     })
     .eq("id", ctx.profile.clinic_id);
@@ -50,7 +62,12 @@ export async function updateScalingModeAction(mode: ScalingMode) {
   const ctx = await requireAdmin();
   if (!ctx) throw new Error("Only admins can change the scaling mode.");
 
-  await ctx.supabase.from("clinics").update({ scaling_mode: mode }).eq("id", ctx.profile.clinic_id);
+  const parsed = scalingModeSchema.safeParse(mode);
+  if (!parsed.success) {
+    throw new Error("Invalid scaling mode.");
+  }
+
+  await ctx.supabase.from("clinics").update({ scaling_mode: parsed.data }).eq("id", ctx.profile.clinic_id);
   revalidatePath("/settings");
 }
 
@@ -58,10 +75,16 @@ export async function updateStaffRoleAction(staffId: string, role: UserRole) {
   const ctx = await requireAdmin();
   if (!ctx) throw new Error("Only admins can update staff roles.");
 
+  const parsed = staffRoleSchema.safeParse({ staffId, role });
+  if (!parsed.success) {
+    throw new Error("Invalid staff role.");
+  }
+  const { staffId: id, role: newRole } = parsed.data;
+
   await ctx.supabase
     .from("profiles")
-    .update({ role })
-    .eq("id", staffId)
+    .update({ role: newRole })
+    .eq("id", id)
     .eq("clinic_id", ctx.profile.clinic_id);
 
   revalidatePath("/settings");

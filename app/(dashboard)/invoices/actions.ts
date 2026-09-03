@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getUserFacingMessage } from "@/lib/errors";
+import { invoiceFormSchema } from "@/lib/validators";
 
 export type InvoiceFormState = { error: string | null };
 
@@ -29,15 +30,18 @@ export async function createInvoiceAction(
   const patientId = String(formData.get("patientId") || "").trim();
   const services = String(formData.get("services") || "Consultation & Clinical Services").trim();
   const amount = Number(formData.get("amount") || 0);
-  const statusRaw = String(formData.get("status") || "sent").toLowerCase();
-  const dbStatus =
-    statusRaw === "paid" ? "paid"
-      : statusRaw === "overdue" ? "overdue"
-        : statusRaw === "draft" ? "draft"
-          : "sent";
+  const statusRaw = String(formData.get("status") || "sent").toLowerCase() as "paid" | "sent" | "overdue" | "draft";
 
-  if (!patientId) return { error: "Please select a patient." };
-  if (amount <= 0) return { error: "Amount must be greater than zero." };
+  const parsed = invoiceFormSchema.safeParse({ patientId, services, amount, status: statusRaw });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const {
+    patientId: pId,
+    services: svc,
+    amount: amt,
+    status: dbStatus,
+  } = parsed.data;
 
   const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
 
@@ -45,12 +49,12 @@ export async function createInvoiceAction(
     .from("invoices")
     .insert({
       clinic_id: profile.clinic_id,
-      patient_id: patientId,
+      patient_id: pId,
       invoice_number: invoiceNumber,
       status: dbStatus as any,
-      subtotal: amount,
+      subtotal: amt,
       tax: 0,
-      total: amount,
+      total: amt,
       currency: "INR",
     })
     .select("id")
@@ -61,10 +65,10 @@ export async function createInvoiceAction(
   // Insert a single line item for the services description.
   await supabase.from("invoice_items").insert({
     invoice_id: inserted.id,
-    description: services,
+    description: svc,
     quantity: 1,
-    unit_price: amount,
-    amount,
+    unit_price: amt,
+    amount: amt,
   });
 
   revalidatePath("/invoices");

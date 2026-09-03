@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUserFacingMessage } from "@/lib/errors";
+import { createPrescriptionSchema } from "@/lib/validators";
 
 export type RxStatus = "active" | "draft" | "completed" | "discontinued";
 
@@ -36,6 +37,24 @@ export async function createPrescriptionAction(
   payload: CreatePrescriptionPayload
 ): Promise<CreatePrescriptionResult> {
   try {
+    const parsed = createPrescriptionSchema.safeParse({
+      patient_id: payload.patientId,
+      doctor_id: payload.patientId, // placeholder; real doctor resolved below
+      diagnosis: payload.diagnosis,
+      notes: payload.notes,
+      appointment_id: payload.appointmentId || "",
+      items: payload.items.map((item) => ({
+        drug_name: item.drugName,
+        dosage: item.dosage,
+        frequency: item.frequency,
+        duration: item.duration,
+        instructions: item.instructions,
+      })),
+    });
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    }
+
     const supabase = createClient();
     const {
       data: { user },

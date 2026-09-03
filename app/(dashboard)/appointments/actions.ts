@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AppointmentStatus } from "@/lib/supabase/types";
 import { getUserFacingMessage } from "@/lib/errors";
+import { bookAppointmentSchema, appointmentStatusSchema } from "@/lib/validators";
 
 export type AppointmentFormState = { error: string | null };
 
@@ -27,22 +28,30 @@ export async function bookAppointmentAction(
   const time = String(formData.get("time") || "");
   const durationMinutes = Number(formData.get("duration") || 30);
 
-  if (!patientId || !doctorId || !date || !time) {
-    return { error: "Patient, doctor, date and time are all required." };
+  const parsed = bookAppointmentSchema.safeParse({
+    patient_id: patientId,
+    doctor_id: doctorId,
+    scheduled_at: `${date}T${time}`,
+    duration_minutes: durationMinutes,
+    reason: String(formData.get("reason") || ""),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
+  const { patient_id, doctor_id, scheduled_at, duration_minutes, reason } = parsed.data;
 
-  const start = new Date(`${date}T${time}`);
-  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  const start = new Date(scheduled_at);
+  const end = new Date(start.getTime() + duration_minutes * 60 * 1000);
 
   const { data: inserted, error } = await supabase
     .from("appointments")
     .insert({
       clinic_id: profile.clinic_id,
-      patient_id: patientId,
-      doctor_id: doctorId,
+      patient_id,
+      doctor_id,
       start_time: start.toISOString(),
       end_time: end.toISOString(),
-      reason: String(formData.get("reason") || "") || null,
+      reason: reason || null,
       notes: String(formData.get("notes") || "") || null,
       created_by: user.id,
     })
@@ -62,18 +71,22 @@ export async function updateAppointmentStatusAction(
   newStatus: AppointmentStatus
 ): Promise<{ success: true; newStatus: AppointmentStatus } | { error: string }> {
   try {
+    const parsed = appointmentStatusSchema.safeParse({ appointmentId, newStatus });
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    }
+    const { appointmentId: id, newStatus: status } = parsed.data;
+
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return { error: "Authentication required." };
 
-    if (!appointmentId) return { error: "Appointment id is required." };
-
     const { error } = await supabase
       .from("appointments")
-      .update({ status: newStatus })
-      .eq("id", appointmentId);
+      .update({ status })
+      .eq("id", id);
 
     if (error) {
       console.error("Status update error:", error);
@@ -82,10 +95,10 @@ export async function updateAppointmentStatusAction(
 
     // Clear server cache so the calendar, detail view, and dashboard update immediately
     revalidatePath("/appointments");
-    revalidatePath(`/appointments/${appointmentId}`);
+    revalidatePath(`/appointments/${id}`);
     revalidatePath("/dashboard");
 
-    return { success: true, newStatus };
+    return { success: true, newStatus: status };
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to update appointment status.";

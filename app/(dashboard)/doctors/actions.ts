@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getUserFacingMessage } from "@/lib/errors";
+import { createDoctorSchema, availabilitySchema } from "@/lib/validators";
 
 export type AvailabilityFormState = { error: string | null };
 
@@ -47,27 +48,35 @@ export async function createDoctorAction(
   const ctx = await requireAdmin();
   if (!ctx) return { error: "Only admins can add doctors." };
 
-  const fullName = String(formData.get("fullName") || "").trim();
-  if (!fullName) return { error: "Full name is required." };
+  const parsed = createDoctorSchema.safeParse({
+    fullName: String(formData.get("fullName") || "").trim(),
+    specialty: String(formData.get("specialty") || "").trim() || undefined,
+    licenseNo: String(formData.get("licenseNo") || "").trim() || undefined,
+    phone: String(formData.get("phone") || "").trim() || undefined,
+    email: String(formData.get("email") || "").trim() || "",
+    status: String(formData.get("status") || "active") as "active" | "inactive",
+  });
 
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  const { fullName, specialty, licenseNo, phone, email, status } = parsed.data;
   const cleanedName = fullName.replace(/^dr\.\s*/i, "").trim();
-  const specialty = String(formData.get("specialty") || "").trim() || null;
-  const licenseNo = String(formData.get("licenseNo") || "").trim() || null;
-  const phone = String(formData.get("phone") || "").trim() || null;
-  const email = String(formData.get("email") || "").trim().toLowerCase() || null;
-  const isActive = formData.get("status") !== "inactive"; // "active" (default) | "inactive"
+  const isActive = status === "active";
+  const normalizedEmail = (email ?? "").trim().toLowerCase() || "";
 
   // 1. Create the auth user FIRST so a real auth.users row exists to satisfy
   //    the profiles.id FK. The admin client (service role) bypasses RLS and is
   //    required here — auth.admin.createUser cannot run through the anon/REST.
   const admin = createAdminClient();
-  const suggestedEmail = email || `doctor.${Date.now()}@medflow.in`;
+  const suggestedEmail = normalizedEmail || `doctor.${Date.now()}@medflow.in`;
   const tempPassword = `MedFlowDoc#${Math.floor(100000 + Math.random() * 900000)}`;
 
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: suggestedEmail,
     password: tempPassword,
-    email_confirm: email ? true : false,
+    email_confirm: normalizedEmail ? true : false,
     user_metadata: {
       full_name: cleanedName,
       role: "doctor",
@@ -155,6 +164,14 @@ export async function updateAvailabilityAction(
     const available = formData.get(`available_${day}`) === "on";
     return { day_of_week: day, start_time: start || null, end_time: end || null, available };
   });
+
+  const availParsed = availabilitySchema.safeParse({
+    doctorId,
+    days: rows.map((r) => ({ start: r.start_time ?? undefined, end: r.end_time ?? undefined, available: r.available })),
+  });
+  if (!availParsed.success) {
+    return { error: availParsed.error.issues[0]?.message ?? "Invalid input." };
+  }
 
   const inserts = rows
     .filter((r) => r.available)

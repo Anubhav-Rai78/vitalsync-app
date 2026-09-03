@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useForm, useFieldArray } from "react-hook-form";
+import { toast } from "sonner";
 import {
   ChevronRight,
   AlertTriangle,
@@ -24,6 +26,22 @@ interface PatientOption {
   id: string;
   full_name: string;
 }
+
+interface RxFormValues {
+  medications: PrescriptionItemInput[];
+  diagnosis: string;
+  pharmacistNotes: string;
+}
+
+const defaultMedication: PrescriptionItemInput = {
+  drugName: "",
+  dosage: "",
+  frequency: "Once daily (QD)",
+  duration: "10 days",
+  route: "Oral",
+  refills: 0,
+  instructions: "",
+};
 
 export function CreatePrescriptionForm({
   patients,
@@ -49,21 +67,72 @@ export function CreatePrescriptionForm({
     allergies: string | null;
   } | null>(null);
 
-  const [medications, setMedications] = useState<PrescriptionItemInput[]>([
-    {
-      drugName: "",
-      dosage: "",
-      frequency: "Once daily (QD)",
-      duration: "10 days",
-      route: "Oral",
-      refills: 0,
-      instructions: "",
-    },
-  ]);
-  const [diagnosis, setDiagnosis] = useState("General Consultation");
-  const [pharmacistNotes, setPharmacistNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const {
+    register: registerRx,
+    control,
+    handleSubmit: submitRx,
+    getValues,
+  } = useForm<RxFormValues>({
+    defaultValues: {
+      medications: [defaultMedication],
+      diagnosis: "General Consultation",
+      pharmacistNotes: "",
+    },
+  });
+
+  const { fields, append, remove, update } = useFieldArray({
+    control,
+    name: "medications",
+  });
+
+  const addMedication = () => append({ ...defaultMedication });
+  const removeMedication = (index: number) => remove(index);
+
+  const applyInstructionPreset = (index: number, text: string) => {
+    const medications = getValues("medications");
+    const current = medications[index]?.instructions?.trim() || "";
+    const next = current ? `${current} ${text}.` : `${text}.`;
+    update(index, { ...medications[index], instructions: next });
+  };
+
+  const handleSubmit = async (status: RxStatus) => {
+    if (!selectedPatientId) {
+      setErrorMessage("Please select a patient before saving.");
+      return;
+    }
+    const form = getValues();
+    const meds = form.medications;
+    if (meds.some((m) => !m.drugName.trim())) {
+      setErrorMessage("Please specify the drug name for every medication row.");
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage(null);
+
+    const res = await createPrescriptionAction({
+      patientId: selectedPatientId,
+      appointmentId: appointmentId || undefined,
+      diagnosis: form.diagnosis,
+      notes: form.pharmacistNotes,
+      status,
+      items: meds,
+    });
+
+    if ("error" in res && res.error) {
+      setErrorMessage(res.error);
+      toast.error(res.error);
+      setSaving(false);
+      return;
+    }
+
+    toast.success(status === "draft" ? "Prescription saved as draft." : "Prescription finalized.");
+    router.push("/prescriptions");
+    router.refresh();
+  };
 
   useEffect(() => {
     if (!selectedPatientId) {
@@ -101,77 +170,6 @@ export function CreatePrescriptionForm({
       : null;
     return { age, sex };
   }, [patientData]);
-
-  const addMedication = () => {
-    setMedications((prev) => [
-      ...prev,
-      {
-        drugName: "",
-        dosage: "",
-        frequency: "Once daily (QD)",
-        duration: "10 days",
-        route: "Oral",
-        refills: 0,
-        instructions: "",
-      },
-    ]);
-  };
-
-  const removeMedication = (index: number) => {
-    setMedications((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const updateMedication = (
-    index: number,
-    field: keyof PrescriptionItemInput,
-    value: string | number | undefined
-  ) => {
-    setMedications((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-    );
-  };
-
-  const applyInstructionPreset = (index: number, text: string) => {
-    setMedications((prev) =>
-      prev.map((item, i) => {
-        if (i !== index) return item;
-        const current = item.instructions?.trim() || "";
-        return { ...item, instructions: current ? `${current} ${text}.` : `${text}.` };
-      })
-    );
-  };
-
-  const handleSubmit = async (status: RxStatus) => {
-    if (!selectedPatientId) {
-      setErrorMessage("Please select a patient before saving.");
-      return;
-    }
-    if (medications.some((m) => !m.drugName.trim())) {
-      setErrorMessage("Please specify the drug name for every medication row.");
-      return;
-    }
-
-    setSaving(true);
-    setErrorMessage(null);
-
-    const res = await createPrescriptionAction({
-      patientId: selectedPatientId,
-      appointmentId: appointmentId || undefined,
-      diagnosis,
-      notes: pharmacistNotes,
-      status,
-      items: medications,
-    });
-
-    if ("error" in res && res.error) {
-      setErrorMessage(res.error);
-      setSaving(false);
-      return;
-    }
-
-    router.push("/prescriptions");
-    router.refresh();
-  };
 
   return (
     <div className="max-w-container-max mx-auto space-y-lg font-body-md text-body-md text-on-background pb-32">
@@ -278,16 +276,16 @@ export function CreatePrescriptionForm({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg items-start">
         {/* Left: medication rows */}
         <div className="lg:col-span-2 space-y-md">
-          {medications.map((item, idx) => (
+          {fields.map((field, idx) => (
             <div
-              key={idx}
+              key={field.id}
               className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm space-y-md relative"
             >
               <div className="flex justify-between items-center border-b border-outline-variant pb-2">
                 <h3 className="font-headline-sm text-headline-sm text-on-surface">
                   Medication #{idx + 1}
                 </h3>
-                {medications.length > 1 && (
+                {fields.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeMedication(idx)}
@@ -307,8 +305,7 @@ export function CreatePrescriptionForm({
                   <input
                     type="text"
                     required
-                    value={item.drugName}
-                    onChange={(e) => updateMedication(idx, "drugName", e.target.value)}
+                    {...registerRx(`medications.${idx}.drugName`)}
                     placeholder="e.g. Amlodipine"
                     className="w-full h-10 pl-10 pr-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none focus:border-primary"
                   />
@@ -319,8 +316,7 @@ export function CreatePrescriptionForm({
                   <label className="block font-label-md text-label-md text-on-surface mb-xs">Dosage</label>
                   <input
                     type="text"
-                    value={item.dosage}
-                    onChange={(e) => updateMedication(idx, "dosage", e.target.value)}
+                    {...registerRx(`medications.${idx}.dosage`)}
                     placeholder="5 mg"
                     className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none focus:border-primary"
                   />
@@ -328,8 +324,7 @@ export function CreatePrescriptionForm({
                 <div>
                   <label className="block font-label-md text-label-md text-on-surface mb-xs">Frequency</label>
                   <select
-                    value={item.frequency}
-                    onChange={(e) => updateMedication(idx, "frequency", e.target.value)}
+                    {...registerRx(`medications.${idx}.frequency`)}
                     className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
                   >
                     <option value="Once daily (QD)">Once daily (QD)</option>
@@ -342,8 +337,7 @@ export function CreatePrescriptionForm({
                   <label className="block font-label-md text-label-md text-on-surface mb-xs">Duration</label>
                   <input
                     type="text"
-                    value={item.duration}
-                    onChange={(e) => updateMedication(idx, "duration", e.target.value)}
+                    {...registerRx(`medications.${idx}.duration`)}
                     placeholder="30 days"
                     className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none focus:border-primary"
                   />
@@ -353,8 +347,7 @@ export function CreatePrescriptionForm({
                 <div>
                   <label className="block font-label-md text-label-md text-on-surface mb-xs">Route</label>
                   <select
-                    value={item.route || "Oral"}
-                    onChange={(e) => updateMedication(idx, "route", e.target.value)}
+                    {...registerRx(`medications.${idx}.route`)}
                     className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none cursor-pointer"
                   >
                     <option value="Oral">Oral</option>
@@ -369,8 +362,7 @@ export function CreatePrescriptionForm({
                   <input
                     type="number"
                     min={0}
-                    value={item.refills ?? 0}
-                    onChange={(e) => updateMedication(idx, "refills", Number(e.target.value))}
+                    {...registerRx(`medications.${idx}.refills`, { valueAsNumber: true })}
                     className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none focus:border-primary"
                   />
                 </div>
@@ -398,8 +390,7 @@ export function CreatePrescriptionForm({
                 </div>
                 <input
                   type="text"
-                  value={item.instructions}
-                  onChange={(e) => updateMedication(idx, "instructions", e.target.value)}
+                  {...registerRx(`medications.${idx}.instructions`)}
                   placeholder="e.g. Take one tablet daily at bedtime."
                   className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none focus:border-primary"
                 />
@@ -424,8 +415,7 @@ export function CreatePrescriptionForm({
             </h3>
             <input
               type="text"
-              value={diagnosis}
-              onChange={(e) => setDiagnosis(e.target.value)}
+              {...registerRx("diagnosis")}
               placeholder="e.g. Essential Hypertension (I10)"
               className="w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none focus:border-primary"
             />
@@ -437,8 +427,7 @@ export function CreatePrescriptionForm({
             </h3>
             <textarea
               rows={5}
-              value={pharmacistNotes}
-              onChange={(e) => setPharmacistNotes(e.target.value)}
+              {...registerRx("pharmacistNotes")}
               placeholder="Enter special instructions for the dispensing pharmacist..."
               className="w-full p-3 bg-surface-container-low border border-outline-variant rounded-lg text-body-sm text-on-surface outline-none focus:border-primary resize-none"
             />

@@ -1,27 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useFormState, useFormStatus } from "react-dom";
-import { loginAction, type LoginState } from "@/app/(auth)/login/actions";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useTransition } from "react";
+import { toast } from "sonner";
+import { loginAction } from "@/app/(auth)/login/actions";
+import { loginSchema, type LoginPayload } from "@/lib/validators";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
 
-const initialState: LoginState = { error: null };
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      className="h-[40px] w-full mt-md bg-primary text-on-primary text-label-md rounded hover:bg-on-primary-fixed-variant transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 flex items-center justify-center shadow-sm disabled:opacity-60"
-      type="submit"
-      disabled={pending}
-    >
-      {pending ? "Signing in…" : "Sign In"}
-    </button>
-  );
-}
-
 export function LoginForm() {
-  const [state, formAction] = useFormState(loginAction, initialState);
+  const [isPending, startTransition] = useTransition();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginPayload>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const onSubmit = (data: LoginPayload) => {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("email", data.email);
+      formData.set("password", data.password);
+      const res = await loginAction({ error: null }, formData);
+      if (res.error) {
+        toast.error(res.error);
+      }
+    });
+  };
 
   return (
     <main className="flex-grow flex w-full">
@@ -39,12 +48,7 @@ export function LoginForm() {
               </p>
             </div>
 
-            <form className="flex flex-col gap-lg" action={formAction}>
-              {state.error && (
-                <div className="rounded-lg bg-error-container text-on-error-container text-body-sm px-sm py-2">
-                  {state.error}
-                </div>
-              )}
+            <form className="flex flex-col gap-lg" onSubmit={handleSubmit(onSubmit)}>
               <div className="flex flex-col gap-xs">
                 <label className="text-label-md text-on-surface" htmlFor="email">
                   Email address
@@ -52,11 +56,13 @@ export function LoginForm() {
                 <input
                   className="h-[40px] px-sm bg-surface-container-low border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest focus:border-transparent transition-all text-body-md text-on-surface placeholder-outline"
                   id="email"
-                  name="email"
                   placeholder="you@medflow.clinic"
-                  required
                   type="email"
+                  {...register("email")}
                 />
+                {errors.email && (
+                  <p className="text-body-sm text-error">{errors.email.message}</p>
+                )}
               </div>
               <div className="flex flex-col gap-xs">
                 <div className="flex justify-between items-center">
@@ -70,11 +76,13 @@ export function LoginForm() {
                 <input
                   className="h-[40px] px-sm bg-surface-container-low border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest focus:border-transparent transition-all text-body-md text-on-surface placeholder-outline"
                   id="password"
-                  name="password"
                   placeholder="••••••••"
-                  required
                   type="password"
+                  {...register("password")}
                 />
+                {errors.password && (
+                  <p className="text-body-sm text-error">{errors.password.message}</p>
+                )}
               </div>
               <div className="flex items-center gap-sm mt-xs">
                 <input
@@ -87,7 +95,13 @@ export function LoginForm() {
                   Keep me logged in
                 </label>
               </div>
-              <SubmitButton />
+              <button
+                className="h-[40px] w-full mt-md bg-primary text-on-primary text-label-md rounded hover:bg-on-primary-fixed-variant transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 flex items-center justify-center shadow-sm disabled:opacity-60"
+                type="submit"
+                disabled={isPending}
+              >
+                {isPending ? "Signing in…" : "Sign In"}
+              </button>
             </form>
 
             <div className="mt-xl text-center">

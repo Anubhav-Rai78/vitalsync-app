@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Toaster } from "sonner";
 import { registerChunkLoadRecovery } from "@/lib/api/client";
 
 /**
@@ -22,5 +23,10 @@ export function ErrorHandler({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("error", onError);
   }, []);
 
-  return <>{children}</>;
+  return (
+    <>
+      <Toaster position="top-right" richColors={false} />
+      {children}
+    </>
+  );
 }

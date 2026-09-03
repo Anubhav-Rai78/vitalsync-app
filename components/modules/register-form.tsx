@@ -1,28 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useFormState, useFormStatus } from "react-dom";
-import { registerAction, type RegisterState } from "@/app/(auth)/register/actions";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useTransition } from "react";
+import { toast } from "sonner";
+import { registerAction } from "@/app/(auth)/register/actions";
+import { registerSchema, type RegisterPayload } from "@/lib/validators";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
 
-const initialState: RegisterState = { error: null };
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      className="w-full h-[40px] mt-xl bg-primary-container text-on-primary hover:bg-primary-container/90 transition-colors rounded text-label-md flex justify-center items-center gap-sm disabled:opacity-60"
-      type="submit"
-      disabled={pending}
-    >
-      {pending ? "Creating account…" : "Create Account"}
-      <span className="material-symbols-outlined text-sm">arrow_forward</span>
-    </button>
-  );
-}
-
 export function RegisterForm() {
-  const [state, formAction] = useFormState(registerAction, initialState);
+  const [isPending, startTransition] = useTransition();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterPayload>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: "",
+      clinicName: "",
+      workEmail: "",
+      phoneNumber: "",
+      password: "",
+      confirmPassword: "",
+      terms: false,
+    },
+  });
+
+  const onSubmit = (data: RegisterPayload) => {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("fullName", data.fullName);
+      formData.set("clinicName", data.clinicName ?? "");
+      formData.set("workEmail", data.workEmail);
+      formData.set("phoneNumber", data.phoneNumber ?? "");
+      formData.set("password", data.password);
+      formData.set("confirmPassword", data.confirmPassword);
+      if (data.terms) formData.set("terms", "on");
+      const res = await registerAction({ error: null }, formData);
+      if (res.error) {
+        toast.error(res.error);
+      }
+    });
+  };
 
   return (
     <main className="flex-grow flex flex-col md:flex-row w-full min-h-screen">
@@ -74,13 +95,7 @@ export function RegisterForm() {
             </p>
           </div>
 
-          <form className="space-y-md" action={formAction}>
-            {state.error && (
-              <div className="rounded-lg bg-error-container text-on-error-container text-body-sm px-sm py-2">
-                {state.error}
-              </div>
-            )}
-
+          <form className="space-y-md" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
               <div className="space-y-xs">
                 <label className="block text-label-md text-on-surface" htmlFor="fullName">
@@ -89,11 +104,13 @@ export function RegisterForm() {
                 <input
                   className="w-full h-[40px] px-sm bg-surface-container-lowest border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-md text-on-surface placeholder:text-on-surface-variant/50 transition-shadow"
                   id="fullName"
-                  name="fullName"
                   placeholder="Dr. Jane Doe"
-                  required
                   type="text"
+                  {...register("fullName")}
                 />
+                {errors.fullName && (
+                  <p className="text-body-sm text-error">{errors.fullName.message}</p>
+                )}
               </div>
               <div className="space-y-xs">
                 <label className="block text-label-md text-on-surface" htmlFor="clinicName">
@@ -102,9 +119,9 @@ export function RegisterForm() {
                 <input
                   className="w-full h-[40px] px-sm bg-surface-container-lowest border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-md text-on-surface placeholder:text-on-surface-variant/50 transition-shadow"
                   id="clinicName"
-                  name="clinicName"
                   placeholder="Oakwood Medical"
                   type="text"
+                  {...register("clinicName")}
                 />
               </div>
             </div>
@@ -117,11 +134,13 @@ export function RegisterForm() {
                 <input
                   className="w-full h-[40px] px-sm bg-surface-container-lowest border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-md text-on-surface placeholder:text-on-surface-variant/50 transition-shadow"
                   id="workEmail"
-                  name="workEmail"
                   placeholder="jane@medflow.clinic"
-                  required
                   type="email"
+                  {...register("workEmail")}
                 />
+                {errors.workEmail && (
+                  <p className="text-body-sm text-error">{errors.workEmail.message}</p>
+                )}
               </div>
               <div className="space-y-xs">
                 <label className="block text-label-md text-on-surface" htmlFor="phoneNumber">
@@ -130,9 +149,9 @@ export function RegisterForm() {
                 <input
                   className="w-full h-[40px] px-sm bg-surface-container-lowest border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-md text-on-surface placeholder:text-on-surface-variant/50 transition-shadow"
                   id="phoneNumber"
-                  name="phoneNumber"
                   placeholder="+91 98765 43210"
                   type="tel"
+                  {...register("phoneNumber")}
                 />
               </div>
             </div>
@@ -145,12 +164,13 @@ export function RegisterForm() {
                 <input
                   className="w-full h-[40px] px-sm bg-surface-container-lowest border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-md text-on-surface placeholder:text-on-surface-variant/50 transition-shadow"
                   id="password"
-                  name="password"
                   placeholder="••••••••"
-                  required
-                  minLength={8}
                   type="password"
+                  {...register("password")}
                 />
+                {errors.password && (
+                  <p className="text-body-sm text-error">{errors.password.message}</p>
+                )}
               </div>
               <div className="space-y-xs">
                 <label className="block text-label-md text-on-surface" htmlFor="confirmPassword">
@@ -159,11 +179,13 @@ export function RegisterForm() {
                 <input
                   className="w-full h-[40px] px-sm bg-surface-container-lowest border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-md text-on-surface placeholder:text-on-surface-variant/50 transition-shadow"
                   id="confirmPassword"
-                  name="confirmPassword"
                   placeholder="••••••••"
-                  required
                   type="password"
+                  {...register("confirmPassword")}
                 />
+                {errors.confirmPassword && (
+                  <p className="text-body-sm text-error">{errors.confirmPassword.message}</p>
+                )}
               </div>
             </div>
 
@@ -172,8 +194,8 @@ export function RegisterForm() {
                 <input
                   className="w-4 h-4 text-primary bg-surface-container-lowest border-outline-variant rounded focus:ring-primary focus:ring-2"
                   id="terms"
-                  name="terms"
                   type="checkbox"
+                  {...register("terms")}
                 />
               </div>
               <div className="text-sm">
@@ -181,10 +203,20 @@ export function RegisterForm() {
                   I agree to the <Link className="text-primary hover:underline text-label-sm" href="#">Terms of Service</Link>{" "}
                   and <Link className="text-primary hover:underline text-label-sm" href="#">Privacy Policy</Link>.
                 </label>
+                {errors.terms && (
+                  <p className="text-body-sm text-error mt-1">{errors.terms.message}</p>
+                )}
               </div>
             </div>
 
-            <SubmitButton />
+            <button
+              className="w-full h-[40px] mt-xl bg-primary-container text-on-primary hover:bg-primary-container/90 transition-colors rounded text-label-md flex justify-center items-center gap-sm disabled:opacity-60"
+              type="submit"
+              disabled={isPending}
+            >
+              {isPending ? "Creating account…" : "Create Account"}
+              <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
 
             <div className="text-center mt-md">
               <p className="text-body-sm text-on-surface-variant">

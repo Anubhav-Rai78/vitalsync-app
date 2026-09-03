@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getUserFacingMessage } from "@/lib/errors";
+import {
+  createPatientSchema,
+  quickMedSchema,
+  patientNoteSchema,
+  recordVitalsSchema,
+} from "@/lib/validators";
 
 export type PatientFormState = { error: string | null };
 
@@ -24,18 +30,30 @@ export async function createPatientAction(
     .single();
   if (!profile) return { error: "Could not resolve your clinic. Try signing in again." };
 
-  const fullName = String(formData.get("fullName") || "");
-  if (!fullName) return { error: "Full name is required." };
+  const parsed = createPatientSchema.safeParse({
+    full_name: String(formData.get("fullName") || ""),
+    dob: String(formData.get("dob") || ""),
+    phone: String(formData.get("phone") || ""),
+    email: String(formData.get("email") || ""),
+    allergies: String(formData.get("allergies") || ""),
+    blood_group: String(formData.get("bloodGroup") || ""),
+    gender: String(formData.get("sex") || ""),
+    address: String(formData.get("address") || ""),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { full_name, dob, phone, email, allergies, blood_group, gender, address } = parsed.data;
 
   const { data: inserted, error } = await supabase
     .from("patients")
     .insert({
       clinic_id: profile.clinic_id,
-      full_name: fullName,
-      dob: String(formData.get("dob") || "") || null,
-      sex: (String(formData.get("sex") || "") || null) as any,
-      phone: String(formData.get("phone") || "") || null,
-      email: String(formData.get("email") || "") || null,
+      full_name,
+      dob: dob || null,
+      sex: (gender || null) as any,
+      phone: phone || null,
+      email: email || null,
       address: [formData.get("address"), formData.get("city"), formData.get("zip")]
         .filter(Boolean)
         .join(", "),
@@ -68,6 +86,19 @@ export async function addQuickMedicationAction(
     instructions?: string | null;
   }
 ): Promise<QuickMedState> {
+  const parsed = quickMedSchema.safeParse({
+    patientId,
+    drugName: data.drugName,
+    dosage: data.dosage ?? undefined,
+    frequency: data.frequency ?? undefined,
+    duration: data.duration ?? undefined,
+    instructions: data.instructions ?? undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { patientId: pId, drugName, dosage, frequency, duration, instructions } = parsed.data;
+
   const supabase = createClient();
   const {
     data: { user },
@@ -89,10 +120,10 @@ export async function addQuickMedicationAction(
     .from("prescriptions")
     .insert({
       clinic_id: profile.clinic_id,
-      patient_id: patientId,
+      patient_id: pId,
       doctor_id: user.id,
-      diagnosis: data.drugName,
-      notes: data.instructions || null,
+      diagnosis: drugName,
+      notes: instructions || null,
     })
     .select("id")
     .single();
@@ -102,16 +133,16 @@ export async function addQuickMedicationAction(
   // Insert the prescription item
   const { error: itemErr } = await admin.from("prescription_items").insert({
     prescription_id: rx.id,
-    drug_name: data.drugName,
-    dosage: data.dosage || null,
-    frequency: data.frequency || null,
-    duration: data.duration || null,
-    instructions: data.instructions || null,
+    drug_name: drugName,
+    dosage: dosage || null,
+    frequency: frequency || null,
+    duration: duration || null,
+    instructions: instructions || null,
   });
 
   if (itemErr) return { error: getUserFacingMessage(itemErr, "Failed to save medication.") };
 
-  revalidatePath(`/patients/${patientId}`);
+  revalidatePath(`/patients/${pId}`);
   return { error: null, prescriptionId: rx.id };
 }
 
@@ -124,7 +155,11 @@ export async function savePatientNoteAction(
   patientId: string,
   note: string
 ): Promise<PatientNoteState> {
-  if (!note.trim()) return { error: "Note cannot be empty." };
+  const parsed = patientNoteSchema.safeParse({ patientId, note });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { patientId: pId, note: trimmedNote } = parsed.data;
 
   const supabase = createClient();
   const {
@@ -144,13 +179,13 @@ export async function savePatientNoteAction(
     actor_id: user.id,
     action: "patient_note_added",
     entity_type: "patients",
-    entity_id: patientId,
-    metadata: { note: note.trim(), author: profile.full_name },
+    entity_id: pId,
+    metadata: { note: trimmedNote, author: profile.full_name },
   });
 
   if (error) return { error: getUserFacingMessage(error, "Failed to save note.") };
 
-  revalidatePath(`/patients/${patientId}`);
+  revalidatePath(`/patients/${pId}`);
   return { error: null };
 }
 
@@ -177,16 +212,19 @@ export async function recordVitalsAction(patientId: string, formData: FormData):
     return Number.isFinite(n) ? n : null;
   };
 
-  const systolic = toNum("systolic");
-  const diastolic = toNum("diastolic");
-  const heartRate = toNum("heartRate");
-  const weight = toNum("weight");
-  const temperature = toNum("temperature");
-  const spo2 = toNum("spo2");
-
-  if (systolic === null && diastolic === null && heartRate === null && weight === null && temperature === null && spo2 === null) {
-    return { error: "Enter at least one vital reading." };
+  const vitals = recordVitalsSchema.safeParse({
+    systolic: toNum("systolic"),
+    diastolic: toNum("diastolic"),
+    heartRate: toNum("heartRate"),
+    weight: toNum("weight"),
+    temperature: toNum("temperature"),
+    spo2: toNum("spo2"),
+  });
+  if (!vitals.success) {
+    return { error: vitals.error.issues[0]?.message ?? "Invalid input." };
   }
+
+  const { systolic, diastolic, heartRate, weight, temperature, spo2 } = vitals.data;
 
   const { error } = await supabase.from("vitals").insert({
     clinic_id: profile.clinic_id,

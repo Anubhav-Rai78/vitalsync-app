@@ -7,8 +7,10 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getInvoices } from "@/lib/services";
 import { serializeCSV, downloadCSV } from "@/lib/document-engine";
-import { createInvoiceAction, type InvoiceFormState } from "./actions";
-import { useFormState } from "react-dom";
+import { createInvoiceAction } from "./actions";
+import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { invoiceFormSchema, type InvoiceFormPayload } from "@/lib/validators";
 
 type InvoiceStatus = "Paid" | "Pending" | "Overdue" | "Draft";
 type DatabaseStatus = "draft" | "sent" | "paid" | "overdue" | "void";
@@ -27,7 +29,6 @@ interface InvoiceItem {
 }
 
 const PAGE_SIZE = 10;
-
 const statusClasses: Record<InvoiceStatus, string> = {
   Paid: "bg-secondary-container/20 text-secondary border border-secondary-container/50",
   Pending: "bg-tertiary-container/20 text-tertiary-container border border-tertiary-container/50",
@@ -65,8 +66,6 @@ function downloadCsv(rows: InvoiceItem[]) {
   downloadCSV(serializeCSV(headers, data), "medflow_invoices.csv");
 }
 
-const initialFormState: InvoiceFormState = { error: null };
-
 export default function InvoicesPage() {
   const supabase = useMemo(() => createClient(), []);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
@@ -78,18 +77,16 @@ export default function InvoicesPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // Server-action form state
-  const [formState, formAction] = useFormState(createInvoiceAction, initialFormState);
-
-  // Close modal on success
-  useEffect(() => {
-    if (formState.error === null && isPending === false && isCreateModalOpen) {
-      // reload invoices after successful creation
-      void loadInvoices();
-      setIsCreateModalOpen(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formState, isPending]);
+  // react-hook-form for the Create Invoice modal
+  const {
+    register: registerInvoice,
+    handleSubmit: handleInvoiceSubmit,
+    reset: resetInvoice,
+    formState: { errors: invoiceErrors },
+  } = useForm<InvoiceFormPayload>({
+    resolver: undefined,
+    defaultValues: { patientId: "", services: "", amount: 0, status: "sent" },
+  });
 
   async function loadInvoices() {
     try {
@@ -154,6 +151,31 @@ export default function InvoicesPage() {
   const pagedInvoices = filteredInvoices.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const closeModal = () => setIsCreateModalOpen(false);
+
+  const onInvoiceSubmit = (data: InvoiceFormPayload) => {
+    startTransition(async () => {
+      // Validate via our zod schema before dispatching
+      const parsed = invoiceFormSchema.safeParse(data);
+      if (!parsed.success) {
+        toast.error(parsed.error.issues[0]?.message ?? "Invalid input.");
+        return;
+      }
+      const formData = new FormData();
+      formData.set("patientId", data.patientId);
+      formData.set("services", data.services ?? "");
+      formData.set("amount", String(data.amount));
+      formData.set("status", data.status);
+      const res = await createInvoiceAction({ error: null }, formData);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Invoice created.");
+      resetInvoice();
+      void loadInvoices();
+      setIsCreateModalOpen(false);
+    });
+  };
 
   return (
     <div className="max-w-container-max mx-auto space-y-lg font-body-md text-body-md text-on-background pb-xxl">
@@ -345,31 +367,28 @@ export default function InvoicesPage() {
               </button>
             </div>
 
-            {formState.error && (
-              <div className="rounded-lg bg-error-container text-on-error-container text-body-sm px-3 py-2">{formState.error}</div>
-            )}
-
-            <form action={formAction} className="space-y-md font-body-sm">
+            <form onSubmit={handleInvoiceSubmit(onInvoiceSubmit)} className="space-y-md font-body-sm">
               {/* Patient Dropdown */}
               <label className="block font-label-md text-label-md text-on-surface">
                 Patient
                 <select
-                  name="patientId"
-                  required
-                  defaultValue=""
+                  {...registerInvoice("patientId")}
                   className="mt-xs w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-on-surface focus:border-primary outline-none"
                 >
-                  <option value="" disabled>Select a patient…</option>
+                  <option value="">Select a patient…</option>
                   {patients.map((p) => (
                     <option key={p.id} value={p.id}>{p.full_name}</option>
                   ))}
                 </select>
+                {invoiceErrors.patientId && (
+                  <span className="text-body-sm text-error">{invoiceErrors.patientId.message}</span>
+                )}
               </label>
 
               <label className="block font-label-md text-label-md text-on-surface">
                 Services
                 <input
-                  name="services"
+                  {...registerInvoice("services")}
                   placeholder="e.g. Cardiology Consultation + ECG"
                   className="mt-xs w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-on-surface focus:border-primary outline-none"
                 />
@@ -380,19 +399,19 @@ export default function InvoicesPage() {
                   Amount (₹)
                   <input
                     type="number"
-                    name="amount"
-                    min="0"
                     step="0.01"
-                    required
                     placeholder="245.00"
+                    {...registerInvoice("amount", { valueAsNumber: true })}
                     className="mt-xs w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-on-surface focus:border-primary outline-none"
                   />
+                  {invoiceErrors.amount && (
+                    <span className="text-body-sm text-error">{invoiceErrors.amount.message}</span>
+                  )}
                 </label>
                 <label className="block font-label-md text-label-md text-on-surface">
                   Status
                   <select
-                    name="status"
-                    defaultValue="sent"
+                    {...registerInvoice("status")}
                     className="mt-xs w-full h-10 px-3 bg-surface-container-low border border-outline-variant rounded-lg text-on-surface focus:border-primary outline-none"
                   >
                     <option value="paid">Paid</option>
@@ -413,9 +432,10 @@ export default function InvoicesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-md py-sm rounded-lg bg-primary-container text-on-primary font-label-md text-label-md hover:brightness-95"
+                  disabled={isPending}
+                  className="px-md py-sm rounded-lg bg-primary-container text-on-primary font-label-md text-label-md hover:brightness-95 disabled:opacity-60"
                 >
-                  Generate Invoice
+                  {isPending ? "Creating…" : "Generate Invoice"}
                 </button>
               </div>
             </form>
