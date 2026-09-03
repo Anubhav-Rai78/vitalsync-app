@@ -18,8 +18,6 @@ import {
   Plus,
   LogOut,
   X,
-  CheckCircle2,
-  Zap,
   ExternalLink,
   MessageSquare,
   FileQuestion,
@@ -62,7 +60,6 @@ export function DashboardShell({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: string } | null>(null);
   const [urgentAlert, setUrgentAlert] = useState<string | null>(null);
@@ -125,7 +122,6 @@ export function DashboardShell({
         setIsNotificationsOpen(false);
         setIsProfileMenuOpen(false);
         setIsSupportOpen(false);
-        setIsUpgradeOpen(false);
       }
     };
 
@@ -354,13 +350,6 @@ export function DashboardShell({
               Support
             </button>
 
-            <button
-              onClick={() => setIsUpgradeOpen(true)}
-              className="px-3 py-1 text-xs font-semibold border border-outline-variant rounded-md text-on-surface-variant hover:bg-surface-container-low flex items-center gap-1 transition"
-            >
-              <Zap className="w-3 h-3 text-amber-500 fill-amber-500" /> Upgrade
-            </button>
-
             {/* Profile Avatar Trigger + Dropdown */}
             <div className="relative" ref={profileMenuRef}>
               <button
@@ -481,50 +470,6 @@ export function DashboardShell({
         </div>
       )}
 
-      {/* Upgrade Modal */}
-      {isUpgradeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-5 border-b border-outline-variant bg-surface-container-low/50">
-              <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
-                <h3 className="font-bold text-on-surface text-sm">Upgrade MedFlow Clinic Plan</h3>
-              </div>
-              <button onClick={() => setIsUpgradeOpen(false)} className="text-outline hover:text-on-surface-variant" aria-label="Close upgrade">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 text-xs">
-              <div className="p-4 rounded-xl border-2 border-primary bg-primary-container/20/30 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-sm text-on-surface">MedFlow Enterprise</span>
-                  <span className="font-bold text-base text-primary">₹4,999/mo</span>
-                </div>
-                <p className="text-on-surface-variant">Complete multi-doctor clinical operations with automated triage.</p>
-                <div className="space-y-1.5 pt-2 text-on-surface-variant">
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Unlimited Patients & Consultations
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Automated Appointment WhatsApp/SMS Alerts
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Full HIPAA Audit Trail & Analytics
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-surface-container-low border-t border-outline-variant flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setIsUpgradeOpen(false)} size="sm">
-                Cancel
-              </Button>
-              <Button onClick={() => setIsUpgradeOpen(false)} size="sm" className="bg-primary text-on-primary">
-                Proceed
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
