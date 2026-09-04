@@ -1,43 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock, Mail } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useFormState } from "react-dom";
+import { loginAction, type LoginState } from "./actions";
+
+const INITIAL_STATE: LoginState = { error: null };
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, formAction, isPending] = useFormState(loginAction, INITIAL_STATE);
 
   const searchParams = useSearchParams();
-  const supabase = createClient();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMsg("");
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setErrorMsg(error.message);
-      setIsLoading(false);
-    } else {
-      router.push("/dashboard");
-      router.refresh();
-    }
-  };
 
   return (
     <div className="min-h-screen bg-surface-container-low flex flex-col justify-center items-center p-6">
@@ -52,9 +31,9 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {errorMsg && (
+        {state.error && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
-            {errorMsg}
+            {state.error}
           </div>
         )}
 
@@ -65,18 +44,17 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form className="space-y-4" onSubmit={handleLogin}>
+        <form className="space-y-4" action={formAction}>
           <div>
             <Label htmlFor="email">Work Email</Label>
             <div className="relative mt-1">
               <Mail className="absolute left-3 top-3 w-4 h-4 text-outline" />
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="name@medflow.clinic"
                 className="pl-9"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -88,11 +66,10 @@ export default function LoginPage() {
               <Lock className="absolute left-3 top-3 w-4 h-4 text-outline" />
               <Input
                 id="password"
+                name="password"
                 type="password"
                 placeholder="••••••••"
                 className="pl-9"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
@@ -110,10 +87,10 @@ export default function LoginPage() {
 
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isPending}
             className="w-full bg-primary hover:bg-primary/90 text-on-primary font-semibold py-2 rounded-lg"
           >
-            {isLoading ? "Signing in..." : "Sign In"}
+            {isPending ? "Signing in..." : "Sign In"}
           </Button>
         </form>
 

@@ -520,6 +520,7 @@ export interface Database {
           user_id: string
           user_email: string
           ticket_ref: string
+          clinic_id: string
           category: string
           severity: string
           description: string
@@ -531,6 +532,7 @@ export interface Database {
           user_id: string
           user_email: string
           ticket_ref: string
+          clinic_id: string
           category?: string
           severity?: string
           description: string
@@ -542,6 +544,7 @@ export interface Database {
           user_id?: string
           user_email?: string
           ticket_ref?: string
+          clinic_id?: string
           category?: string
           severity?: string
           description?: string

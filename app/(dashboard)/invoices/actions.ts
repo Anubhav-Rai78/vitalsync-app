@@ -63,13 +63,18 @@ export async function createInvoiceAction(
   if (invError || !inserted) return { error: getUserFacingMessage(invError, "Failed to create invoice.") };
 
   // Insert a single line item for the services description.
-  await supabase.from("invoice_items").insert({
+  const { error: itemError } = await supabase.from("invoice_items").insert({
     invoice_id: inserted.id,
     description: svc,
     quantity: 1,
     unit_price: amt,
     amount: amt,
   });
+
+  // Non-fatal: the invoice exists even if the line item failed, but we warn.
+  if (itemError) {
+    console.error("Failed to insert invoice line item:", itemError.message);
+  }
 
   revalidatePath("/invoices");
   return { error: null };
@@ -87,10 +92,30 @@ export async function markInvoicePaidAction(
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("clinic_id")
+    .eq("id", user.id)
+    .single();
+  if (!profile) return { error: "Could not resolve your clinic." };
+
+  // Verify the invoice belongs to this user's clinic before mutating.
+  const { data: invoice, error: fetchError } = await supabase
+    .from("invoices")
+    .select("id")
+    .eq("id", invoiceId)
+    .eq("clinic_id", profile.clinic_id)
+    .single();
+
+  if (fetchError || !invoice) {
+    return { error: "Invoice not found or access denied." };
+  }
+
   const { error: invError } = await supabase
     .from("invoices")
     .update({ status: "paid" })
-    .eq("id", invoiceId);
+    .eq("id", invoiceId)
+    .eq("clinic_id", profile.clinic_id);
 
   if (invError) return { error: getUserFacingMessage(invError, "Failed to mark invoice as paid.") };
 

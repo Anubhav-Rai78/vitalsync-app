@@ -57,10 +57,26 @@ export async function submitTicketAction(
 
   const ticketRef = generateTicketRef();
 
+  // Resolve the user's clinic for proper tenant isolation.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("clinic_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.clinic_id) {
+    return {
+      success: false,
+      error: "Could not resolve your clinic. Please contact support.",
+      ticketRef: null,
+    };
+  }
+
   const { error } = await supabase.from("support_tickets").insert({
     user_id: user.id,
     user_email: user.email ?? "unknown",
     ticket_ref: ticketRef,
+    clinic_id: profile.clinic_id,
     category: parsed.data.category,
     severity: parsed.data.severity,
     description: parsed.data.description,

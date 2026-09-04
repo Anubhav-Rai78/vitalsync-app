@@ -1,40 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useTransition } from "react";
 import { ShieldCheck, UserCheck, Stethoscope } from "lucide-react";
+import { toast } from "sonner";
+import { updateStaffRoleAction } from "./actions";
+import type { UserRole } from "@/lib/supabase/types";
 
-interface StaffMember {
-  id: string;
-  name: string;
-  email: string;
-  role: "admin" | "doctor" | "front_desk";
-  status: "active" | "inactive";
+interface StaffSettingsTableProps {
+  staff: {
+    id: string;
+    full_name: string;
+    role: string;
+    is_active: boolean;
+  }[];
 }
 
-const initialStaff: StaffMember[] = [
-  { id: "1", name: "Dr. Sarah Jenkins", email: "s.jenkins@medflow.clinic", role: "doctor", status: "active" },
-  { id: "2", name: "Admin Lead John", email: "admin@medflow.clinic", role: "admin", status: "active" },
-  { id: "3", name: "Receptionist Mary", email: "frontdesk@medflow.clinic", role: "front_desk", status: "active" },
-];
+const ROLE_ICON: Record<string, React.ReactNode> = {
+  doctor: <Stethoscope className="w-4 h-4 text-primary" />,
+  admin: <ShieldCheck className="w-4 h-4 text-secondary" />,
+  front_desk: <UserCheck className="w-4 h-4 text-outline" />,
+};
 
-export function StaffSettingsTable() {
-  const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
+export function StaffSettingsTable({ staff }: StaffSettingsTableProps) {
+  const [isPending, startTransition] = useTransition();
 
-  const handleRoleChange = (id: string, newRole: "admin" | "doctor" | "front_desk") => {
-    setStaff((prev) =>
-      prev.map((member) => (member.id === id ? { ...member, role: newRole } : member))
-    );
-  };
-
-  const getRoleIcon = (role: StaffMember["role"]) => {
-    switch (role) {
-      case "doctor":
-        return <Stethoscope className="w-4 h-4 text-primary" />;
-      case "admin":
-        return <ShieldCheck className="w-4 h-4 text-secondary" />;
-      case "front_desk":
-        return <UserCheck className="w-4 h-4 text-outline" />;
-    }
+  const handleRoleChange = (id: string, newRole: UserRole) => {
+    startTransition(async () => {
+      try {
+        await updateStaffRoleAction(id, newRole);
+        toast.success("Staff role updated.");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to update role.");
+      }
+    });
   };
 
   return (
@@ -50,22 +48,21 @@ export function StaffSettingsTable() {
         <thead className="bg-surface-container border-b border-outline-variant text-xs text-on-surface-variant font-semibold">
           <tr>
             <th className="p-3.5">Full Name</th>
-            <th className="p-3.5">Email Address</th>
-            <th className="p-3.5">Console Role Role</th>
+            <th className="p-3.5">Console Role</th>
             <th className="p-3.5">Status</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-outline-variant/60">
           {staff.map((member) => (
             <tr key={member.id} className="hover:bg-surface-container-low/50 transition">
-              <td className="p-3.5 font-semibold text-on-surface">{member.name}</td>
-              <td className="p-3.5 text-on-surface-variant">{member.email}</td>
+              <td className="p-3.5 font-semibold text-on-surface">{member.full_name}</td>
               <td className="p-3.5 flex items-center gap-2">
-                {getRoleIcon(member.role)}
+                {ROLE_ICON[member.role] ?? <UserCheck className="w-4 h-4 text-outline" />}
                 <select
                   value={member.role}
-                  onChange={(e) => handleRoleChange(member.id, e.target.value as any)}
-                  className="bg-surface-container border border-outline-variant rounded px-2.5 py-1 text-xs focus:outline-none focus:border-primary text-on-surface"
+                  disabled={isPending}
+                  onChange={(e) => handleRoleChange(member.id, e.target.value as UserRole)}
+                  className="bg-surface-container border border-outline-variant rounded px-2.5 py-1 text-xs focus:outline-none focus:border-primary text-on-surface disabled:opacity-50"
                 >
                   <option value="admin">Admin</option>
                   <option value="doctor">Doctor</option>
@@ -74,7 +71,7 @@ export function StaffSettingsTable() {
               </td>
               <td className="p-3.5">
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-secondary-fixed text-on-secondary-fixed-variant">
-                  {member.status}
+                  {member.is_active ? "Active" : "Inactive"}
                 </span>
               </td>
             </tr>

@@ -100,7 +100,7 @@ export async function middleware(request: NextRequest) {
         .single();
 
       const allowedRoles = restrictedFor[1];
-      const userRole = profile?.role?.toLowerCase() || "admin";
+      const userRole = profile?.role?.toLowerCase() || "none";
 
       if (!allowedRoles.includes(userRole)) {
         return NextResponse.redirect(new URL("/dashboard", request.url));

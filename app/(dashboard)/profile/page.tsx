@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProfilePreferences } from "@/components/modules/profile-preferences";
 
@@ -6,7 +7,16 @@ export default async function ProfilePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
 
-  return <ProfilePreferences profile={profile!} email={user!.email ?? ""} />;
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) redirect("/dashboard");
+
+  return <ProfilePreferences profile={profile} email={user.email ?? ""} />;
 }
