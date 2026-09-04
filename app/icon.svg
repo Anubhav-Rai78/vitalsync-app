@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Top Handle -->
+  <path d="M25 15V12C25 10 26.5 8 28.5 8H35.5C37.5 8 39 10 39 12V15" stroke="#0052cc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Kit Body (Rounded) -->
+  <rect x="8" y="14" width="48" height="44" rx="14" fill="#0052cc"/>
+
+  <!-- Centered Medical Cross (Crisp Sharp Corners) -->
+  <path d="M29 27H35V33H41V39H35V45H29V39H23V33H29V27Z" fill="#ffffff"/>
+</svg>
