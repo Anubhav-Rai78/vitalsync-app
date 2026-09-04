@@ -10,14 +10,13 @@ import {
   Eye,
   Printer,
   RotateCw,
-  ChevronLeft,
-  ChevronRight,
   SlidersHorizontal,
   RotateCcw,
   Pill,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DataPagination from "@/components/ui/data-pagination";
 import { createClient } from "@/lib/supabase/client";
 import { PDFDocument } from "@/lib/document-engine";
 import { formatDateIST } from "@/lib/date";
@@ -335,42 +334,13 @@ export default function PrescriptionHistoryPage() {
         </div>
 
         {/* Pagination */}
-        <div className="px-md py-sm border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between">
-          <span className="font-body-sm text-body-sm text-on-surface-variant">
-            Showing{" "}
-            <span className="font-medium text-on-surface">{filtered.length === 0 ? 0 : startIndex + 1}</span> to{" "}
-            <span className="font-medium text-on-surface">{Math.min(startIndex + ITEMS_PER_PAGE, filtered.length)}</span> of{" "}
-            <span className="font-medium text-on-surface">{filtered.length}</span> entries
-          </span>
-          <div className="flex items-center gap-xs">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                onClick={() => setCurrentPage(n)}
-                className={`min-w-[32px] h-8 px-2 rounded font-label-sm text-label-sm font-semibold transition-colors ${currentPage === n
-                    ? "bg-primary text-on-primary shadow-xs"
-                    : "border border-outline-variant bg-surface-container-lowest text-on-surface"
-                  }`}
-              >
-                {n}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <DataPagination
+          totalItems={filtered.length}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          pageSize={ITEMS_PER_PAGE}
+          itemName="entries"
+        />
       </div>
 
       {/* Details modal */}

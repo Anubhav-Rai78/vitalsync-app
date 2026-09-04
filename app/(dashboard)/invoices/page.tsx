@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getInvoices } from "@/lib/services";
+import DataPagination from "@/components/ui/data-pagination";
 import { serializeCSV, downloadCSV } from "@/lib/document-engine";
 import { createInvoiceAction } from "./actions";
 import { toast } from "sonner";
@@ -310,45 +311,13 @@ export default function InvoicesPage() {
           </table>
         </div>
         {/* Pagination */}
-        <footer className="px-md py-sm border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between gap-sm">
-          <span className="font-body-sm text-body-sm text-on-surface-variant">
-            Showing{" "}
-            <span className="font-medium text-on-surface">{filteredInvoices.length ? (safePage - 1) * PAGE_SIZE + 1 : 0}</span>
-            {" "}to{" "}
-            <span className="font-medium text-on-surface">{Math.min(safePage * PAGE_SIZE, filteredInvoices.length)}</span>
-            {" "}of{" "}
-            <span className="font-medium text-on-surface">{filteredInvoices.length}</span> invoices
-          </span>
-          <div className="flex items-center gap-xs">
-            <button
-              onClick={() => setCurrentPage(safePage - 1)}
-              disabled={safePage === 1}
-              className="p-xs border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant disabled:opacity-50"
-              aria-label="Previous page"
-            >
-              <Icon className="text-[20px]">chevron_left</Icon>
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .slice(Math.max(0, safePage - 2), safePage + 2)
-              .map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setCurrentPage(p)}
-                  className={`px-sm py-xs border rounded font-label-sm text-label-sm ${p === safePage ? "border-primary bg-primary-container text-on-primary" : "border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"}`}
-                >
-                  {p}
-                </button>
-              ))}
-            <button
-              onClick={() => setCurrentPage(safePage + 1)}
-              disabled={safePage === totalPages}
-              className="p-xs border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant disabled:opacity-50"
-              aria-label="Next page"
-            >
-              <Icon className="text-[20px]">chevron_right</Icon>
-            </button>
-          </div>
-        </footer>
+        <DataPagination
+          totalItems={filteredInvoices.length}
+          currentPage={safePage}
+          onPageChange={setCurrentPage}
+          pageSize={PAGE_SIZE}
+          itemName="invoices"
+        />
       </section>
 
       {/* Create Invoice Modal */}

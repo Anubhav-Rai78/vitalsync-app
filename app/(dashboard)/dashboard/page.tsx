@@ -1,6 +1,5 @@
 import React from "react";
-import { startOfMonth, endOfMonth } from "date-fns";
-import { formatDateIST, formatTimeIST } from "@/lib/date";
+import { formatDateIST, formatTimeIST, getISTMonthStart, getISTMonthEnd } from "@/lib/date";
 import { Calendar, Users, CalendarCheck, Plus, TrendingUp, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -63,9 +62,9 @@ export default async function AdminDashboardPage() {
   const pendingCount = pendingInvoices?.length || 0;
   const pendingAmount = pendingInvoices?.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0) || 0;
 
-  // 5. Monthly revenue (paid invoices created this calendar month)
-  const monthStart = startOfMonth(new Date()).toISOString();
-  const monthEnd = endOfMonth(new Date()).toISOString();
+  // 5. Monthly revenue (paid invoices created this IST calendar month)
+  const monthStart = getISTMonthStart().toISOString();
+  const monthEnd = getISTMonthEnd().toISOString();
   const { data: paidInvoices } = await supabase
     .from("invoices")
     .select("total")

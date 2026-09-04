@@ -64,10 +64,46 @@ export function formatDateInputIST(dateInput: Date = new Date()): string {
   }).format(dateInput);
 }
 
+/* ------------------------------------------------------------------ */
+/*  IST-aware month-boundary helpers (replace startOfMonth / endOfMonth) */
+/* ------------------------------------------------------------------ */
+
+/** Extract the IST year–month as `"YYYY"` / `"MM"` / `"DD"` parts. */
+function toISTParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+  const [y, m, d] = parts.split("-").map(Number);
+  return { y, m, d };
+}
+
+/** Returns a Date representing the very first instant of the IST month that contains `date` (IST midnight → UTC instant). */
+export function getISTMonthStart(date: Date = new Date()): Date {
+  const { y, m } = toISTParts(date);
+  return new Date(`${y}-${String(m).padStart(2, "0")}-01T00:00:00+05:30`);
+}
+
+/** Returns a Date representing the very last millisecond of the IST month that contains `date`. */
+export function getISTMonthEnd(date: Date = new Date()): Date {
+  const { y, m } = toISTParts(date);
+  // Compute next IST month's first instant, then subtract 1 ms.
+  const nextM = m === 12 ? 1 : m + 1;
+  const nextY = m === 12 ? y + 1 : y;
+  const nextMonthStart = new Date(
+    `${nextY}-${String(nextM).padStart(2, "0")}-01T00:00:00+05:30`,
+  );
+  return new Date(nextMonthStart.getTime() - 1);
+}
+
 export default {
   getNowIST,
   formatDateIST,
   formatDateTimeIST,
   formatTimeIST,
   formatDateInputIST,
+  getISTMonthStart,
+  getISTMonthEnd,
 };

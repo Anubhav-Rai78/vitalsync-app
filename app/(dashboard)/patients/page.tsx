@@ -6,14 +6,13 @@ import {
   Search,
   Plus,
   MoreVertical,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   SlidersHorizontal,
   X,
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DataPagination from "@/components/ui/data-pagination";
 import { createClient } from "@/lib/supabase/client";
 
 interface PatientItem {
@@ -487,52 +486,13 @@ export default function PatientsPage() {
         </div>
 
         {/* Dynamic Pagination Controls */}
-        <div className="px-md py-sm border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between">
-          <span className="font-body-sm text-body-sm text-on-surface-variant">
-            Showing{" "}
-            <span className="font-medium text-on-surface">
-              {filteredPatients.length === 0 ? 0 : startIndex + 1}
-            </span>{" "}
-            to{" "}
-            <span className="font-medium text-on-surface">
-              {Math.min(endIndex, filteredPatients.length)}
-            </span>{" "}
-            of <span className="font-medium text-on-surface">{filteredPatients.length}</span> entries
-          </span>
-
-          <div className="flex items-center gap-xs">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Previous Page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-              <button
-                key={pageNum}
-                onClick={() => setCurrentPage(pageNum)}
-                className={`min-w-[32px] h-8 px-2 rounded font-label-sm text-label-sm font-semibold transition-colors ${currentPage === pageNum
-                    ? "bg-primary text-on-primary shadow-xs"
-                    : "border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"
-                  }`}
-              >
-                {pageNum}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 border border-outline-variant rounded bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              aria-label="Next Page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <DataPagination
+          totalItems={filteredPatients.length}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          pageSize={ITEMS_PER_PAGE}
+          itemName="entries"
+        />
       </div>
     </div>
   );

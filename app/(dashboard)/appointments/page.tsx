@@ -27,6 +27,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DataPagination from "@/components/ui/data-pagination";
 import { createClient } from "@/lib/supabase/client";
 import { bookAppointmentAction, type AppointmentFormState } from "./actions";
 
@@ -115,6 +116,8 @@ export default function AppointmentsCalendarPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [appointments, setAppointments] = useState<AppointmentItem[]>(MOCK_APPOINTMENTS);
   const [loading, setLoading] = useState(true);
+  const [listPage, setListPage] = useState(1);
+  const LIST_PAGE_SIZE = 5;
 
   /* ---- Book modal state ---- */
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
@@ -146,6 +149,11 @@ export default function AppointmentsCalendarPage() {
     setIsBookModalOpen(false);
     router.replace("/appointments");
   };
+
+  /* ---- Reset list pagination whenever the list view filters change ---- */
+  useEffect(() => {
+    setListPage(1);
+  }, [searchQuery, statusFilter]);
 /* ---- Load live appointments + booking options ---- */
   useEffect(() => {
     let active = true;
@@ -477,7 +485,9 @@ router.replace("/appointments");
                   </tr>
                 </thead>
                 <tbody className="text-body-sm text-on-surface divide-y divide-outline-variant/60">
-                  {searchedAppointments.map((apt) => (
+                  {searchedAppointments
+                    .slice((listPage - 1) * LIST_PAGE_SIZE, listPage * LIST_PAGE_SIZE)
+                    .map((apt) => (
                     <tr key={apt.id} className="hover:bg-surface-container-low transition-colors">
                       <td className="p-md font-medium tabular-nums text-on-surface-variant">
                         {format(new Date(apt.date + "T" + apt.time), "MMM d, h:mm a")}
@@ -511,6 +521,15 @@ router.replace("/appointments");
                   )}
                 </tbody>
               </table>
+              {viewMode === "list" && searchedAppointments.length > LIST_PAGE_SIZE && (
+                <DataPagination
+                  totalItems={searchedAppointments.length}
+                  currentPage={listPage}
+                  onPageChange={setListPage}
+                  pageSize={LIST_PAGE_SIZE}
+                  itemName="appointments"
+                />
+              )}
             </div>
           )}
         </div>
