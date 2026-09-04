@@ -117,15 +117,17 @@ export default function ForgotPasswordPage() {
           </form>
         )}
 
-        <div className="mt-6 pt-4 border-t border-outline-variant text-center">
-          <Link
-            href="/login"
-            className="text-sm text-on-surface-variant hover:underline inline-flex items-center gap-1"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Sign In
-          </Link>
-        </div>
+        {!state.sent && (
+          <div className="mt-6 pt-4 border-t border-outline-variant text-center">
+            <Link
+              href="/login"
+              className="text-sm text-on-surface-variant hover:underline inline-flex items-center gap-1"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to Sign In
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
