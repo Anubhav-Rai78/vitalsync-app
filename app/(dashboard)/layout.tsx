@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/modules/dashboard-shell";
+import { DashboardShortcuts } from "@/components/modules/dashboard-shortcuts";
 
 export default async function DashboardLayout({
   children,
@@ -23,12 +24,15 @@ export default async function DashboardLayout({
   if (!profile) redirect("/login");
 
   return (
-    <DashboardShell
-      userName={profile.full_name}
-      userRole={profile.role}
-      avatarUrl={profile.avatar_url}
-    >
-      {children}
-    </DashboardShell>
+    <>
+      <DashboardShortcuts />
+      <DashboardShell
+        userName={profile.full_name}
+        userRole={profile.role}
+        avatarUrl={profile.avatar_url}
+      >
+        {children}
+      </DashboardShell>
+    </>
   );
 }

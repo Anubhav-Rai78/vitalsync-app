@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
@@ -29,10 +29,12 @@ import {
   Send,
   Phone,
   CircleCheck,
+  TicketCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { submitTicketAction } from "@/app/(dashboard)/settings/actions/ticket-actions";
 import { getSystemHealthAction } from "@/app/(dashboard)/settings/actions";
 import {
   fetchLiveNotifications,
@@ -75,6 +77,7 @@ export function DashboardShell({
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   // Ticket form state
   const [ticketCategory, setTicketCategory] = useState("general");
@@ -320,6 +323,14 @@ export function DashboardShell({
             </Link>
           </Button>
 
+          {isAdmin && (
+            <Link
+              href="/settings/tickets"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-surface-container-low text-on-surface-variant text-left transition"
+            >
+              <TicketCheck className="w-4 h-4 text-outline" /> Ticket Desk
+            </Link>
+          )}
           <div className="space-y-1 text-xs font-medium text-on-surface-variant">
             <button
               onClick={() => {
@@ -735,18 +746,34 @@ export function DashboardShell({
                       toast.error("Please describe the issue before submitting.");
                       return;
                     }
-                    const refNum = Math.floor(1000 + Math.random() * 9000);
-                    toast.success(`Ticket submitted to IT helpdesk. Reference #TKT-${refNum}`);
-                    setTicketCategory("general");
-                    setTicketSeverity("low");
-                    setTicketDescription("");
-                    setIsSupportOpen(false);
+                    const formData = new FormData();
+                    formData.set("category", ticketCategory);
+                    formData.set("severity", ticketSeverity);
+                    formData.set("description", ticketDescription);
+                    startTransition(async () => {
+                      const result = await submitTicketAction(
+                        { success: false, error: null, ticketRef: null },
+                        formData
+                      );
+                      if (result.success && result.ticketRef) {
+                        toast.success(
+                          `Support ticket ${result.ticketRef} submitted. Our team will reach out to ${currentUser?.email ?? "your email"}.`
+                        );
+                        setTicketCategory("general");
+                        setTicketSeverity("low");
+                        setTicketDescription("");
+                        setIsSupportOpen(false);
+                      } else {
+                        toast.error(result.error ?? "Failed to submit ticket.");
+                      }
+                    });
                   }}
-                  disabled={ticketDescription.trim().length === 0}
+                  disabled={isPending || ticketDescription.trim().length === 0}
                   size="sm"
                   className="w-full bg-primary text-on-primary font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-3.5 h-3.5 mr-1.5" /> Submit Ticket
+                  <Send className="w-3.5 h-3.5 mr-1.5" />
+                  {isPending ? "Submitting..." : "Submit Ticket"}
                 </Button>
               </div>
             </div>

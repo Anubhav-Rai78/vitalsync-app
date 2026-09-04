@@ -286,3 +286,23 @@ export type ResetPasswordPayload = z.infer<typeof resetPasswordSchema>;
 export const markNotificationSchema = z.object({
   notificationId: z.string().uuid(),
 });
+
+// ── Support Tickets ──────────────────────────────────────────────────────
+
+export const submitTicketSchema = z.object({
+  category: z.enum(["general", "billing", "appointments", "ehr", "bug"]),
+  severity: z.enum(["low", "medium", "critical"]),
+  description: z
+    .string()
+    .min(10, "Description must be at least 10 characters.")
+    .max(2000, "Description must be under 2000 characters."),
+});
+
+export type SubmitTicketPayload = z.infer<typeof submitTicketSchema>;
+
+export const updateTicketStatusSchema = z.object({
+  ticketId: z.string().uuid(),
+  status: z.enum(["open", "in_progress", "resolved", "closed"]),
+});
+
+export type UpdateTicketStatusPayload = z.infer<typeof updateTicketStatusSchema>;

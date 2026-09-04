@@ -514,6 +514,42 @@ export interface Database {
         }
         Relationships: []
       }
+      support_tickets: {
+        Row: {
+          id: string
+          user_id: string
+          user_email: string
+          ticket_ref: string
+          category: string
+          severity: string
+          description: string
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          user_email: string
+          ticket_ref: string
+          category?: string
+          severity?: string
+          description: string
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          user_email?: string
+          ticket_ref?: string
+          category?: string
+          severity?: string
+          description?: string
+          status?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
