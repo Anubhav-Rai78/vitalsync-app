@@ -525,19 +525,20 @@ export function DashboardShell({
                     </div>
                     <div className="space-y-1">
                       {[
-                        "Clinical Workflow Guide",
-                        "Billing & Razorpay Reconciliation",
-                        "HIPAA / Security Compliance",
+                        { label: "Clinical Workflow Guide", href: "/docs/workflow" },
+                        { label: "Billing & Razorpay Reconciliation", href: "/docs/billing" },
+                        { label: "HIPAA / Security Compliance", href: "/docs/compliance" },
                       ].map((link) => (
-                        <div
-                          key={link}
+                        <Link
+                          key={link.href}
+                          href={link.href}
                           className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-container-low cursor-pointer transition group"
                         >
                           <span className="text-[11px] font-medium text-on-surface-variant group-hover:text-on-surface transition">
-                            {link}
+                            {link.label}
                           </span>
                           <ExternalLink className="w-3 h-3 text-outline group-hover:text-on-surface-variant transition" />
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </div>
