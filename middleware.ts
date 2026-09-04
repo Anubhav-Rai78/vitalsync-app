@@ -45,17 +45,40 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // Unauthenticated users trying to access protected dashboard routes
-  if (
-    !user &&
-    (path.startsWith("/dashboard") ||
-      path.startsWith("/patients") ||
-      path.startsWith("/doctors") ||
-      path.startsWith("/appointments") ||
-      path.startsWith("/prescriptions") ||
-      path.startsWith("/settings"))
-  ) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  const isAuthRoute = path === "/login" || path === "/register";
+  const isWebhook = path.startsWith("/api/webhooks");
+  const isProtectedPrefix =
+    path.startsWith("/dashboard") ||
+    path.startsWith("/patients") ||
+    path.startsWith("/doctors") ||
+    path.startsWith("/appointments") ||
+    path.startsWith("/prescriptions") ||
+    path.startsWith("/settings") ||
+    path.startsWith("/invoices") ||
+    path.startsWith("/reports") ||
+    path.startsWith("/profile");
+
+  // Unauthenticated: keep login/register and Razorpay webhooks public.
+  // Root `/` is not a dashboard — send logged-out users to login.
+  if (!user) {
+    if (isAuthRoute || isWebhook) {
+      return response;
+    }
+
+    if (path === "/" || isProtectedPrefix) {
+      const loginUrl = new URL("/login", request.url);
+      if (path !== "/") {
+        loginUrl.searchParams.set("redirectTo", path);
+      }
+      return NextResponse.redirect(loginUrl);
+    }
+
+    return response;
+  }
+
+  // Authenticated users should not sit on auth pages or the root route.
+  if (path === "/" || isAuthRoute) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // Role verification for restricted routes
