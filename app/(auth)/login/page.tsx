@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -54,6 +55,13 @@ export default function LoginPage() {
         {errorMsg && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
             {errorMsg}
+          </div>
+        )}
+
+        {searchParams.get("reset") === "success" && (
+          <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
+            Your password has been updated. Please sign in with your new
+            password.
           </div>
         )}
 
@@ -95,7 +103,7 @@ export default function LoginPage() {
               <input type="checkbox" className="rounded border-outline text-primary focus:ring-primary" />
               Remember me
             </label>
-            <a href="#" className="text-primary font-semibold hover:underline">
+            <a href="/forgot-password" className="text-primary font-semibold hover:underline">
               Forgot password?
             </a>
           </div>

@@ -69,7 +69,7 @@ export function LoginForm() {
                   <label className="text-label-md text-on-surface" htmlFor="password">
                     Password
                   </label>
-                  <Link className="text-label-md text-primary hover:underline focus:outline-none" href="#">
+                  <Link className="text-label-md text-primary hover:underline focus:outline-none" href="/forgot-password">
                     Forgot password?
                   </Link>
                 </div>

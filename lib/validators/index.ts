@@ -263,6 +263,26 @@ export const razorpayVerifySchema = z.object({
 
 // ── Mark notification ────────────────────────────────────────────────────
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().min(1, "Enter your email address.").email("Enter a valid email address."),
+});
+
+export type ForgotPasswordPayload = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters."),
+    confirmPassword: z.string().min(1, "Please confirm your password."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+  });
+
+export type ResetPasswordPayload = z.infer<typeof resetPasswordSchema>;
+
 export const markNotificationSchema = z.object({
   notificationId: z.string().uuid(),
 });

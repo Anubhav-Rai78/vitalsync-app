@@ -45,7 +45,11 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  const isAuthRoute = path === "/login" || path === "/register";
+  const isAuthRoute =
+    path === "/login" ||
+    path === "/register" ||
+    path === "/forgot-password";
+  const isPublicAuth = path === "/reset-password" || path === "/auth/callback";
   const isWebhook = path.startsWith("/api/webhooks");
   const isProtectedPrefix =
     path.startsWith("/dashboard") ||
@@ -58,10 +62,10 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/reports") ||
     path.startsWith("/profile");
 
-  // Unauthenticated: keep login/register and Razorpay webhooks public.
-  // Root `/` is not a dashboard — send logged-out users to login.
+  // Unauthenticated: keep login/register, forgot-password, reset-password,
+  // auth callback, and Razorpay webhooks public.
   if (!user) {
-    if (isAuthRoute || isWebhook) {
+    if (isAuthRoute || isWebhook || isPublicAuth) {
       return response;
     }
 
@@ -77,7 +81,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Authenticated users should not sit on auth pages or the root route.
-  if (path === "/" || isAuthRoute) {
+  // /reset-password stays accessible (recovery session needs it).
+  if ((path === "/" || isAuthRoute) && !isPublicAuth) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
