@@ -21,15 +21,13 @@ jobs:
         with:
           version: latest
 
-      - name: Link Remote Project
-        run: |
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --password ${{ secrets.SUPABASE_DB_PASSWORD }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # Project link state is committed via supabase/.temp/ — no supabase link step needed.
+      # The SUPABASE_ACCESS_TOKEN authenticates the management API;
+      # --password verifies direct Postgres connectivity.
 
       - name: Push Database Migrations
         run: |
-          supabase db push --include-all --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+          supabase db push --include-all --linked --password ${{ secrets.SUPABASE_DB_PASSWORD }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
