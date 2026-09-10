@@ -491,7 +491,7 @@ export default function PatientsPage() {
           currentPage={currentPage}
           onPageChange={setCurrentPage}
           pageSize={ITEMS_PER_PAGE}
-          itemName="entries"
+          itemName="patients"
         />
       </div>
     </div>
