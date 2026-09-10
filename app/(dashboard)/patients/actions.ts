@@ -51,7 +51,7 @@ export async function createPatientAction(
       clinic_id: profile.clinic_id,
       full_name,
       dob: dob || null,
-      sex: (gender || null) as any,
+      sex: (gender || null) as "male" | "female" | "other" | null,
       phone: phone || null,
       email: email || null,
       address: [formData.get("address"), formData.get("city"), formData.get("zip")]
@@ -68,6 +68,7 @@ export async function createPatientAction(
   if (error) return { error: getUserFacingMessage(error, "Failed to create patient.") };
 
   revalidatePath("/patients");
+  revalidatePath("/dashboard", "layout");
   redirect(`/patients/${inserted.id}`);
 }
 
@@ -143,6 +144,7 @@ export async function addQuickMedicationAction(
   if (itemErr) return { error: getUserFacingMessage(itemErr, "Failed to save medication.") };
 
   revalidatePath(`/patients/${pId}`);
+  revalidatePath("/dashboard", "layout");
   return { error: null, prescriptionId: rx.id };
 }
 

@@ -43,7 +43,12 @@ export async function createInvoiceAction(
     status: dbStatus,
   } = parsed.data;
 
-  const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+  // Generate a collision-resistant invoice number: INV-YYYY-XXXX where XXXX
+  // is a random alphanumeric suffix. Previous `Date.now().slice(-4)` generated
+  // duplicates when two invoices were created within the same millisecond.
+  const year = new Date().getFullYear();
+  const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const invoiceNumber = `INV-${year}-${suffix}`;
 
   const { data: inserted, error: invError } = await supabase
     .from("invoices")
@@ -51,7 +56,7 @@ export async function createInvoiceAction(
       clinic_id: profile.clinic_id,
       patient_id: pId,
       invoice_number: invoiceNumber,
-      status: dbStatus as any,
+      status: dbStatus as "draft" | "sent" | "paid" | "overdue",
       subtotal: amt,
       tax: 0,
       total: amt,
@@ -77,6 +82,8 @@ export async function createInvoiceAction(
   }
 
   revalidatePath("/invoices");
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/reports");
   return { error: null };
 }
 
@@ -129,5 +136,7 @@ export async function markInvoicePaidAction(
 
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/invoices");
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/reports");
   return { error: null };
 }

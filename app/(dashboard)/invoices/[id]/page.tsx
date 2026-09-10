@@ -268,7 +268,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50 text-body-sm text-on-surface">
-              {(invoiceItems ?? []).map((item: any) => (
+              {(invoiceItems ?? []).map((item: { id: string; description: string; quantity: number; unit_price: number; amount: number }) => (
                 <tr key={item.id}>
                   <td className="py-sm px-md">{item.description}</td>
                   <td className="py-sm px-md text-center tabular-nums">{item.quantity}</td>
@@ -298,7 +298,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
 
           {invoice.status === "paid" && (
             <div className="mt-lg flex items-center gap-2 rounded-xl bg-secondary-container/20 text-secondary p-lg text-label-md">
-              <ShieldCheck className="w-4 h-4" /> Payment received in full. Thank you for choosing MedFlow Clinic.
+              <ShieldCheck className="w-4 h-4" /> Payment received in full. Thank you for choosing VitalSync.
             </div>
           )}
         </div>

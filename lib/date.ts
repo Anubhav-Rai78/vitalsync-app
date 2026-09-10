@@ -98,6 +98,51 @@ export function getISTMonthEnd(date: Date = new Date()): Date {
   return new Date(nextMonthStart.getTime() - 1);
 }
 
+/* ------------------------------------------------------------------ */
+/*  IST-aware day-boundary helpers                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Returns the UTC instant that corresponds to **IST midnight** (00:00)
+ * of the calendar day that contains `date` in the Asia/Kolkata timezone.
+ *
+ * Use this when querying a database for "today in IST" instead of the
+ * broken `date.setHours(0,0,0,0)` pattern, which operates on the
+ * server's local timezone and silently produces wrong boundaries.
+ */
+export function getISTDayStart(date: Date = new Date()): Date {
+  const { y, m, d } = toISTParts(date);
+  return new Date(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T00:00:00+05:30`);
+}
+
+/**
+ * Returns the UTC instant that corresponds to the **very last
+ * millisecond** of the IST calendar day containing `date`.
+ * Equivalent to IST 23:59:59.999 for range queries.
+ */
+export function getISTDayEnd(date: Date = new Date()): Date {
+  const { y, m, d } = toISTParts(date);
+  // The next day's IST midnight, minus one millisecond.
+  const nextDayStart = new Date(
+    `${y}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}T00:00:00+05:30`,
+  );
+  return new Date(nextDayStart.getTime() - 1);
+}
+
+/**
+ * Returns `n` IST calendar days ago at IST midnight.
+ * Useful for "last N days" range queries.
+ */
+export function getISTDayStartDaysAgo(n: number): Date {
+  // Build a temporary Date in IST, then subtract n days worth of ms.
+  // We use toISTParts to figure out the IST date, then do calendar math.
+  const d = new Date();
+  const parts = toISTParts(d);
+  const target = new Date(`${parts.y}-${String(parts.m).padStart(2, "0")}-${String(parts.d).padStart(2, "0")}T00:00:00+05:30`);
+  target.setTime(target.getTime() - n * 86_400_000);
+  return target;
+}
+
 export default {
   getNowIST,
   formatDateIST,
@@ -106,4 +151,7 @@ export default {
   formatDateInputIST,
   getISTMonthStart,
   getISTMonthEnd,
+  getISTDayStart,
+  getISTDayEnd,
+  getISTDayStartDaysAgo,
 };

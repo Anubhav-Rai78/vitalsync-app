@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@medflow.clinic"
+                  placeholder="name@vitalsync.clinic"
                   className="pl-9"
                   {...register("email")}
                 />

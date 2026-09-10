@@ -2,35 +2,35 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyActivityChart } from "@/components/modules/weekly-activity-chart";
+import { getISTDayStartDaysAgo } from "@/lib/date";
 
 export default async function AnalyticsPage() {
   const supabase = createClient();
 
-  const since = new Date();
-  since.setDate(since.getDate() - 6);
-  since.setHours(0, 0, 0, 0);
+  // IST-aware: "6 days ago at IST midnight" → correct UTC instant for queries
+  const since = getISTDayStartDaysAgo(6);
 
   const { data: appointments } = await supabase
     .from("appointments")
     .select("start_time, status")
     .gte("start_time", since.toISOString());
 
-  const days = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date(since);
-    d.setDate(d.getDate() + i);
-    return d;
+  // Build the 7-day window using IST boundaries
+  const dayBoundaries = Array.from({ length: 7 }, (_, i) => {
+    const start = getISTDayStartDaysAgo(6 - i);
+    const end = new Date(start.getTime() + 86_400_000 - 1); // +23:59:59.999
+    return { start, end };
   });
 
-  const chartData = days.map((day) => {
-    const label = day.toLocaleDateString("en-IN", { weekday: "short" });
-    const dayStart = new Date(day);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(day);
-    dayEnd.setHours(23, 59, 59, 999);
+  const chartData = dayBoundaries.map(({ start, end }) => {
+    const label = start.toLocaleDateString("en-IN", {
+      weekday: "short",
+      timeZone: "Asia/Kolkata",
+    });
 
     const count = (appointments ?? []).filter((a) => {
       const t = new Date(a.start_time);
-      return t >= dayStart && t <= dayEnd;
+      return t >= start && t <= end;
     }).length;
 
     return { day: label, appointments: count };

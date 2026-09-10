@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -74,15 +72,6 @@ const STATUS_STYLES: Record<string, string> = {
     "bg-tertiary-container/20 text-on-tertiary-container border border-tertiary-container/50",
 };
 
-const MOCK_APPOINTMENTS: AppointmentItem[] = [
-  { id: "mock-1", patient_name: "Sarah Jenkins", doctor_name: "Dr. Rajesh Sharma", type: "Consultation", time: "09:00", room: "Room 302", date_day: 2, date: "2026-10-02", status: "confirmed" },
-  { id: "mock-2", patient_name: "Naveen Venkat", doctor_name: "Dr. Vikramaditya Verma", type: "Procedure", time: "11:30", room: "OR 1", date_day: 2, date: "2026-10-02", status: "scheduled" },
-  { id: "mock-3", patient_name: "Urbajit Roy", doctor_name: "Dr. Meera Nambiar", type: "Follow-up", time: "10:00", room: "Room 305", date_day: 3, date: "2026-10-03", status: "completed" },
-  { id: "mock-4", patient_name: "Ragul Arumugam", doctor_name: "Dr. Rajesh Sharma", type: "Consultation", time: "08:30", room: "Room 302", date_day: 4, date: "2026-10-04", status: "cancelled" },
-  { id: "mock-5", patient_name: "Pooja Iyer", doctor_name: "Dr. Ananya Deshmukh", type: "Procedure", time: "13:00", room: "OR 1", date_day: 4, date: "2026-10-04", status: "confirmed" },
-  { id: "mock-6", patient_name: "Amitabh Sengupta", doctor_name: "Dr. Vikramaditya Verma", type: "Follow-up", time: "15:45", room: "Room 305", date_day: 4, date: "2026-10-04", status: "no_show" },
-];
-
 const BOOKING_TYPES = ["Consultation", "Follow-up", "Routine Checkup", "Specialist Visit"];
 const TIME_SLOTS = [
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -114,7 +103,7 @@ export default function AppointmentsCalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("monthly");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [appointments, setAppointments] = useState<AppointmentItem[]>(MOCK_APPOINTMENTS);
+  const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [listPage, setListPage] = useState(1);
   const LIST_PAGE_SIZE = 5;
@@ -171,7 +160,15 @@ export default function AppointmentsCalendarPage() {
           .order("start_time", { ascending: true });
 
         if (active && data && data.length > 0 && !error) {
-          const mapped: AppointmentItem[] = (data as any[]).map((item, idx) => {
+          type ApptRow = {
+            id: string;
+            start_time: string;
+            reason: string | null;
+            status: string | null;
+            patients?: { full_name?: string } | null;
+            profiles?: { full_name?: string } | null;
+          };
+          const mapped: AppointmentItem[] = (data as ApptRow[]).map((item, idx) => {
             const st = new Date(item.start_time || new Date());
             const reason: string = item.reason || "";
             const type: AppointmentType = reason.startsWith("Follow")
@@ -185,7 +182,7 @@ export default function AppointmentsCalendarPage() {
               doctor_name: item.profiles?.full_name || "Attending Physician",
               type,
               time: format(st, "HH:mm"),
-              room: `Room ${300 + (idx % 5)}`,
+              room: "",
               date_day: st.getDate(),
               date: format(st, "yyyy-MM-dd"),
               status: item.status ?? "scheduled",
@@ -193,10 +190,10 @@ export default function AppointmentsCalendarPage() {
           });
           setAppointments(mapped);
         } else if (active && error) {
-          setAppointments(MOCK_APPOINTMENTS);
+          setAppointments([]);
         }
       } catch {
-        if (active) setAppointments(MOCK_APPOINTMENTS);
+        if (active) setAppointments([]);
       } finally {
         if (active) setLoading(false);
       }
@@ -460,7 +457,7 @@ router.replace("/appointments");
                         {apt.type}
                       </span>
                       <span className="text-label-md font-semibold text-on-surface flex-1">{apt.patient_name}</span>
-                      <span className="text-label-sm text-on-surface-variant hidden md:inline">{apt.room}</span>
+                      <span className="text-label-sm text-on-surface-variant hidden md:inline">{apt.room || "—"}</span>
                     </Link>
                   ))}
                 {appointmentsForDayArray(currentDate).length === 0 && (
@@ -503,7 +500,7 @@ router.replace("/appointments");
                           {apt.type}
                         </span>
                       </td>
-                      <td className="p-md text-on-surface-variant hidden lg:table-cell">{apt.room}</td>
+                      <td className="p-md text-on-surface-variant hidden lg:table-cell">{apt.room || "—"}</td>
                       <td className="p-md">
                         <span className={`inline-flex px-sm py-[2px] rounded-full text-label-sm font-semibold capitalize ${STATUS_STYLES[apt.status] ?? STATUS_STYLES.scheduled}`}>
                           {statusLabel(apt.status)}
@@ -566,7 +563,7 @@ router.replace("/appointments");
                     <p className="text-label-sm text-on-surface-variant mb-xs">{apt.type}</p>
                     <div className="flex items-center gap-xs text-label-sm font-semibold">
                       <span className="px-sm py-[2px] rounded bg-primary-container/20 text-primary">{apt.doctor_name}</span>
-                      <span className="px-sm py-[2px] rounded bg-surface-container-high text-on-surface-variant">{apt.room}</span>
+                      <span className="px-sm py-[2px] rounded bg-surface-container-high text-on-surface-variant">{apt.room || "—"}</span>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { formatDateIST, formatTimeIST, getISTMonthStart, getISTMonthEnd } from "@/lib/date";
+import { formatDateIST, formatTimeIST, getISTMonthStart, getISTMonthEnd, getISTDayStart, getISTDayEnd, getISTDayStartDaysAgo } from "@/lib/date";
 import { Calendar, Users, CalendarCheck, Plus, TrendingUp, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -36,11 +36,9 @@ export default async function AdminDashboardPage() {
     .select("*", { count: "exact", head: true })
     .eq("clinic_id", clinicId);
 
-  // 3. Today's appointments
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
+  // 3. Today's appointments — IST day boundaries (not server-local setHours)
+  const todayStart = getISTDayStart();
+  const todayEnd = getISTDayEnd();
 
   const { data: todayAppointments } = await supabase
     .from("appointments")
@@ -83,10 +81,8 @@ export default async function AdminDashboardPage() {
     .order("created_at", { ascending: false })
     .limit(5);
 
-  // 7. Clinic activity for the last 7 days (appointments per day)
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - 6);
-  weekStart.setHours(0, 0, 0, 0);
+  // 7. Clinic activity for the last 7 days — IST calendar boundaries
+  const weekStart = getISTDayStartDaysAgo(6);
 
   const { data: weekAppointments } = await supabase
     .from("appointments")
@@ -258,8 +254,14 @@ const currentDateFormatted = formatDateIST(new Date(), { weekday: "long", month:
                   const appointmentTime = slot.start_time
                     ? formatTimeIST(slot.start_time)
                     : "Scheduled";
-                  const patientName = (slot as any).patients?.full_name || "Patient";
-                  const doctorName = (slot as any).profiles?.full_name || "Attending Physician";
+                  // The Supabase join returns nested objects — cast once to a
+                  // concrete shape so we avoid `any` throughout the template.
+                  const joined = slot as typeof slot & {
+                    patients?: { full_name?: string };
+                    profiles?: { full_name?: string };
+                  };
+                  const patientName = joined.patients?.full_name || "Patient";
+                  const doctorName = joined.profiles?.full_name || "Attending Physician";
 
                   return (
                     <div key={slot.id || idx} className="flex items-start gap-3 p-2.5 rounded-lg border border-outline-variant bg-surface-container-low/50">

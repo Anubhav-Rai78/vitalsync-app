@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
@@ -79,9 +77,17 @@ export default function PrescriptionHistoryPage() {
           .order("created_at", { ascending: false });
 
         if (active && data && !error) {
-          const rows: PrescriptionRow[] = (data as any[]).map((r) => {
-            const items: { drug_name: string; dosage: string; frequency: string }[] =
-              (r.prescription_items || []).map((it: any) => ({
+          type RxSupaRow = {
+            id: string;
+            created_at: string;
+            diagnosis: string | null;
+            status: string | null;
+            patients?: { id: string; full_name: string | null; dob: string | null } | null;
+            profiles?: { full_name: string | null } | null;
+            prescription_items?: { drug_name: string | null; dosage: string | null; frequency: string | null }[];
+          };
+          const rows: PrescriptionRow[] = (data as unknown as RxSupaRow[]).map((r) => {
+            const items = (r.prescription_items || []).map((it) => ({
                 drug_name: it.drug_name || "",
                 dosage: it.dosage || "",
                 frequency: it.frequency || "",

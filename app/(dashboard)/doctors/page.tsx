@@ -71,20 +71,29 @@ export default function DoctorsPage() {
         .order("full_name", { ascending: true });
 
       if (data && !error) {
-        const formatted: DoctorItem[] = data.map((doc: any, idx: number) => {
+        type ProfileRow = {
+          id: string;
+          full_name: string | null;
+          specialty: string | null;
+          phone: string | null;
+          license_no: string | null;
+          is_active: boolean | null;
+          created_at: string;
+        };
+        const formatted: DoctorItem[] = (data as ProfileRow[]).map((doc, idx) => {
           const active = doc.is_active ?? true;
           return {
             id: doc.id,
             doctor_id_display: `MD-${1040 + idx * 7}`,
             full_name: doc.full_name?.startsWith("Dr.") ? doc.full_name : `Dr. ${doc.full_name || "Specialist"}`,
             specialty: doc.specialty || "General Medicine",
-            email: `${(doc.full_name || "doctor").toLowerCase().replace(/[^a-z]/g, "")}@medflow.com`,
-            phone: doc.phone || "+91 98201 54321",
-            room: `Room ${102 + (idx % 6) * 5}`,
-            license_no: doc.license_no || "KMC-99214",
+            email: "",  // Not stored in profiles; surfaced only where available
+            phone: doc.phone || "",
+            room: "",  // Not tracked in the database
+            license_no: doc.license_no || "",
             is_active: active,
             status: active ? "Active" : "On Leave",
-            next_available: active ? "Today, 2:30 PM" : "Returns Oct 15, 2026",
+            next_available: "",  // Requires schedule data not yet in DB
           };
         });
         setDoctors(formatted);
@@ -358,8 +367,8 @@ export default function DoctorsPage() {
                     </td>
 
                     <td className="py-md px-md">
-                      <div className="text-on-surface font-medium">{doc.email}</div>
-                      <div className="text-on-surface-variant text-[12px]">{doc.phone}</div>
+                      <div className="text-on-surface font-medium">{doc.email || "—"}</div>
+                      <div className="text-on-surface-variant text-[12px]">{doc.phone || "—"}</div>
                     </td>
 
                     <td className="py-md px-md">
@@ -378,8 +387,8 @@ export default function DoctorsPage() {
                     </td>
 
                     <td className="py-md px-md">
-                      <div className="text-on-surface font-medium">{doc.next_available}</div>
-                      <div className="text-on-surface-variant text-[12px]">{doc.room}</div>
+                      <div className="text-on-surface font-medium">{doc.next_available || "—"}</div>
+                      <div className="text-on-surface-variant text-[12px]">{doc.room || "—"}</div>
                     </td>
 
                     <td className="py-md px-md text-right">

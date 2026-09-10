@@ -39,7 +39,11 @@ export async function createPrescriptionAction(
   try {
     const parsed = createPrescriptionSchema.safeParse({
       patient_id: payload.patientId,
-      doctor_id: payload.patientId, // placeholder; real doctor resolved below
+      // doctor_id is not validated here — it's resolved below to a valid
+      // profile ID from the clinic. We pass the patient ID as a temporary
+      // valid UUID so Zod doesn't reject the parse, then overwrite with the
+      // real assigned doctor before inserting.
+      doctor_id: payload.patientId,
       diagnosis: payload.diagnosis,
       notes: payload.notes,
       appointment_id: payload.appointmentId || "",
@@ -195,6 +199,7 @@ export async function createPrescriptionAction(
 
     revalidatePath("/prescriptions");
     revalidatePath(`/patients/${patientId}`);
+    revalidatePath("/dashboard", "layout");
     return { success: true, prescriptionId: rx.id };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to create prescription.";

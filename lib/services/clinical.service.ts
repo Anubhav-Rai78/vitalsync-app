@@ -86,7 +86,7 @@ export async function createPatient(
       clinic_id: clinicId,
       full_name: parsed.full_name,
       dob: parsed.dob || null,
-      sex: parsed.gender ? (parsed.gender as any) : null,
+      sex: parsed.gender ? (parsed.gender as "male" | "female" | "other") : null,
       phone: parsed.phone || null,
       email: parsed.email || null,
       address: parsed.address || null,

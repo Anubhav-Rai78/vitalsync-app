@@ -120,10 +120,22 @@ interface InternalNote {
   created_at: string;
 }
 
+/**
+ * Compute a patient's age from their date of birth, accounting for
+ * month/day (not just year subtraction). Returns 0 for future DOBs
+ * and "—" when no DOB is recorded.
+ */
 function calcAge(dob: string | null | undefined): number | string {
   if (!dob) return "—";
-  const diff = Date.now() - new Date(dob).getTime();
-  return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime()) || birth > new Date()) return "—";
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return Math.max(0, age);
 }
 
 function formatGender(sex?: "male" | "female" | "other" | null): string {
@@ -286,7 +298,7 @@ export default function PatientProfilePage() {
         .maybeSingle();
 
       if (active && latestAppt) {
-        const doctor = (latestAppt as any).profiles as { full_name?: string } | null;
+        const doctor = (latestAppt as unknown as { profiles?: { full_name?: string } | null }).profiles ?? null;
         if (doctor?.full_name) setPrimaryDoctor(`Dr. ${doctor.full_name}`);
       }
 
@@ -346,16 +358,23 @@ export default function PatientProfilePage() {
       if (!active) return;
 
       if (data && data.length > 0 && !error) {
-        const rows: PrescriptionRecord[] = (data as any[]).map((r, idx) => {
-          const doctor: any = (r as any).profiles;
+        type RxRow = {
+          id: string;
+          created_at: string;
+          diagnosis: string | null;
+          notes: string | null;
+          profiles?: { full_name?: string } | null;
+        };
+        const rows: PrescriptionRecord[] = (data as RxRow[]).map((r, idx) => {
+          const doctor = r.profiles;
           const status: RxStatus =
             idx % 3 === 0 ? "Active" : idx % 3 === 1 ? "Completed" : "Discontinued";
           return {
             id: `RX-${1000 + idx + 1}`,
-            real_id: (r as any).id as string,
-            date: formatDateIST((r as any).created_at || new Date()),
-            medication: (r as any).diagnosis || "Prescription",
-            instruction: (r as any).notes || "See prescription details",
+            real_id: r.id,
+            date: formatDateIST(r.created_at || new Date()),
+            medication: r.diagnosis || "Prescription",
+            instruction: r.notes || "See prescription details",
             prescriber: doctor?.full_name ? `Dr. ${doctor.full_name}` : "Dr. Unknown",
             status,
           };
@@ -390,9 +409,18 @@ export default function PatientProfilePage() {
         .order("start_time", { ascending: false });
 
       if (data) {
+        type ApptRow = {
+          id: string;
+          start_time: string;
+          end_time: string;
+          status: string;
+          reason: string | null;
+          notes: string | null;
+          profiles?: { full_name?: string; specialty?: string | null } | null;
+        };
         setAppointmentsList(
-          (data as any[]).map((r) => {
-            const doc: any = r.profiles;
+          (data as ApptRow[]).map((r) => {
+            const doc = r.profiles;
             return {
               id: r.id,
               start_time: r.start_time,
@@ -438,7 +466,8 @@ export default function PatientProfilePage() {
       ]);
 
       const docs: DocumentRecord[] = [];
-      (invRes.data ?? []).forEach((inv: any) => {
+      type InvoiceRow = { id: string; invoice_number: string; created_at: string; status: string };
+      (invRes.data as InvoiceRow[] | null ?? []).forEach((inv) => {
         docs.push({
           id: inv.id,
           name: `Invoice #${inv.invoice_number}`,
@@ -447,7 +476,8 @@ export default function PatientProfilePage() {
           status: inv.status,
         });
       });
-      (rxRes.data ?? []).forEach((rx: any) => {
+      type RxDocRow = { id: string; diagnosis: string | null; created_at: string };
+      (rxRes.data as RxDocRow[] | null ?? []).forEach((rx) => {
         docs.push({
           id: rx.id,
           name: rx.diagnosis || "Prescription Record",

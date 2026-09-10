@@ -42,7 +42,22 @@ export async function getInvoices(
     throw new DatabaseError(getUserFacingMessage(error, "Failed to load invoices."), { cause: error });
   }
 
-  return (data ?? []).map((row: any) => ({
+  // The generated Supabase types don't model every FK join (e.g. invoices →
+  // patients), so we adopt a minimal runtime shape explicitly.
+  type InvoiceRow = {
+    id: string;
+    invoice_number: string;
+    status: "draft" | "sent" | "paid" | "overdue" | "void";
+    subtotal: number;
+    tax: number;
+    total: number;
+    currency: string;
+    due_date: string | null;
+    created_at: string;
+    patients?: { full_name?: string } | null;
+  };
+
+  return (data as unknown as InvoiceRow[]).map((row) => ({
     id: row.id,
     invoice_number: row.invoice_number,
     status: row.status,
@@ -52,7 +67,7 @@ export async function getInvoices(
     currency: row.currency,
     due_date: row.due_date,
     created_at: row.created_at,
-    patient_name: row.patients?.[0]?.full_name ?? row.patients?.full_name ?? null,
+    patient_name: row.patients?.full_name ?? null,
   }));
 }
 
@@ -75,7 +90,12 @@ export async function getInvoiceById(
     throw new DatabaseError(getUserFacingMessage(error, "Failed to load invoice."), { cause: error });
   }
 
-  const row: any = data;
+  // Supabase returns the joined row directly — the generated types don't model
+  // this nested relation, so we cast through unknown to the runtime shape.
+  const row = data as unknown as (typeof data) & {
+    patients?: { full_name?: string } | null;
+    invoice_items?: { id: string; description: string; quantity: number; unit_price: number; amount: number }[];
+  };
 
   return {
     id: row.id,
@@ -87,7 +107,7 @@ export async function getInvoiceById(
     currency: row.currency,
     due_date: row.due_date,
     created_at: row.created_at,
-    patient_name: row.patients?.[0]?.full_name ?? row.patients?.full_name ?? null,
+    patient_name: row.patients?.full_name ?? null,
     line_items: row.invoice_items ?? [],
   };
 }
@@ -102,7 +122,9 @@ export async function createInvoice(
   payload: CreateInvoicePayload,
 ): Promise<string> {
   const parsed = createInvoiceSchema.parse(payload);
-  const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+  const year = new Date().getFullYear();
+  const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const invoiceNumber = `INV-${year}-${suffix}`;
 
   const { data: inserted, error } = await client
     .from("invoices")

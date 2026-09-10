@@ -57,7 +57,21 @@ export async function getAppointments(
     throw new DatabaseError(getUserFacingMessage(error, "Failed to load appointments."), { cause: error });
   }
 
-  return (data ?? []).map((row: any) => ({
+  // The generated Supabase types don't model the appointments → patients /
+  // profiles FK joins, so we adopt the runtime shape explicitly.
+  type ApptRow = {
+    id: string;
+    patient_id: string;
+    doctor_id: string;
+    start_time: string;
+    end_time: string;
+    status: AppointmentStatus;
+    reason: string | null;
+    patients?: { full_name?: string } | null;
+    profiles?: { full_name?: string } | null;
+  };
+
+  return (data as unknown as ApptRow[]).map((row) => ({
     id: row.id,
     patient_id: row.patient_id,
     doctor_id: row.doctor_id,
@@ -97,8 +111,8 @@ export async function getAppointmentById(
     end_time: data.end_time,
     status: data.status,
     reason: data.reason,
-    patient_name: (data as any).patients?.full_name ?? null,
-    doctor_name: (data as any).profiles?.full_name ?? null,
+    patient_name: (data as unknown as { patients?: { full_name?: string } }).patients?.full_name ?? null,
+    doctor_name: (data as unknown as { profiles?: { full_name?: string } }).profiles?.full_name ?? null,
   };
 }
 

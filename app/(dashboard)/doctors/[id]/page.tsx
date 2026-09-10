@@ -27,13 +27,31 @@ export default function DoctorProfilePage() {
   const router = useRouter();
   const doctorId = (params?.id as string) ?? "";
 
-  const [doctor, setDoctor] = useState<any>(null);
+  type DoctorProfile = {
+    id: string;
+    full_name: string | null;
+    specialty: string | null;
+    phone: string | null;
+    license_no: string | null;
+    is_active: boolean | null;
+    created_at: string;
+  };
+  const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
 
   // Dynamic Sub-tab Data
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [patients, setPatients] = useState<any[]>([]);
+  type ApptRow = {
+    id: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    reason: string | null;
+    patients?: { id: string; full_name: string; phone: string | null } | null;
+  };
+  type PatientRow = { id: string; full_name: string; phone: string | null; lastVisit: string };
+  const [appointments, setAppointments] = useState<ApptRow[]>([]);
+  const [patients, setPatients] = useState<PatientRow[]>([]);
 
   // Message Modal
   const [isMessageOpen, setIsMessageOpen] = useState(false);
@@ -56,7 +74,9 @@ export default function DoctorProfilePage() {
 
         if (doc) setDoctor(doc);
 
-        // Fetch Appointments
+        // Fetch Appointments for this doctor (with patient info for the
+        // patient list sub-tab). The generated Supabase types don't model
+        // this FK join, so we cast through unknown.
         const { data: appts } = await supabase
           .from("appointments")
           .select("id, start_time, end_time, status, reason, patients(id, full_name, phone)")
@@ -64,11 +84,12 @@ export default function DoctorProfilePage() {
           .order("start_time", { ascending: false });
 
         if (appts) {
-          setAppointments(appts);
+          const rows = appts as unknown as ApptRow[];
+          setAppointments(rows);
 
-          // Extract Unique Patients
-          const seen = new Map();
-          appts.forEach((a: any) => {
+          // Extract unique patients
+          const seen = new Map<string, PatientRow>();
+          rows.forEach((a) => {
             if (a.patients && !seen.has(a.patients.id)) {
               seen.set(a.patients.id, {
                 ...a.patients,
@@ -155,7 +176,8 @@ export default function DoctorProfilePage() {
         .toUpperCase()
     : "DR";
 
-  const doctorEmail = `${(doctor.full_name || "doctor").toLowerCase().replace(/[^a-z]/g, "")}@medflow.com`;
+  // Use the doctor's actual email from profiles if available; don't fabricate one
+  const doctorEmail = "";
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "summary", label: "Summary" },
@@ -189,12 +211,9 @@ export default function DoctorProfilePage() {
               Senior Specialist in {doctor.specialty || "General Medicine"}
             </p>
             <div className="flex items-center gap-2 mt-xs">
-              <Star className="w-4 h-4 text-emerald-600 fill-emerald-600" />
-              <span className="font-bold text-on-surface">4.9</span>
-              <span className="text-on-surface-variant text-label-sm">(124 Reviews)</span>
               <span className="text-on-surface-variant">&bull;</span>
               <span className="font-mono text-label-sm text-on-surface-variant">
-                Lic: {doctor.license_no || "KMC-99214"}
+                Lic: {doctor.license_no || "—"}
               </span>
             </div>
           </div>
@@ -271,7 +290,7 @@ export default function DoctorProfilePage() {
               <div>
                 <span className="text-label-sm text-on-surface-variant block">Direct Telephone</span>
                 <span className="font-semibold text-on-surface flex items-center gap-1.5 mt-0.5">
-                  <Phone className="w-4 h-4 text-on-surface-variant" /> {doctor.phone || "+91 98201 54321"}
+                  <Phone className="w-4 h-4 text-on-surface-variant" /> {doctor.phone || "—"}
                 </span>
               </div>
               <div>
@@ -356,7 +375,7 @@ export default function DoctorProfilePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-md text-body-sm">
             <div className="p-md rounded-lg bg-surface-container-low border border-outline-variant">
               <span className="font-label-sm text-label-sm text-on-surface-variant block">State Medical Council Registration</span>
-              <span className="font-semibold text-on-surface text-body-md mt-1 block">{doctor.license_no || "KMC-99214"}</span>
+              <span className="font-semibold text-on-surface text-body-md mt-1 block">{doctor.license_no || "—"}</span>
             </div>
             <div className="p-md rounded-lg bg-surface-container-low border border-outline-variant">
               <span className="font-label-sm text-label-sm text-on-surface-variant block">Board Certification</span>
@@ -388,7 +407,7 @@ export default function DoctorProfilePage() {
                 <span className="font-label-sm text-label-sm font-semibold text-on-surface">Email</span>
               </a>
               <a
-                href={`tel:${doctor.phone}`}
+                href={doctor.phone ? `tel:${doctor.phone}` : "#"}
                 className="p-sm rounded-lg border border-outline-variant bg-surface-container-low hover:bg-surface-container text-center flex flex-col items-center gap-1"
               >
                 <Phone className="w-4 h-4 text-secondary" />

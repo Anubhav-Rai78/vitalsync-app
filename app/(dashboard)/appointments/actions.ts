@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppointmentStatus } from "@/lib/supabase/types";
 import { getUserFacingMessage } from "@/lib/errors";
 import { bookAppointmentSchema, appointmentStatusSchema } from "@/lib/validators";
+import { hasConflictingAppointment } from "@/lib/services/scheduling.service";
 
 export type AppointmentFormState = { error: string | null };
 
@@ -43,6 +44,20 @@ export async function bookAppointmentAction(
   const start = new Date(scheduled_at);
   const end = new Date(start.getTime() + duration_minutes * 60 * 1000);
 
+  // ── Overlap guard ──────────────────────────────────────────────
+  // The scheduling service enforces this for programmatic callers, but
+  // the server action bypassed it entirely — allowing silent double-books.
+  const conflict = await hasConflictingAppointment(
+    supabase,
+    profile.clinic_id,
+    doctor_id,
+    start,
+    end,
+  );
+  if (conflict) {
+    return { error: "This doctor already has an appointment in that time slot." };
+  }
+
   const { data: inserted, error } = await supabase
     .from("appointments")
     .insert({
@@ -61,6 +76,7 @@ export async function bookAppointmentAction(
   if (error) return { error: getUserFacingMessage(error, "Failed to book appointment.") };
 
   revalidatePath("/appointments");
+  revalidatePath("/dashboard", "layout");
   redirect(`/appointments/${inserted.id}`);
 }
 
@@ -96,7 +112,8 @@ export async function updateAppointmentStatusAction(
     // Clear server cache so the calendar, detail view, and dashboard update immediately
     revalidatePath("/appointments");
     revalidatePath(`/appointments/${id}`);
-    revalidatePath("/dashboard");
+    revalidatePath("/dashboard", "layout");
+    revalidatePath("/reports");
 
     return { success: true, newStatus: status };
   } catch (err: unknown) {
@@ -153,5 +170,6 @@ export async function rescheduleAppointmentAction(
 
   revalidatePath(`/appointments/${appointmentId}`);
   revalidatePath("/appointments");
+  revalidatePath("/dashboard", "layout");
   return { error: null };
 }

@@ -53,8 +53,8 @@ export const createPatientSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
   dob: z.string().refine((val) => {
     const date = new Date(val);
-    return !isNaN(date.getTime());
-  }, "Must be a valid date"),
+    return !isNaN(date.getTime()) && date < new Date();
+  }, "Date of birth must be a valid date in the past"),
   phone: optionalString,
   email: optionalString,
   allergies: optionalString,
