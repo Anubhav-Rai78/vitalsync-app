@@ -6,6 +6,7 @@ import { format, subMonths } from "date-fns";
 import { formatDateIST, formatDateTimeIST, getISTMonthStart, getISTMonthEnd } from "@/lib/date";
 import { PDFDocument, serializeCSV, downloadCSV, formatINRAmount } from "@/lib/document-engine";
 import { createClient } from "@/lib/supabase/client";
+import { getDoctorPerformanceScore } from "@/lib/ratings/engine";
 import Link from "next/link";
 
 /** IST-aware month label helper (matches the format used to bucket invoices). */
@@ -37,17 +38,6 @@ const SHOW_SPECIALTY_X_AXIS = false;
 /** Deterministic color lookup — known specialties use their brand color, everything else cycles the fallback palette by sort order. */
 function getSpecialtyColor(specialty: string, index: number): string {
   return SPECIALTY_COLORS[specialty] ?? SPECIALTY_FALLBACK_PALETTE[index % SPECIALTY_FALLBACK_PALETTE.length];
-}
-
-/**
- * Deterministic satisfaction rating (4.6–4.9 / 5.0) based on the doctor's UUID and visit count.
- * Scores are stable between renders — no randomness involved.
- */
-function getDoctorPerformanceMetrics(doctorId: string, visitCount: number) {
-  const hash = doctorId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const score = Number((4.6 + (hash % 4) * 0.1).toFixed(1)); // 4.6, 4.7, 4.8, or 4.9
-  const reviewCount = Math.max(1, Math.round(visitCount * 0.85)); // ~85 % review rate
-  return { score: Math.min(5.0, score), reviewCount };
 }
 
 type PresetType = "monthly_financial" | "patient_demographics" | "staff_productivity" | "insurance_claims";
@@ -304,7 +294,7 @@ export default function AnalyticsReportsPage() {
           supabase.from("invoices").select("total").eq("clinic_id", clinicId).eq("status", "paid").gte("created_at", monthStart).lte("created_at", monthEnd),
           supabase.from("invoices").select("total, created_at").eq("clinic_id", clinicId).eq("status", "paid").gte("created_at", sixMonthsAgo),
           supabase.from("invoices").select("total, created_at").eq("clinic_id", clinicId).eq("status", "paid").gte("created_at", yearAgo),
-          supabase.from("appointments").select("doctor_id, profiles!appointments_doctor_id_fkey(specialty, full_name)").eq("clinic_id", clinicId).neq("status", "cancelled"),
+          supabase.from("appointments").select("id, status, patient_id, doctor_id, profiles!appointments_doctor_id_fkey(specialty, full_name)").eq("clinic_id", clinicId),
         ]);
         if (!active) return;
 
@@ -333,13 +323,25 @@ export default function AnalyticsReportsPage() {
 
         const specialtyCount = new Map<string, number>();
         const doctorScore = new Map<string, { name: string; specialty: string; visits: number }>();
+        const apptsByDoctor = new Map<string, { id: string; patient_id: string; status: string }[]>();
         (specialtyRows ?? []).forEach((row: any) => {
           const specialty = row.profiles?.specialty || "General";
-          specialtyCount.set(specialty, (specialtyCount.get(specialty) ?? 0) + 1);
-          if (row.profiles?.full_name) {
-            const prev = doctorScore.get(row.doctor_id) ?? { name: row.profiles.full_name, specialty, visits: 0 };
-            prev.visits += 1;
-            doctorScore.set(row.doctor_id, prev);
+
+          // All rows feed the per-doctor appointment list (engine needs statuses)
+          if (row.doctor_id) {
+            const list = apptsByDoctor.get(row.doctor_id) ?? [];
+            list.push({ id: row.id, patient_id: row.patient_id, status: row.status });
+            apptsByDoctor.set(row.doctor_id, list);
+          }
+
+          // Specialty chart + visit display: exclude cancelled (preserves prior semantics)
+          if (row.status !== "cancelled") {
+            specialtyCount.set(specialty, (specialtyCount.get(specialty) ?? 0) + 1);
+            if (row.profiles?.full_name) {
+              const prev = doctorScore.get(row.doctor_id) ?? { name: row.profiles.full_name, specialty, visits: 0 };
+              prev.visits += 1;
+              doctorScore.set(row.doctor_id, prev);
+            }
           }
         });
         setSpecialtyVolumeData(
@@ -347,18 +349,25 @@ export default function AnalyticsReportsPage() {
             .sort((a, b) => b[1] - a[1])
             .map(([specialty, visits], index) => ({ specialty, visits, color: getSpecialtyColor(specialty, index) }))
         );
-        setDoctors(
-          Array.from(doctorScore.entries())
-            .map(([id, d]) => ({
+
+        // Resolve performance scores via the rating engine (top 8 by visit count)
+        const topEntries = Array.from(doctorScore.entries())
+          .sort((a, b) => b[1].visits - a[1].visits)
+          .slice(0, 8);
+        const docs = await Promise.all(
+          topEntries.map(async ([id, d]) => {
+            const performance = await getDoctorPerformanceScore(supabase, id, apptsByDoctor.get(id) ?? []);
+            return {
               initials: d.name.replace(/^Dr\.\s*/i, "").split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase() || "DR",
               name: d.name,
               specialty: d.specialty,
               visits: d.visits,
-              ...getDoctorPerformanceMetrics(id, d.visits),
-            }))
-            .sort((a, b) => b.visits - a.visits)
-            .slice(0, 8)
+              score: performance.score,
+              reviewCount: performance.reviewCount,
+            };
+          }),
         );
+        if (active) setDoctors(docs);
       } catch (error) {
         console.error("Unable to load analytics:", error);
       }
@@ -611,7 +620,7 @@ export default function AnalyticsReportsPage() {
       headers.map((h) => {
         const val = String(row[h] ?? "");
         return val.replace(/\u20B9/g, "INR ") // ₹ → INR (Helvetica lacks the glyph)
-                  .replace(/[^\x00-\x7F]/g, "");
+          .replace(/[^\x00-\x7F]/g, "");
       })
     );
 

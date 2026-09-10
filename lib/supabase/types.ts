@@ -514,6 +514,42 @@ export interface Database {
         }
         Relationships: []
       }
+      doctor_reviews: {
+        Row: {
+          id: string
+          clinic_id: string
+          doctor_id: string
+          patient_id: string
+          appointment_id: string | null
+          rating: number
+          feedback: string | null
+          is_verified: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          doctor_id: string
+          patient_id: string
+          appointment_id?: string | null
+          rating: number
+          feedback?: string | null
+          is_verified?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          doctor_id?: string
+          patient_id?: string
+          appointment_id?: string | null
+          rating?: number
+          feedback?: string | null
+          is_verified?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           id: string

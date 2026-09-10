@@ -306,3 +306,15 @@ export const updateTicketStatusSchema = z.object({
 });
 
 export type UpdateTicketStatusPayload = z.infer<typeof updateTicketStatusSchema>;
+
+// ── Doctor Reviews / Ratings ─────────────────────────────────────────────
+
+export const doctorReviewSchema = z.object({
+  doctorId: z.string().uuid("Invalid doctor ID."),
+  patientId: z.string().uuid("Invalid patient ID."),
+  appointmentId: z.string().uuid("Invalid appointment ID.").optional(),
+  rating: z.number().int().min(1, "Rating must be at least 1.").max(5, "Rating must be at most 5."),
+  feedback: z.string().optional(),
+});
+
+export type DoctorReviewPayload = z.infer<typeof doctorReviewSchema>;
