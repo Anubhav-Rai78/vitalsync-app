@@ -4,8 +4,13 @@ import type { Database } from "@/lib/supabase/types";
 
 // Server-side Supabase client for use inside Server Components,
 // Server Actions, and Route Handlers. Reads/writes the session cookie.
-export function createClient() {
-  const cookieStore = cookies();
+//
+// `cookies()` from `next/headers` became async in Next.js 15. `await` on a
+// non-promise value (Next 14's synchronous ReadonlyRequestCookies) simply
+// resolves to the value itself, so this single async form works correctly on
+// both Next 14 and Next 15. Callers use `await createClient()`.
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

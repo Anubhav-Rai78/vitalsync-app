@@ -155,7 +155,7 @@ export default async function InvoiceDetailPage({ params }: { params: { id: stri
   const invoiceId = params.id;
   const isUuid = UUID_PATTERN.test(invoiceId);
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Demo links (/invoices/stitch-1 … stitch-4) are not UUIDs. Querying
   // Postgres with them raises `22P02: invalid input syntax for type uuid`,

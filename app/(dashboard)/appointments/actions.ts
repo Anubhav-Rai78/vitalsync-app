@@ -14,7 +14,7 @@ export async function bookAppointmentAction(
   _prevState: AppointmentFormState,
   formData: FormData
 ): Promise<AppointmentFormState> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -43,6 +43,11 @@ export async function bookAppointmentAction(
 
   const start = new Date(scheduled_at);
   const end = new Date(start.getTime() + duration_minutes * 60 * 1000);
+
+  // ── Past-date guard ────────────────────────────────────────
+  if (start.getTime() < Date.now()) {
+    return { error: "Cannot book an appointment in the past." };
+  }
 
   // ── Overlap guard ──────────────────────────────────────────────
   // The scheduling service enforces this for programmatic callers, but
@@ -93,7 +98,7 @@ export async function updateAppointmentStatusAction(
     }
     const { appointmentId: id, newStatus: status } = parsed.data;
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -130,7 +135,7 @@ export async function rescheduleAppointmentAction(
   startTime: string,
   reason?: string
 ): Promise<AppointmentRescheduleState> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -151,6 +156,42 @@ export async function rescheduleAppointmentAction(
   const duration =
     new Date(appt.end_time).getTime() - new Date(appt.start_time).getTime();
   const end = new Date(start.getTime() + (Number.isFinite(duration) ? duration : 45 * 60000));
+
+  // ── Past-date guard ────────────────────────────────────────
+  if (start.getTime() < Date.now()) {
+    return { error: "Cannot reschedule to a past date/time." };
+  }
+
+  // ── Conflict check ─────────────────────────────────────────
+  // The old code skipped this entirely, allowing silent double-books
+  // when rescheduling to an occupied slot.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("clinic_id")
+    .eq("id", user.id)
+    .single();
+  if (profile) {
+    // Fetch the doctor_id from the existing appointment.
+    const { data: fullAppt } = await supabase
+      .from("appointments")
+      .select("doctor_id")
+      .eq("id", appointmentId)
+      .single();
+
+    if (fullAppt) {
+      const conflict = await hasConflictingAppointment(
+        supabase,
+        profile.clinic_id,
+        fullAppt.doctor_id,
+        start,
+        end,
+        appointmentId, // exclude the appointment being rescheduled
+      );
+      if (conflict) {
+        return { error: "This doctor already has an appointment in that time slot." };
+      }
+    }
+  }
 
   const notes = reason?.trim()
     ? `${reason.trim()}${appt.notes ? `\n${appt.notes}` : ""}`

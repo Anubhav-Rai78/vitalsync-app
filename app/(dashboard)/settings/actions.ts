@@ -10,7 +10,7 @@ import { updateClinicSettingsSchema, scalingModeSchema, staffRoleSchema } from "
 export type SettingsFormState = { error: string | null; success?: boolean };
 
 async function requireAdmin() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -116,15 +116,21 @@ export interface SystemHealthData {
 }
 
 export async function getSystemHealthAction(): Promise<SystemHealthData> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const start = Date.now();
 
   try {
-    const { count: patientCount, error: pingError } = await supabase
+    const { error: pingError } = await supabase
       .from("patients")
       .select("*", { count: "exact", head: true });
 
     const latency = Date.now() - start;
+
+    // Active sessions: count staff profiles in this clinic as a
+    // grounded proxy — replacing the old fabricated formula.
+    const { count: staffCount } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true });
 
     const { data: overdueInvoices } = await supabase
       .from("invoices")
@@ -146,7 +152,7 @@ export async function getSystemHealthAction(): Promise<SystemHealthData> {
       alertMessage: alertMsg,
       apiLatencyMs: latency || 124,
       serverUptime: "99.99%",
-      activeSessions: Math.max(1, (patientCount || 0) * 3 + 12),
+      activeSessions: staffCount ?? 0,
       dbStatus: pingError ? "Critical" : latency > 500 ? "Warning" : "Healthy",
       dbStatusDetail: pingError
         ? "Database connection failed"

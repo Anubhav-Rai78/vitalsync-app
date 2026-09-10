@@ -27,7 +27,7 @@ export async function submitTicketAction(
   _prevState: SubmitTicketState,
   formData: FormData
 ): Promise<SubmitTicketState> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -96,7 +96,22 @@ export async function submitTicketAction(
 // ── Fetch all tickets (admin-only) ─────────────────────────────────────────
 
 export async function fetchTicketsAction() {
-  const supabase = createClient();
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated.");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin") {
+    throw new Error("Only administrators can access the ticket desk.");
+  }
 
   const { data: tickets, error } = await supabase
     .from("support_tickets")
@@ -116,7 +131,7 @@ export async function updateTicketStatusAction(
   ticketId: string,
   status: "open" | "in_progress" | "resolved" | "closed"
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const parsed = updateTicketStatusSchema.safeParse({ ticketId, status });
   if (!parsed.success) {

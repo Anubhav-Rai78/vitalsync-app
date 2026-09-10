@@ -5,7 +5,7 @@ import { WeeklyActivityChart } from "@/components/modules/weekly-activity-chart"
 import { getISTDayStartDaysAgo } from "@/lib/date";
 
 export default async function AnalyticsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // IST-aware: "6 days ago at IST midnight" → correct UTC instant for queries
   const since = getISTDayStartDaysAgo(6);

@@ -6,7 +6,7 @@ export default async function NewPrescriptionPage({
 }: {
   searchParams: { patient?: string; patientId?: string; appointmentId?: string; patientName?: string; renew?: string };
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: patients } = await supabase
     .from("patients")
     .select("id, full_name")

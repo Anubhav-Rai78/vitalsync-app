@@ -23,7 +23,7 @@ export async function updatePasswordAction(
   }
 
   const { password } = parsed.data;
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Ensure the user is actually signed in (recovery session).
   const {

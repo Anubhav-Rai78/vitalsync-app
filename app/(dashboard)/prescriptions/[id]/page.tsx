@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 
 export default async function PrescriptionDetailPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: prescription } = await supabase
     .from("prescriptions")
     .select("*, patients(full_name, dob, allergies), profiles!prescriptions_doctor_id_fkey(full_name, license_no)")

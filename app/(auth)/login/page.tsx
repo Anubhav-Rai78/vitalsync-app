@@ -45,6 +45,13 @@ export default function LoginPage() {
         )}
 
         <form className="space-y-4" action={formAction}>
+          {searchParams.get("redirectTo") && (
+            <input
+              type="hidden"
+              name="redirectTo"
+              value={searchParams.get("redirectTo")!}
+            />
+          )}
           <div>
             <Label htmlFor="email">Work Email</Label>
             <div className="relative mt-1">

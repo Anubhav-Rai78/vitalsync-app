@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { getUserFacingMessage } from "@/lib/errors";
 import {
   createPatientSchema,
@@ -17,7 +17,7 @@ export async function createPatientAction(
   _prevState: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -100,7 +100,7 @@ export async function addQuickMedicationAction(
   }
   const { patientId: pId, drugName, dosage, frequency, duration, instructions } = parsed.data;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -113,11 +113,9 @@ export async function addQuickMedicationAction(
     .single();
   if (!profile) return { error: "Could not resolve your clinic." };
 
-  // Use admin client to bypass RLS — admins create prescriptions on behalf of doctors.
-  const admin = createAdminClient();
-
-  // Create a draft prescription for this patient
-  const { data: rx, error: rxErr } = await admin
+  // Use the authenticated user's session client — RLS policies allow
+  // doctors and admins to insert prescriptions within their clinic.
+  const { data: rx, error: rxErr } = await supabase
     .from("prescriptions")
     .insert({
       clinic_id: profile.clinic_id,
@@ -132,7 +130,7 @@ export async function addQuickMedicationAction(
   if (rxErr || !rx) return { error: getUserFacingMessage(rxErr, "Failed to create prescription.") };
 
   // Insert the prescription item
-  const { error: itemErr } = await admin.from("prescription_items").insert({
+  const { error: itemErr } = await supabase.from("prescription_items").insert({
     prescription_id: rx.id,
     drug_name: drugName,
     dosage: dosage || null,
@@ -163,7 +161,7 @@ export async function savePatientNoteAction(
   }
   const { patientId: pId, note: trimmedNote } = parsed.data;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -194,7 +192,7 @@ export async function savePatientNoteAction(
 export type VitalsFormState = { error: string | null };
 
 export async function recordVitalsAction(patientId: string, formData: FormData): Promise<VitalsFormState> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

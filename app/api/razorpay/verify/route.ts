@@ -30,8 +30,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Signature verification failed" }, { status: 400 });
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
+  // ── Auth gate ──────────────────────────────────────────────
+  // Without this, anyone who obtains a Razorpay order id could
+  // forge a verify callback and mark arbitrary invoices as paid.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // ── Clinic ownership check ─────────────────────────────────
+  // Ensure the authenticated user's clinic actually owns this invoice.
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("id, clinic_id")
+    .eq("id", invoiceId)
+    .single();
+
+  if (!invoice) {
+    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("clinic_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.clinic_id !== invoice.clinic_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // ── Verify and persist ─────────────────────────────────────
+  // Only update the payment row that belongs to this invoice,
+  // preventing cross-invoice tampering.
   await supabase
     .from("payments")
     .update({
@@ -39,7 +74,8 @@ export async function POST(request: Request) {
       status: "captured",
       paid_at: new Date().toISOString(),
     })
-    .eq("razorpay_order_id", razorpay_order_id);
+    .eq("razorpay_order_id", razorpay_order_id)
+    .eq("invoice_id", invoiceId);
 
   await supabase.from("invoices").update({ status: "paid" }).eq("id", invoiceId);
 

@@ -21,12 +21,19 @@ export async function loginAction(
   }
 
   const { email, password } = parsed.data;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return { error: getUserFacingMessage(error, "Sign in failed. Please try again.") };
   }
 
-  redirect("/dashboard");
+  // Validate redirectTo: must start with "/" and not be "//" (protocol-relative).
+  const redirectTo = String(formData.get("redirectTo") || "");
+  const safeTarget =
+    redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+      ? redirectTo
+      : "/dashboard";
+
+  redirect(safeTarget);
 }

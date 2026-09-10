@@ -14,7 +14,7 @@ export type CreateDoctorFormState = { error: string | null };
 // Returns null when the caller is authenticated but not an admin; the callers
 // that require admin privilege interpret that as a "forbidden" outcome.
 async function requireAdmin() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -139,7 +139,7 @@ export async function updateAvailabilityAction(
   doctorId: string,
   formData: FormData
 ): Promise<AvailabilityFormState> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

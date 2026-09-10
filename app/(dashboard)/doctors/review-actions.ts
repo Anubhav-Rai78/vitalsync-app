@@ -23,7 +23,7 @@ export async function submitDoctorReviewAction(
   _prevState: ReviewFormState,
   formData: FormData,
 ): Promise<ReviewFormState> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

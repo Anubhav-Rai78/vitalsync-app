@@ -6,7 +6,7 @@ export default async function NewAppointmentPage({
 }: {
   searchParams: { patient?: string; date?: string };
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const [{ data: patients }, { data: doctors }] = await Promise.all([
     supabase.from("patients").select("id, full_name").order("full_name"),
     supabase.from("profiles").select("id, full_name, specialty").eq("role", "doctor").order("full_name"),

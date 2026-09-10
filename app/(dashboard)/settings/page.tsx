@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ClinicSettingsForm } from "@/components/modules/clinic-settings-form";
 
 export default async function SettingsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

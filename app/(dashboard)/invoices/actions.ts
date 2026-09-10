@@ -14,7 +14,7 @@ export async function createInvoiceAction(
   _prevState: InvoiceFormState,
   formData: FormData
 ): Promise<InvoiceFormState> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -93,7 +93,7 @@ export async function markInvoicePaidAction(
   invoiceId: string,
   amount: number
 ): Promise<{ error: string | null }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

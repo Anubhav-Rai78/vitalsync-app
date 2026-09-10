@@ -123,8 +123,16 @@ export function getISTDayStart(date: Date = new Date()): Date {
 export function getISTDayEnd(date: Date = new Date()): Date {
   const { y, m, d } = toISTParts(date);
   // The next day's IST midnight, minus one millisecond.
+  // Use proper calendar math instead of `d + 1` which overflows on the
+  // last day of the month (e.g. Jan 31 → "32" → invalid date string).
+  const nextDay = new Date(
+    `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}T12:00:00+05:30`,
+  );
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+  // Format the resulting date back to IST parts for the midnight string.
+  const np = toISTParts(nextDay);
   const nextDayStart = new Date(
-    `${y}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}T00:00:00+05:30`,
+    `${np.y}-${String(np.m).padStart(2, "0")}-${String(np.d).padStart(2, "0")}T00:00:00+05:30`,
   );
   return new Date(nextDayStart.getTime() - 1);
 }

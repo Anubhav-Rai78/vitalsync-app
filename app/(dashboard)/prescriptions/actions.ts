@@ -59,7 +59,7 @@ export async function createPrescriptionAction(
       return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

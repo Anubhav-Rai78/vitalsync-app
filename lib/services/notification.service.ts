@@ -66,10 +66,19 @@ export async function markSingleNotificationRead(
 export async function markAllClinicNotificationsRead(
   supabase: SupabaseClient
 ): Promise<void> {
+  // Scope the update to the current user's profile_id so we never
+  // accidentally mark another staff member's notifications as read.
+  // RLS should also enforce this, but explicit filtering is defence-in-depth.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
   const { error } = await supabase
     .from("notifications")
     .update({ is_read: true })
-    .eq("is_read", false);
+    .eq("is_read", false)
+    .eq("profile_id", user.id);
 
   if (error) {
     throw toDatabaseError(error, "Failed to update notifications.")!;

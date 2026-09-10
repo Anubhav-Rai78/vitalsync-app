@@ -73,7 +73,7 @@ export async function apiClient<T>(
         const redirectTo = encodeURIComponent(
           window.location.pathname + window.location.search
         );
-        window.location.assign(`/login?redirect=${redirectTo}`);
+        window.location.assign(`/login?redirectTo=${redirectTo}`);
       }
       throw new ApiError(401, "Unauthorized", null);
     }

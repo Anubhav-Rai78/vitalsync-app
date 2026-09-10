@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useTransition } from "react";
+import React, { useState, useEffect, useRef, useMemo, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MedFlowLogo } from "@/components/ui/medflow-logo";
@@ -92,7 +92,7 @@ export function DashboardShell({
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function loadUser() {
