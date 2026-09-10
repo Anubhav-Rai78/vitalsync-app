@@ -34,6 +34,8 @@ export default function DoctorProfilePage() {
     phone: string | null;
     license_no: string | null;
     is_active: boolean | null;
+    email: string | null;
+    room: string | null;
     created_at: string;
   };
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
@@ -68,7 +70,7 @@ export default function DoctorProfilePage() {
       try {
         const { data: doc } = await supabase
           .from("profiles")
-          .select("id, full_name, specialty, phone, license_no, is_active, created_at")
+          .select("id, full_name, specialty, phone, license_no, is_active, email, room, created_at")
           .eq("id", doctorId)
           .single();
 
@@ -176,8 +178,8 @@ export default function DoctorProfilePage() {
         .toUpperCase()
     : "DR";
 
-  // Use the doctor's actual email from profiles if available; don't fabricate one
-  const doctorEmail = "";
+  // Surface the doctor's email from profiles; fall back to empty string
+  const doctorEmail = doctor.email || "";
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "summary", label: "Summary" },
@@ -284,7 +286,7 @@ export default function DoctorProfilePage() {
               <div>
                 <span className="text-label-sm text-on-surface-variant block">Consultation Room</span>
                 <span className="font-semibold text-on-surface flex items-center gap-1.5 mt-0.5">
-                  <DoorOpen className="w-4 h-4 text-primary" /> Room 204
+                  <DoorOpen className="w-4 h-4 text-primary" /> {doctor.room || "Not assigned"}
                 </span>
               </div>
               <div>

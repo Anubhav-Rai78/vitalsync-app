@@ -10,7 +10,7 @@ interface MedFlowLogoProps {
 export function MedFlowLogo({
   className = "",
   showSubtitle = false,
-  subtitle = "VitalSync",
+  subtitle = "MedFlow",
   size = "md",
 }: MedFlowLogoProps) {
   const iconSizes = {

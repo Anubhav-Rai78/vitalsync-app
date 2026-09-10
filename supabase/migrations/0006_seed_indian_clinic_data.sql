@@ -2,7 +2,7 @@
 -- 0006_seed_indian_clinic_data.sql
 -- Seed comprehensive live data for MedFlow Clinic (Indian Healthcare Context)
 --
--- Adapted to the actual VitalSync schema:
+-- Adapted to the actual MedFlow schema:
 --   * clinics has NO `email` column            -> email omitted
 --   * invoices.status allows ('draft','sent','paid','overdue','void')
 --       -> provided 'pending' becomes 'sent' (the UI maps 'sent' -> "Pending")
@@ -82,12 +82,12 @@ BEGIN
   END IF;
 
   -- 3. Insert Doctors (Profiles) — enrich the trigger-created rows if present.
-  INSERT INTO public.profiles (id, clinic_id, full_name, role, specialty, phone, license_no, is_active)
+  INSERT INTO public.profiles (id, clinic_id, full_name, role, specialty, phone, license_no, is_active, email, room)
   VALUES
-    (v_doc_cardio, v_clinic_id, 'Dr. Rajesh Sharma',      'doctor'::user_role, 'Cardiology',       '+91 98450 12345', 'KMC-48291',  true),
-    (v_doc_peds,   v_clinic_id, 'Dr. Ananya Deshmukh',    'doctor'::user_role, 'Pediatrics',       '+91 98201 54321', 'MMC-77392',  true),
-    (v_doc_gen,    v_clinic_id, 'Dr. Vikramaditya Verma', 'doctor'::user_role, 'General Medicine', '+91 97110 98765', 'DMC-11029',  true),
-    (v_doc_neuro,  v_clinic_id, 'Dr. Meera Nambiar',      'doctor'::user_role, 'Neurology',        '+91 94470 67890', 'TCMC-88214', true)
+    (v_doc_cardio, v_clinic_id, 'Dr. Rajesh Sharma',      'doctor'::user_role, 'Cardiology',       '+91 98450 12345', 'KMC-48291',  true, 'dr.rajesh.sharma@medflow.in',      'Room 301'),
+    (v_doc_peds,   v_clinic_id, 'Dr. Ananya Deshmukh',    'doctor'::user_role, 'Pediatrics',       '+91 98201 54321', 'MMC-77392',  true, 'dr.ananya.deshmukh@medflow.in',    'Room 205'),
+    (v_doc_gen,    v_clinic_id, 'Dr. Vikramaditya Verma', 'doctor'::user_role, 'General Medicine', '+91 97110 98765', 'DMC-11029',  true, 'dr.vikramaditya.verma@medflow.in', 'Room 102'),
+    (v_doc_neuro,  v_clinic_id, 'Dr. Meera Nambiar',      'doctor'::user_role, 'Neurology',        '+91 94470 67890', 'TCMC-88214', true, 'dr.meera.nambiar@medflow.in',      'Room 304')
   ON CONFLICT (id) DO UPDATE SET
     clinic_id = EXCLUDED.clinic_id,
     full_name = EXCLUDED.full_name,
@@ -95,7 +95,9 @@ BEGIN
     specialty = EXCLUDED.specialty,
     phone = EXCLUDED.phone,
     license_no = EXCLUDED.license_no,
-    is_active = EXCLUDED.is_active;
+    is_active = EXCLUDED.is_active,
+    email = EXCLUDED.email,
+    room = EXCLUDED.room;
 
   -- 4. Insert Doctor Weekly Availability (all 4 doctors, 7 days each)
   INSERT INTO public.doctor_availability (clinic_id, doctor_id, day_of_week, start_time, end_time, is_available)

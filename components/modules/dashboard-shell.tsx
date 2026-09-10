@@ -545,7 +545,7 @@ export function DashboardShell({
 
                   {/* Version & Status Footer */}
                   <div className="pt-3 flex items-center justify-between">
-                    <span className="text-[10px] font-medium text-outline">VitalSync v1.4.2-prod</span>
+                    <span className="text-[10px] font-medium text-outline">MedFlow v1.4.2-prod</span>
                     <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
                       <CircleCheck className="w-3 h-3" /> All Systems Normal
                     </span>

@@ -1,6 +1,6 @@
 // ─── Application Error Taxonomy ──────────────────────────────────────────────
 // Typed error classes with HTTP status codes for consistent server-action
-// and API-route error handling across the VitalSync codebase.
+// and API-route error handling across the MedFlow codebase.
 //
 // Usage:
 //   throw new ConflictError("This appointment slot is already booked.");

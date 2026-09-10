@@ -490,7 +490,7 @@ function ScalingModeSection({
       value: "free",
       title: "Stay on free tier",
       description:
-        "When usage nears a free-tier limit, VitalSync degrades gracefully (smaller image uploads, longer cache times, throttled non-urgent notifications) instead of breaking.",
+        "When usage nears a free-tier limit, MedFlow degrades gracefully (smaller image uploads, longer cache times, throttled non-urgent notifications) instead of breaking.",
     },
     {
       value: "notify",
@@ -502,7 +502,7 @@ function ScalingModeSection({
       value: "auto",
       title: "Auto-upgrade where supported",
       description:
-        "Same as Notify, but if you've already saved a payment method with a vendor and that vendor's API supports it, VitalSync will attempt the upgrade automatically. Vendors without a self-serve upgrade API fall back to Notify behavior — this is a real limitation of what those platforms expose, not a VitalSync gap.",
+        "Same as Notify, but if you've already saved a payment method with a vendor and that vendor's API supports it, MedFlow will attempt the upgrade automatically. Vendors without a self-serve upgrade API fall back to Notify behavior — this is a real limitation of what those platforms expose, not a MedFlow gap.",
     },
   ];
 

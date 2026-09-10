@@ -73,9 +73,9 @@ Deno.serve(async () => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                from: `VitalSync Alerts <${fromEmail}>`,
+                from: `MedFlow Alerts <${fromEmail}>`,
                 to: email,
-                subject: "Action Required: VitalSync Nearing Database Limit",
+                subject: "Action Required: MedFlow Nearing Database Limit",
                 html: `<p>Hello,</p>
                        <p>${bodyText}</p>
                        <p><a href="${Deno.env.get("NEXT_PUBLIC_SITE_URL") || "http://localhost:3000"}/settings">Go to Settings</a></p>`,

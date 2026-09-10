@@ -23,7 +23,7 @@ begin
   if default_clinic_id is null then
     insert into public.clinics (name, timezone, scaling_mode, subscription_tier)
     values (
-      coalesce(new.raw_user_meta_data->>'clinic_name', 'VitalSync Clinic'),
+      coalesce(new.raw_user_meta_data->>'clinic_name', 'MedFlow Clinic'),
       'Asia/Kolkata',
       'notify',
       'free'

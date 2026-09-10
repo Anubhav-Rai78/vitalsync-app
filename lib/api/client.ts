@@ -184,8 +184,8 @@ export function registerChunkLoadRecovery(): void {
       const currentUrl = window.location.href;
       // Guard against an infinite reload loop if the chunk genuinely cannot
       // be fetched (e.g. hard offline).
-      if (safeGetStorage("vitalsync:chunk-reload") !== currentUrl) {
-        safeSetStorage("vitalsync:chunk-reload", currentUrl);
+      if (safeGetStorage("medflow:chunk-reload") !== currentUrl) {
+        safeSetStorage("medflow:chunk-reload", currentUrl);
         window.location.reload();
       }
     }

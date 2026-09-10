@@ -1,4 +1,4 @@
-# VitalSync
+# MedFlow
 
 > A modern, enterprise-grade clinic management platform built with Next.js 14 App Router, Supabase, and Razorpay.
 
@@ -8,9 +8,9 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4+-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-🌐 **[Live Demo](https://vitalsync-app-delta.vercel.app)** · [Login →](https://vitalsync-app-delta.vercel.app/login)
+🌐 **[Live Demo](https://medflow-app-delta.vercel.app)** · [Login →](https://medflow-app-delta.vercel.app/login)
 
-VitalSync streamlines end-to-end clinical workflows—from patient intake, appointment scheduling, and electronic prescription generation to invoice management and compliant audit logging. Engineered with zero-trust architecture, edge delivery, and type-safe data pipelines.
+MedFlow streamlines end-to-end clinical workflows—from patient intake, appointment scheduling, and electronic prescription generation to invoice management and compliant audit logging. Engineered with zero-trust architecture, edge delivery, and type-safe data pipelines.
 
 ---
 
@@ -143,8 +143,8 @@ RAZORPAY_WEBHOOK_SECRET=yourWebhookSecret
 **1. Clone the repository:**
 
 ```bash
-git clone https://github.com/Anubhav-Rai78/vitalsync-app.git
-cd vitalsync-app
+git clone https://github.com/Anubhav-Rai78/medflow-app.git
+cd medflow-app
 ```
 
 **2. Install project dependencies:**
@@ -203,7 +203,7 @@ supabase functions schedule usage-monitor --cron "0 3 * * *"
 
 ## Payment Integration (Razorpay)
 
-VitalSync uses standard server-side order negotiation:
+MedFlow uses standard server-side order negotiation:
 
 1. **Order Creation:** Client requests an order via Server Action; server creates an order on Razorpay with an idempotent UUID.
 2. **Checkout Modal:** The client opens the Razorpay modal using the returned `order_id`.
@@ -211,7 +211,7 @@ VitalSync uses standard server-side order negotiation:
 4. **Webhook Fallback:** Configure webhook events for `payment.captured` and `payment.failed` in the Razorpay Dashboard targeting:
 
 ```
-https://vitalsync-app-delta.vercel.app/api/webhooks/razorpay
+https://medflow-app-delta.vercel.app/api/webhooks/razorpay
 ```
 
 ---
@@ -242,7 +242,7 @@ npm run build
 3. Configure the environment variables defined in `.env.example`.
 4. Deploy. Subsequent pushes to `main` will trigger automated production preview builds.
 
-**Production URL:** [https://vitalsync-app-delta.vercel.app](https://vitalsync-app-delta.vercel.app)
+**Production URL:** [https://medflow-app-delta.vercel.app](https://medflow-app-delta.vercel.app)
 
 ---
 

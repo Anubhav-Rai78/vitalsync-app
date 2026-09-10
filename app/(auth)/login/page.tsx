@@ -24,7 +24,7 @@ export default function LoginPage() {
         <div className="mb-6 flex flex-col items-center text-center">
           <MedFlowLogo size="lg" />
           <h1 className="text-lg font-bold text-on-surface mt-5">
-            Sign in to VitalSync
+            Sign in to MedFlow
           </h1>
           <p className="text-xs text-on-surface-variant mt-1">
             Clinical precision workspace and portal
@@ -53,7 +53,7 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="name@vitalsync.clinic"
+                placeholder="name@medflow.clinic"
                 className="pl-9"
                 required
               />

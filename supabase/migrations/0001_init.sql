@@ -1,4 +1,4 @@
--- VitalSync — initial schema
+-- MedFlow — initial schema
 -- Single-tenant today, multi-tenant-ready: every clinical table carries
 -- clinic_id and every RLS policy scopes on it.[cite: 11]
 
@@ -48,7 +48,7 @@ begin
   -- If no clinic exists yet, auto-create the initial clinic for the user[cite: 11]
   if default_clinic_id is null then
     insert into public.clinics (name)
-    values (coalesce(new.raw_user_meta_data->>'clinic_name', 'VitalSync Clinic'))
+    values (coalesce(new.raw_user_meta_data->>'clinic_name', 'MedFlow Clinic'))
     returning id into default_clinic_id;
   end if;
 

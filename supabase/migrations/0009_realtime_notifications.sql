@@ -1,4 +1,4 @@
--- VitalSync — real-time, live notification engine
+-- MedFlow — real-time, live notification engine
 -- Extends the existing public.notifications table (per-user recipient via
 -- profile_id, so each staff member tracks their own read state) with the
 -- columns the UI/popover needs, adds a realtime publication, and adds DB

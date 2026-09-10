@@ -1,5 +1,5 @@
 // ─── Service Layer Barrel ────────────────────────────────────────────────────
-// Central export point for the VitalSync service layer.
+// Central export point for the MedFlow service layer.
 // ──────────────────────────────────────────────────────────────────────────────
 
 export * from "./types";

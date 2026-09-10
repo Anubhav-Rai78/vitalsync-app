@@ -1,4 +1,4 @@
--- VitalSync — batch 3: FK cascades + ticket clinic isolation
+-- MedFlow — batch 3: FK cascades + ticket clinic isolation
 -- 1. Add ON DELETE CASCADE to FKs referencing profiles(id) that were missing it.
 -- 2. Add clinic_id to support_tickets for proper tenant isolation.
 

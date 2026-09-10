@@ -1,4 +1,4 @@
--- VitalSync — support ticket system (incident desk)
+-- MedFlow — support ticket system (incident desk)
 -- Provides a structured way for clinic staff to report issues and for
 -- admins to triage them from a dedicated /settings/tickets desk.
 

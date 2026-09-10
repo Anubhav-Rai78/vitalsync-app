@@ -1,4 +1,4 @@
--- VitalSync — Migration 0013: Doctor Reviews & Ratings
+-- MedFlow — Migration 0013: Doctor Reviews & Ratings
 -- Provides the backend for a real patient review & rating system.
 -- When FEATURE_FLAGS.USE_REAL_RATINGS is enabled, the UI surfaces live
 -- patient ratings from this table instead of the operational dynamic score.

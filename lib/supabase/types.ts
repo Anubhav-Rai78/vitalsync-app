@@ -60,6 +60,8 @@ export interface Database {
           specialty: string | null
           license_no: string | null
           is_active: boolean
+          email: string | null
+          room: string | null
           created_at: string
         }
         Insert: {
@@ -72,6 +74,8 @@ export interface Database {
           specialty?: string | null
           license_no?: string | null
           is_active?: boolean
+          email?: string | null
+          room?: string | null
           created_at?: string
         }
         Update: {
@@ -84,6 +88,8 @@ export interface Database {
           specialty?: string | null
           license_no?: string | null
           is_active?: boolean
+          email?: string | null
+          room?: string | null
           created_at?: string
         }
         Relationships: []

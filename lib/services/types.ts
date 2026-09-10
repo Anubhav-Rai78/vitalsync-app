@@ -1,5 +1,5 @@
 // ─── Shared Service Types ────────────────────────────────────────────────────
-// Common types returned by the VitalSync service layer. These are deliberately
+// Common types returned by the MedFlow service layer. These are deliberately
 // framework-agnostic so services can be consumed from both Server Actions and
 // client-side components without importing React or Supabase types.
 // ──────────────────────────────────────────────────────────────────────────────

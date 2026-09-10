@@ -1,4 +1,4 @@
--- VitalSync — vitals & doctor availability
+-- MedFlow — vitals & doctor availability
 -- Follows the same conventions as 0001_init.sql: every clinical table
 -- carries clinic_id and RLS scopes on public.current_clinic_id().
 

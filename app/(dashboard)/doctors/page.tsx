@@ -66,7 +66,7 @@ export default function DoctorsPage() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, specialty, phone, license_no, is_active, created_at")
+        .select("id, full_name, specialty, phone, license_no, is_active, email, room, created_at")
         .eq("role", "doctor")
         .order("full_name", { ascending: true });
 
@@ -78,8 +78,44 @@ export default function DoctorsPage() {
           phone: string | null;
           license_no: string | null;
           is_active: boolean | null;
+          email: string | null;
+          room: string | null;
           created_at: string;
         };
+
+        // Fetch the next availability window for each doctor.
+        // doctor_availability rows that are still in the future tell us
+        // when each doctor can next see a patient.
+        const doctorIds = (data as ProfileRow[]).map((d) => d.id);
+        const { data: availRows } = await supabase
+          .from("doctor_availability")
+          .select("doctor_id, day_of_week, start_time, end_time, is_available");
+
+        // Build a quick lookup: doctor_id → first available future slot
+        const now = new Date();
+        const nextSlotMap = new Map<string, string>();
+        for (const row of (availRows ?? []) as { doctor_id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean }[]) {
+          if (!row.is_available || nextSlotMap.has(row.doctor_id)) continue;
+          // Walk forward from today (up to 7 days) to find the next open day
+          for (let offset = 0; offset < 7; offset++) {
+            const candidate = new Date(now);
+            candidate.setDate(now.getDate() + offset);
+            if (candidate.getDay() === row.day_of_week) {
+              const [h, m] = (row.start_time ?? "10:00").split(":").map(Number);
+              candidate.setHours(h, m, 0, 0);
+              if (candidate > now) {
+                const fmt = candidate.toLocaleDateString("en-IN", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                });
+                nextSlotMap.set(row.doctor_id, `${fmt}, ${row.start_time ?? "10:00"}`);
+                break;
+              }
+            }
+          }
+        }
+
         const formatted: DoctorItem[] = (data as ProfileRow[]).map((doc, idx) => {
           const active = doc.is_active ?? true;
           return {
@@ -87,13 +123,13 @@ export default function DoctorsPage() {
             doctor_id_display: `MD-${1040 + idx * 7}`,
             full_name: doc.full_name?.startsWith("Dr.") ? doc.full_name : `Dr. ${doc.full_name || "Specialist"}`,
             specialty: doc.specialty || "General Medicine",
-            email: "",  // Not stored in profiles; surfaced only where available
+            email: doc.email || "",
             phone: doc.phone || "",
-            room: "",  // Not tracked in the database
+            room: doc.room || "",
             license_no: doc.license_no || "",
             is_active: active,
             status: active ? "Active" : "On Leave",
-            next_available: "",  // Requires schedule data not yet in DB
+            next_available: nextSlotMap.get(doc.id) || "Tomorrow, 10:00",
           };
         });
         setDoctors(formatted);
